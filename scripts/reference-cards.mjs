@@ -1,0 +1,137 @@
+// The permission card against the reference's own card gallery (localhost:5199/question-cards-preview.html?state=approval).
+// Both are 1280x800 in the Daylight skin with the same bot name and command; boxes and pixels are compared.
+//   Needs the reference app and `pnpm dev`.
+import { createRequire } from "node:module";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const req = createRequire(join(root, "web", "package.json"));
+const { chromium } = req("playwright-core");
+const { PNG } = req("pngjs");
+const pixelmatch = req("pixelmatch").default ?? req("pixelmatch");
+if (existsSync(join(root, ".env"))) process.loadEnvFile(join(root, ".env"));
+const REF = process.env.REFERENCE_URL || "http://localhost:5199";
+const API = `http://127.0.0.1:${process.env.SERVER_PORT || 8899}`;
+const WEB = `http://127.0.0.1:${process.env.WEB_PORT || 5299}`;
+const BOX_PX = 4, SHARE = 0.08;
+const OUT = join(root, "web", "e2e", "actual");
+mkdirSync(OUT, { recursive: true });
+const j = async (m, p, b) => (await fetch(API + p, { method: m, headers: { "content-type": "application/json" }, body: b ? JSON.stringify(b) : undefined })).json();
+const COMMAND = 'git push origin fix/pricing-page-footer && gh pr create --base main --title "Fix: pricing page footer"';
+
+const edge = ["C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Google/Chrome/Application/chrome.exe"].find(existsSync);
+const browser = await chromium.launch({ headless: true, ...(edge ? { executablePath: edge } : {}) });
+const mk = async () => (await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })).newPage();
+const failures = [];
+
+const ref = await mk();
+await ref.goto(`${REF}/question-cards-preview.html?state=approval&skin=daylight`);
+await ref.getByText("Ledger wants to run a command", { exact: true }).waitFor({ timeout: 15000 });
+await ref.waitForTimeout(800);
+
+for (const b of (await j("GET", "/api/bots")).bots) if (b.name === "Ledger") await j("DELETE", `/api/bots/${b.id}`);
+const bot = await j("POST", "/api/bots", { name: "Ledger", color: "teal", modelSelection: { instanceId: "echo", model: "echo-1" }, approvalMode: "ask" });
+await j("PUT", "/api/config", { skin: "daylight" });
+const ours = await mk();
+await ours.goto(WEB);
+await ours.locator("nav[aria-label=Bots] [role=button][title=Ledger]").click();
+const box = ours.getByLabel("Message Ledger");
+await box.fill(`/approve ${COMMAND}`);
+await box.press("Enter");
+await ours.getByTestId("approval-card").waitFor();
+await ours.waitForTimeout(800);
+
+// the reference card is the first ancestor of its header that is as wide as the composer and has rounded corners
+const refCard = await ref.getByText("Ledger wants to run a command", { exact: true }).evaluate((el) => {
+  let n = el;
+  while (n && !(n.getBoundingClientRect().width > 900 && parseFloat(getComputedStyle(n).borderTopLeftRadius) >= 12)) n = n.parentElement;
+  const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
+});
+const ourCard = await ours.getByTestId("approval-card").boundingBox();
+const btn = async (p, name) => (await p.getByRole("button", { name, exact: true }).first().boundingBox());
+// the reference gallery has no sidebar, so positions are taken relative to the composer box below the card
+// the composer pill: the first ancestor of the input that is as wide as the card
+const input = (p) => p.getByPlaceholder("Answer the approval above to continue").evaluate((el) => {
+  let n = el;
+  while (n && n.getBoundingClientRect().width < 900) n = n.parentElement;
+  const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
+});
+const [ri, oi] = [await input(ref), await input(ours)];
+const rows = {
+  "card x (to composer)": [refCard.x - ri.x, ourCard.x - oi.x], "card width": [refCard.width, ourCard.width],
+  "card height": [refCard.height, ourCard.height], "card y (to composer)": [refCard.y - ri.y, ourCard.y - oi.y],
+};
+for (const [label, name] of [["Deny", "Deny"], ["Allow once", "Allow once"]]) {
+  const [a, b] = [await btn(ref, name), await btn(ours, name)];
+  rows[`${label} width`] = [a.width, b.width]; rows[`${label} height`] = [a.height, b.height]; rows[`${label} y (to composer)`] = [a.y - ri.y, b.y - oi.y];
+}
+for (const [k, [a, b]] of Object.entries(rows)) {
+  const d = Math.abs(a - b), ok = d <= BOX_PX;
+  console.log(`  ${ok ? "ok  " : "FAIL"} ${k.padEnd(18)} reference ${a.toFixed(1).padStart(7)}  ours ${b.toFixed(1).padStart(7)}`);
+  if (!ok) failures.push(`${k}: ${b.toFixed(1)} vs ${a.toFixed(1)}`);
+}
+// pixels: the card header and command box (the button row also holds our extra "Always allow")
+const clip = { x: Math.round(refCard.x), y: Math.round(refCard.y), width: Math.round(refCard.width), height: 74 };
+const a = PNG.sync.read(await ref.screenshot({ clip })), b = PNG.sync.read(await ours.screenshot({ clip: { ...clip, x: Math.round(ourCard.x), y: Math.round(ourCard.y) } }));
+const diff = new PNG({ width: clip.width, height: clip.height });
+const n = pixelmatch(a.data, b.data, diff.data, clip.width, clip.height, { threshold: 0.2 });
+const share = n / (clip.width * clip.height);
+writeFileSync(join(OUT, "card-reference.png"), PNG.sync.write(a)); writeFileSync(join(OUT, "card-ours.png"), PNG.sync.write(b)); writeFileSync(join(OUT, "card-diff.png"), PNG.sync.write(diff));
+console.log(`  ${share <= SHARE ? "ok  " : "FAIL"} header + command pixels: ${(share * 100).toFixed(2)}% differ (limit ${SHARE * 100}%)`);
+if (share > SHARE) failures.push(`card pixels ${(share * 100).toFixed(2)}%`);
+// ---- the question card, from the reference gallery's state=question ----
+const refQ = await mk();
+await refQ.goto(`${REF}/question-cards-preview.html?state=question&skin=daylight`);
+await refQ.getByText("Ledger asks", { exact: true }).waitFor({ timeout: 15000 });
+await refQ.waitForTimeout(800);
+const refQCard = await refQ.getByText("Ledger asks", { exact: true }).evaluate((el) => {
+  let n = el;
+  while (n && !(n.getBoundingClientRect().width > 500 && parseFloat(getComputedStyle(n).borderTopLeftRadius) >= 12)) n = n.parentElement;
+  const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
+});
+await j("DELETE", `/api/bots/${bot.id}`);
+const bot2 = await j("POST", "/api/bots", { name: "Ledger", color: "teal", modelSelection: { instanceId: "echo", model: "echo-1" }, approvalMode: "ask" });
+const oursQ = await mk();
+await oursQ.goto(WEB);
+await oursQ.locator("nav[aria-label=Bots] [role=button][title=Ledger]").click();
+const qbox = oursQ.getByLabel("Message Ledger");
+await qbox.fill("/ask Should I apply the fix to the pricing page? | Yes, only the footer text | Yes, the welcome text too | No");
+await qbox.press("Enter");
+await oursQ.getByTestId("ask-card").waitFor();
+await oursQ.waitForTimeout(800);
+const ourQCard = await oursQ.getByTestId("ask-card").boundingBox();
+const qclip = { x: Math.round(refQCard.x), y: Math.round(refQCard.y), width: Math.round(refQCard.width), height: Math.round(refQCard.height) };
+const qa = PNG.sync.read(await refQ.screenshot({ clip: qclip })), qb = PNG.sync.read(await oursQ.screenshot({ clip: { ...qclip, x: Math.round(ourQCard.x), y: Math.round(ourQCard.y) } }));
+const qdiff = new PNG({ width: qclip.width, height: qclip.height });
+const qn = pixelmatch(qa.data, qb.data, qdiff.data, qclip.width, qclip.height, { threshold: 0.2 });
+const qshare = qn / (qclip.width * qclip.height);
+writeFileSync(join(OUT, "question-reference.png"), PNG.sync.write(qa)); writeFileSync(join(OUT, "question-ours.png"), PNG.sync.write(qb)); writeFileSync(join(OUT, "question-diff.png"), PNG.sync.write(qdiff));
+console.log(`  ${qshare <= 0.1 ? "ok  " : "FAIL"} question card pixels: ${(qshare * 100).toFixed(2)}% differ (limit 10%)`);
+if (qshare > 0.1) failures.push(`question card pixels ${(qshare * 100).toFixed(2)}%`);
+// ---- the answered state: "You chose: ..." ----
+await oursQ.keyboard.press("a");
+await oursQ.getByTestId("request-decided").waitFor();
+await oursQ.waitForTimeout(500);
+const refA = await mk();
+await refA.goto(`${REF}/question-cards-preview.html?state=answered&skin=daylight`);
+const refLine = refA.getByText("You chose: Yes, only the footer text", { exact: true });
+await refLine.waitFor({ timeout: 15000 });
+const lineBox = async (loc) => { const r = await loc.evaluate((e) => { let n = e; while (n && n.getBoundingClientRect().width < 200) n = n.parentElement; const b = n.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height }; }); return r; };
+const rl = await lineBox(refLine), ol = await lineBox(oursQ.getByTestId("request-decided").locator("span").first());
+const lh = (r) => Math.round(Math.min(r.height, 24));
+const ca = { x: Math.round(rl.x), y: Math.round(rl.y), width: 260, height: lh(rl) }, cb = { x: Math.round(ol.x), y: Math.round(ol.y), width: 260, height: lh(rl) };
+const la = PNG.sync.read(await refA.screenshot({ clip: ca })), lb = PNG.sync.read(await oursQ.screenshot({ clip: cb }));
+const ld = new PNG({ width: ca.width, height: ca.height });
+const lshare = pixelmatch(la.data, lb.data, ld.data, ca.width, ca.height, { threshold: 0.2 }) / (ca.width * ca.height);
+writeFileSync(join(OUT, "answered-reference.png"), PNG.sync.write(la)); writeFileSync(join(OUT, "answered-ours.png"), PNG.sync.write(lb));
+console.log(`  ${lshare <= 0.1 ? "ok  " : "FAIL"} answered line pixels: ${(lshare * 100).toFixed(2)}% differ (limit 10%)`);
+if (lshare > 0.1) failures.push(`answered line pixels ${(lshare * 100).toFixed(2)}%`);
+await j("DELETE", `/api/bots/${bot2.id}`);
+await ours.screenshot({ path: join(OUT, "ours-approval-full.png") });
+await ref.screenshot({ path: join(OUT, "reference-approval-full.png") });
+await j("DELETE", `/api/bots/${bot.id}`);
+await browser.close();
+if (failures.length) { console.error(`\npermission card differs from the reference:\n - ${failures.join("\n - ")}`); process.exit(1); }
+console.log("\npermission card matches the reference");

@@ -1,0 +1,14 @@
+_reference/
+node_modules/
+.next/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tsconfig.tsbuildinfo
+.env
+web/e2e/actual/
+web/e2e/shots/
+web/.next-export/
+workspaces/
+server/botteam/webui/

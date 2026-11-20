@@ -1,0 +1,174 @@
+# **BotTeam**
+
+BotTeam is a local chat app where every contact in the sidebar is a real AI agent: the Claude Code, Codex or Antigravity CLI (or any OpenAI-compatible endpoint) running on your computer, with its own name, instructions, model, memory and connected apps. Bots work together in channels, hand tasks to each other, run on a schedule, and answer people who write to them on Telegram or Zalo. Everything is kept on your machine.
+
+It is built with a Next.js web app and a Python (FastAPI) server, and is inspired by [OpenMausBot](https://github.com/milind-soni/OpenMausBot).
+
+**English** | [Tiếng Việt](docs/user-guide.md)
+
+---
+
+<p align="center"><img src="docs/screenshots/chat.png" alt="A bot answering a lookup question in chat, with its tool calls and profile panel" width="100%"></p>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/input-channels.png" alt="Input tab: Telegram and Zalo bots start a bot when a message arrives"></td>
+    <td width="33%"><img src="docs/screenshots/connected-apps.png" alt="Connected apps through Composio"></td>
+    <td width="33%"><img src="docs/screenshots/new-bot.png" alt="New bot dialog with role, model, color and approval level"></td>
+  </tr>
+</table>
+
+---
+
+## ⚡ Quick Start
+
+**macOS / Linux**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jokerhung/aiBotTeam/master/install.sh -o install.sh && bash install.sh
+```
+
+**Windows (PowerShell)**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/jokerhung/aiBotTeam/master/install.ps1 -OutFile install.ps1; powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+The script installs Git, Node.js, Python and uv when they are missing, clones the repository and installs its dependencies. Add `--claude` / `-Claude`, `--codex` / `-Codex` or `--antigravity` / `-Antigravity` to install the engine CLIs too. See [docs/user-guide.md](docs/user-guide.md) for every option and for signing in to an engine.
+
+---
+
+## ✨ 8 Superpowers
+
+- 🤖 **Real agents, not a chat wrapper** — each bot is a Claude Code, Codex or Antigravity CLI session (or an OpenAI-compatible endpoint) with its own model, working folder and approval level.
+- 👥 **Teams and channels** — put several bots in one channel, `@mention` them, and let a bot hand work to another one.
+- ✋ **Approval cards** — before a bot runs a command, edits a file or sends something out, you decide in the chat: Ask, Edits, Auto or Full.
+- 🔌 **Connected apps** — connect Gmail, Google Sheets, Slack, GitHub and more through Composio, or add your own MCP servers.
+- 💬 **Telegram and Zalo input** (Telegram bot, Zalo bot, or your own Zalo account through a Node.js service) — a bot answers every message, or collects photos and files and runs by itself after 30 quiet seconds (or when someone presses *Check*). How a bot receives messages is written in an `intake.md` in its working folder, which you can edit in Bot settings: progress messages while photos arrive, saving them into folders such as `<machine>/<date>/Truoc|Sau` read from the caption (identical files are not saved twice), and a short reply with or without running a bot. Each batch of photos gets its own conversation in the app that also shows everything sent to the chat, and `run.command` can run a script of the working folder afterwards (for example to download PDFs), retrying until it succeeds.
+- 🖥️ **Built-in browser (Computer)** — a bot browses in its own window; you can take control for a login or CAPTCHA and give it back.
+- ⏰ **Automations** — schedules (routines) and webhooks start a bot without you, with a calendar page to see them.
+- 🧠 **Memory, skills and sharing** — notes that last between tasks, `SKILL.md` skills, and one-file export and import of a bot or a team.
+
+---
+
+## 🛡️ Security Architecture
+
+```mermaid
+flowchart LR
+    Browser["Web app<br/>(browser)"] -- "HTTP commands" --> API["BotTeam server<br/>127.0.0.1:8899"]
+    API -- "one SSE stream" --> Browser
+    API --> Bus["Event bus"]
+    API --> Broker["Permission broker<br/>(fail closed)"]
+    API --> Drivers["Drivers"]
+    Drivers --> CLI["Claude / Codex / Antigravity CLI<br/>OpenAI-compatible endpoint"]
+    CLI -- "asks permission" --> Broker
+    Broker -- "approval card" --> Browser
+    API --> Proxy["MCP proxy<br/>allowed tools, output limit"]
+    Proxy --> Apps["Composio and<br/>custom MCP servers"]
+    API --> Data[("~/.botteam<br/>SQLite and files")]
+    Channels["Telegram / Zalo"] -- "only allowed chats" --> API
+```
+
+- **Local first.** The server listens on `127.0.0.1`. Localhost, LAN and Tailscale addresses open directly; a domain or public address needs a one-time pairing code (valid 10 minutes).
+- **Fail closed.** A permission request that nobody answers is denied.
+- **Keys are write-only.** The app only shows that a key is configured. Composio, Telegram and Zalo tokens stay on this machine and never appear in an exported bot file.
+- **Outside text is data.** Text from tools, web pages, chats and photo captions is never treated as an instruction.
+- **Bounded access.** Bots cannot open internal addresses (localhost, private networks) unless you allow it; each connection can be limited to read or write and to a list of allowed tools; sending out always asks unless you say otherwise.
+
+---
+
+## 📂 Project Structure (Monorepo)
+
+| Path | Purpose |
+|---|---|
+| `web/` | Next.js (App Router) social-media dashboard (Socialix look: overview, AI Agent office and chat, posts, calendar, analytics, accounts), React, Tailwind v4. Pages read the server in `server/botteam` from the Next.js side (`BOTTEAM_API`, default `http://127.0.0.1:8899`) |
+| `web/lib/` | `botteam.ts` (server client), `campaigns.ts`, `posts/`, `analytics/`, `agent-chats.ts`: the data layer over `/api/social/*` and the bots' chat |
+| `server/botteam/social.py` | Campaigns (each creates a team of five bots: Master, Research, Creator, Scheduler, Analytics), posts and analytics for the dashboard; stored in the same SQLite file |
+| `server/botteam/` | FastAPI server: `main.py` (routes), `turns.py`, `registry.py`, `broker.py`, `store.py`, `routines.py`, `memory.py` |
+| `server/botteam/drivers/` | One driver per engine: `claude.py`, `codex.py`, `antigravity.py`, `openai_compat.py` |
+| `server/botteam/channels/` | Telegram, Zalo bot and Zalo personal-account input, batch and chat modes |
+| `zalo-service/` | Node.js service on [zca-js](https://github.com/RFS-ADRENO/zca-js): QR sign-in, receives and sends Zalo messages for a personal account; reached through the `/zalo-api` proxy in `web/next.config.mjs` |
+| `server/botteam/mcp_*.py`, `composio.py` | MCP servers, proxy and Composio connection |
+| `server/tests/` | pytest suites (a fake driver replays events) |
+| `scripts/` | Helpers: `run.mjs`, `free-ports.ps1`, visual and reference checks |
+| `docs/` | Phase plans, [user guide](docs/user-guide.md), visual report, [examples](docs/examples/) of `intake.md` and `machines.md` |
+| `specs/` | Specs of changes, such as [intake.md](specs/intake-md.md) |
+| `workspaces/` | Working folders BotTeam makes for bots that were given none (created at run time, not in git) |
+| `install.ps1`, `install.sh`, `start.bat`, `zip-project.ps1` | Install, start and pack scripts |
+
+### Development Setup
+
+#### Prerequisites
+
+- Python 3.10 or newer and [uv](https://docs.astral.sh/uv/)
+- Node.js 20 or newer and pnpm
+- Git
+- At least one engine: the Claude Code CLI, the Codex CLI, the Antigravity CLI (`agy`, from antigravity.google), or an OpenAI-compatible endpoint
+- Microsoft Edge or Chrome for the built-in browser (otherwise run `playwright install chromium`)
+
+The install scripts check all of this and install what is missing. Ports (set in `.env`): web `5499`, API `9999`, webhooks `9900`. The Zalo service (`8902`) is not started by `pnpm dev`; run `pnpm dev:zalo` when you need it.
+
+#### Windows — PowerShell
+
+**Quick start:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+.\start.bat
+```
+
+**Run one part only:**
+
+```powershell
+.\start.bat server   # the API server, with reload
+.\start.bat web      # the web app
+.\start.bat one      # the API (botteam serve) only: the web app renders on Node.js, so start it with `pnpm start:web` after `pnpm build:static`
+```
+
+`start.bat` frees its ports first, then starts. If `pnpm` or `uv` is not found right after the install, open a new terminal window.
+
+#### macOS
+
+```bash
+bash install.sh
+pnpm dev
+```
+
+`pnpm dev` starts the server and the web app together. Open a new terminal if `uv` or `pnpm` is not recognized after the install.
+
+#### Linux
+
+```bash
+bash install.sh      # uses sudo when you are not root
+pnpm dev
+```
+
+To use BotTeam from another computer on your LAN or Tailscale, keep `WEB_HOST=0.0.0.0` in `.env` (the default), keep `SERVER_HOST=127.0.0.1`, restart, and open `http://<ip>:5499`. The web app (`web/proxy.ts`) only answers on localhost, LAN and Tailscale IPs; a domain name such as a MagicDNS name must be listed in `WEB_ALLOWED_HOSTS`. There is no sign-in, so anyone on those networks can use it: set `WEB_HOST=127.0.0.1` to keep it to this computer.
+
+#### Open the application and configure it
+
+1. Open `http://127.0.0.1:5499` in development (the server must be running: `pnpm dev` starts both). The first visit asks you to create a campaign, which makes its five bots; the web app is started by `pnpm dev` (or `pnpm build:static` then `pnpm start:web`).
+   > The dashboard does not publish to Instagram, TikTok or YouTube: a scheduled post is marked published locally when its time passes, social accounts are connected through Composio (Settings → Integrations; the key is the server's `COMPOSIO_API_KEY` or one pasted there) but nothing posts through them yet, and post metrics are entered through `PUT /api/social/posts/{id}/metrics`.
+2. The welcome screen checks for an engine. Install and sign in (`claude`, `codex login`, `agy`) or add an OpenAI-compatible endpoint in Settings → Engines, then press **Check again**.
+3. Press **+** → **New bot**, name it and pick a color.
+4. Choose the bot's approval level, and connect apps with **Connect apps** (Composio key, custom MCP servers, Telegram and Zalo input). A bot you make without a working folder gets `workspaces/<bot id>/`; when it is given an input, an `intake.md` is made there (Bot settings → *Intake workflow* edits it).
+
+> ⚠️ A bot on **Full** approval can run any command on your computer. Use **Ask** for any bot that talks to people outside your team.
+
+#### Build packages and run checks
+
+```bash
+pnpm test              # server (pytest) and the Zalo service (node:test); the web app has no tests yet
+pnpm typecheck         # TypeScript
+pnpm --filter web build  # production build of the web app, then `pnpm start:web`
+```
+
+Your data lives in `~/.botteam` (change it with `BOTTEAM_DATA_DIR`). Back it up with Settings → Backup or `botteam backup <file>`. The plan, scope and risks are in [docs/README.md](docs/README.md).
+
+---
+
+## 📄 License
+
+BotTeam does not have its own license file yet. Third-party notices are in [NOTICE](NOTICE).
+
+- Repository: <https://github.com/jokerhung/aiBotTeam>

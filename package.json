@@ -1,0 +1,33 @@
+{
+  "name": "botteam",
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "scripts": {
+    "seed:team": "node scripts/seed-team.mjs",
+    "setup": "pnpm install && pnpm setup:server",
+    "setup:server": "uv sync --project server",
+    "dev": "concurrently -n server,web -c blue,green \"pnpm dev:server\" \"pnpm dev:web\"",
+    "dev:server": "node scripts/run.mjs server",
+    "dev:web": "node scripts/run.mjs web",
+    "dev:zalo": "node scripts/run.mjs zalo",
+    "test": "pnpm test:server && pnpm test:web && pnpm test:zalo",
+    "test:server": "uv run --project server pytest -q server",
+    "test:web": "pnpm --filter web --if-present test",
+    "test:zalo": "pnpm --filter zalo-service test",
+    "test:visual": "node scripts/visual.mjs",
+    "test:visual:update": "node scripts/visual.mjs --update",
+    "test:reference": "node scripts/reference.mjs",
+    "test:reference-shots": "node scripts/reference-shots.mjs",
+    "test:noflash": "node scripts/noflash.mjs",
+    "test:instant": "node scripts/instant.mjs",
+    "test:ui": "node scripts/routines.mjs && node scripts/reference.mjs && node scripts/reference-shots.mjs && node scripts/reference-cards.mjs && node scripts/noflash.mjs && node scripts/instant.mjs && node scripts/visual.mjs",
+    "test:cards": "node scripts/reference-cards.mjs",
+    "build:static": "node scripts/build-static.mjs",
+    "start:one": "node scripts/run.mjs one",
+    "start:web": "node scripts/run.mjs web-start",
+    "typecheck": "pnpm --filter web exec tsc --noEmit"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
