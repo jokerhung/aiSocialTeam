@@ -2,19 +2,26 @@
 
 BotTeam is a local chat app where every contact in the sidebar is a real AI agent: the Claude Code, Codex or Antigravity CLI (or any OpenAI-compatible endpoint) running on your computer, with its own name, instructions, model, memory and connected apps. Bots work together in channels, hand tasks to each other, run on a schedule, and answer people who write to them on Telegram or Zalo. Everything is kept on your machine.
 
+The web app is a social-media dashboard: you create a campaign and get an AI team of five bots (Master, Research, Creator, Scheduler, Analytics) that you brief in chat, with posts, a calendar, analytics and social accounts connected through Composio next to them.
+
 It is built with a Next.js web app and a Python (FastAPI) server, and is inspired by [OpenMausBot](https://github.com/milind-soni/OpenMausBot).
 
 **English** | [Tiếng Việt](docs/user-guide.md)
 
 ---
 
-<p align="center"><img src="docs/screenshots/chat.png" alt="A bot answering a lookup question in chat, with its tool calls and profile panel" width="100%"></p>
+<p align="center"><img src="docs/screenshots/overview.png" alt="Overview: the Master Agent, the campaign status, upcoming posts and the AI team's office" width="100%"></p>
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/screenshots/input-channels.png" alt="Input tab: Telegram and Zalo bots start a bot when a message arrives"></td>
-    <td width="33%"><img src="docs/screenshots/connected-apps.png" alt="Connected apps through Composio"></td>
-    <td width="33%"><img src="docs/screenshots/new-bot.png" alt="New bot dialog with role, model, color and approval level"></td>
+    <td width="33%"><img src="docs/screenshots/ai-agent.png" alt="AI Agent: each agent's engine, model and thinking level in its Settings tab"></td>
+    <td width="33%"><img src="docs/screenshots/calendar.png" alt="Calendar: when posts go live, by month or week"></td>
+    <td width="33%"><img src="docs/screenshots/analytics.png" alt="Analytics: posts published, views and engagement"></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/posts.png" alt="Posts: drafts, scheduled and published content"></td>
+    <td width="33%"><img src="docs/screenshots/integrations.png" alt="Settings, Integrations: social apps connected through Composio"></td>
+    <td width="33%"></td>
   </tr>
 </table>
 
