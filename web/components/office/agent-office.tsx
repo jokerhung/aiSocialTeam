@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { STATUS_TONES } from "@/components/agents/agent-avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
+import { useT } from "@/lib/i18n/client";
 type Props = {
   scene: OfficeScene;
   // "contain": keep the scene's aspect ratio (height follows width).
@@ -34,6 +35,7 @@ const HEAD_X = 0.4;
 // Agents are laid out in percentages of an aspect-locked stage, so they never drift off their desks;
 // the stage itself is sized with container query units to fit (or cover) whatever box it's given.
 export function AgentOffice({ scene, fit = "contain", fps = 8, className, selectedAgentId, onAgentSelect, statuses, renderPreview }: Props) {
+  const t = useT();
   const [ready, setReady] = useState(false);
   const backgroundRef = useRef<HTMLImageElement>(null);
 
@@ -68,7 +70,7 @@ export function AgentOffice({ scene, fit = "contain", fps = 8, className, select
   return (
     <div
       role={interactive ? "group" : "img"}
-      aria-label={`${scene.name} with ${scene.agents.length} AI agents at work: ${scene.agents.map((a) => a.role.name).join(", ")}`}
+      aria-label={t("{scene} with {n} AI agents at work: {names}", { scene: scene.name, n: scene.agents.length, names: scene.agents.map((a) => t(a.role.name)).join(", ") })}
       className={cn(
         "relative w-full overflow-hidden bg-muted select-none",
         !ready && "animate-pulse",
@@ -198,6 +200,7 @@ function AgentTag({
   status?: AgentLiveStatus;
   renderPreview?: Props["renderPreview"];
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const Pill = onSelect || renderPreview ? "button" : "div";
   const pillProps = {
@@ -226,7 +229,7 @@ function AgentTag({
           <span className={cn("absolute -right-[0.1em] -bottom-[0.1em] size-[0.6em] rounded-full ring-2 ring-card", tone.dot, tone.pulse && "animate-pulse")} />
         )}
       </span>
-      <span className="leading-none font-semibold tracking-tight">{agent.role.name}</span>
+      <span className="leading-none font-semibold tracking-tight">{t(agent.role.name)}</span>
       {/* Pointer down to the agent */}
       <span
         aria-hidden
@@ -240,7 +243,7 @@ function AgentTag({
 
   return (
     <div
-      title={renderPreview ? undefined : agent.role.description}
+      title={renderPreview ? undefined : t(agent.role.description)}
       className={cn(
         "absolute -translate-x-1/2 -translate-y-full pb-[0.6em] text-[clamp(9px,1.5cqw,13px)]",
         selected ? "z-[51]" : "z-50"

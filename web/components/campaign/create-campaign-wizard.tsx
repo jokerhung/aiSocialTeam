@@ -16,6 +16,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
+import { T, useT } from "@/lib/i18n/client";
 const MAX_NAME = 60;
 const MAX_ICON_BYTES = 2 * 1024 * 1024;
 const STEPS = ["Campaign", "Office space"] as const;
@@ -24,6 +25,7 @@ const STEPS = ["Campaign", "Office space"] as const;
 type Props = { offices: Office[]; isFirst: boolean };
 
 export function CreateCampaignWizard({ offices, isFirst }: Props) {
+  const t = useT();
   const [step, setStep] = useState<0 | 1>(0);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string>(CAMPAIGN_ICONS[0].id);
@@ -49,8 +51,8 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) return setFileError("Please choose an image file.");
-    if (file.size > MAX_ICON_BYTES) return setFileError("Image must be 2MB or smaller.");
+    if (!file.type.startsWith("image/")) return setFileError(t("Please choose an image file."));
+    if (file.size > MAX_ICON_BYTES) return setFileError(t("Image must be 2MB or smaller."));
     setFileError(undefined);
     setIconFile(file);
   };
@@ -82,7 +84,7 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
           {!isFirst && (
             <Button variant="ghost" size="lg" className="text-muted-foreground" nativeButton={false} render={<Link href="/dashboard" />}>
               <X data-icon="inline-start" />
-              Cancel
+              <T>Cancel</T>
             </Button>
           )}
         </div>
@@ -91,16 +93,16 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
         <div className="mt-5 flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white bg-card shadow-xl shadow-blue-900/5">
           {step === 0 ? (
             <form onSubmit={goNext} className="flex min-h-0 flex-col gap-6 overflow-y-auto p-6 sm:p-9">
-              <Heading title={isFirst ? "Create your first campaign" : "Create a new campaign"} description="Give it a name and a logo. You can change these later." />
+              <Heading title={isFirst ? t("Create your first campaign") : t("Create a new campaign")} description={t("Give it a name and a logo. You can change these later.")} />
 
               <Field>
-                <FieldLabel htmlFor="campaign-name" className="font-semibold">Campaign name</FieldLabel>
+                <FieldLabel htmlFor="campaign-name" className="font-semibold"><T>Campaign name</T></FieldLabel>
                 <Input
                   id="campaign-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={MAX_NAME}
-                  placeholder="e.g. Summer Product Launch"
+                  placeholder={t("e.g. Summer Product Launch")}
                   autoComplete="off"
                   autoFocus
                   className="h-12 rounded-xl px-4 text-base md:text-sm"
@@ -108,8 +110,8 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
               </Field>
 
               <Field>
-                <FieldLabel className="font-semibold">Logo</FieldLabel>
-                <div role="radiogroup" aria-label="Campaign logo" className="flex flex-wrap gap-2.5">
+                <FieldLabel className="font-semibold"><T>Logo</T></FieldLabel>
+                <div role="radiogroup" aria-label={t("Campaign logo")} className="flex flex-wrap gap-2.5">
                   {CAMPAIGN_ICONS.map(({ id, label, Icon, tone }) => {
                     const selected = !iconFile && icon === id;
                     return (
@@ -118,8 +120,8 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        aria-label={label}
-                        title={label}
+                        aria-label={t(label)}
+                        title={t(label)}
                         onClick={() => {
                           setIcon(id);
                           setIconFile(null);
@@ -142,7 +144,7 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
                         type="button"
                         role="radio"
                         aria-checked
-                        aria-label="Custom logo — click to replace"
+                        aria-label={t("Custom logo — click to replace")}
                         onClick={() => fileInput.current?.click()}
                         className="flex size-16 items-center justify-center rounded-2xl border-2 border-primary bg-accent shadow-md shadow-primary/15 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
@@ -151,7 +153,7 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
                       </button>
                       <button
                         type="button"
-                        aria-label="Remove custom logo"
+                        aria-label={t("Remove custom logo")}
                         onClick={() => setIconFile(null)}
                         className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background shadow-sm hover:bg-foreground/80"
                       >
@@ -165,7 +167,7 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
                       className="flex size-16 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-primary/30 bg-accent/50 text-primary transition-colors outline-none hover:border-primary/60 hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
                     >
                       <Upload className="size-4" />
-                      <span className="text-[11px] font-semibold">Upload</span>
+                      <span className="text-[11px] font-semibold"><T>Upload</T></span>
                     </button>
                   )}
                 </div>
@@ -184,15 +186,15 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
                 <CampaignIcon icon={icon} iconUrl={iconPreview} className="size-12 shadow-sm" />
                 <div className="min-w-0">
                   <p className={cn("truncate font-semibold", !trimmedName && "text-foreground/80")}>
-                    {trimmedName || "Your campaign"}
+                    {trimmedName || t("Your campaign")}
                   </p>
-                  <p className="text-xs text-muted-foreground">Preview</p>
+                  <p className="text-xs text-muted-foreground"><T>Preview</T></p>
                 </div>
               </div>
 
               <div className="flex justify-end">
                 <Button type="submit" size="lg" disabled={!canContinue} className="h-12 min-w-36 rounded-xl px-6 text-base shadow-lg shadow-primary/20">
-                  Continue
+                  <T>Continue</T>
                   <ChevronRight data-icon="inline-end" />
                 </Button>
               </div>
@@ -200,7 +202,7 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
           ) : (
             <div className="flex min-h-0 flex-col gap-6 overflow-y-auto p-6 sm:p-9">
               <div className="flex items-start justify-between gap-4">
-                <Heading title="Choose an office space" description="Pick where your AI agents will work on your campaign." />
+                <Heading title={t("Choose an office space")} description={t("Pick where your AI agents will work on your campaign.")} />
                 <div className="hidden shrink-0 items-center gap-2 rounded-full border bg-muted/40 py-1 pr-3.5 pl-1 sm:flex">
                   <CampaignIcon icon={icon} iconUrl={iconPreview} className="size-7 rounded-full" />
                   <span className="max-w-36 truncate text-sm font-semibold">{trimmedName}</span>
@@ -209,10 +211,10 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
 
               {offices.length === 0 ? (
                 <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-                  No offices available yet. Add images to public/offices.
+                  <T>No offices available yet. Add images to public/offices.</T>
                 </div>
               ) : (
-                <div role="radiogroup" aria-label="Office space" className="grid gap-4 sm:grid-cols-2">
+                <div role="radiogroup" aria-label={t("Office space")} className="grid gap-4 sm:grid-cols-2">
                   {offices.map((o, i) => {
                     const selected = office === o.id;
                     return (
@@ -258,7 +260,7 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
               <div className="flex items-center justify-between">
                 <Button variant="ghost" size="lg" className="h-12 rounded-xl px-4" onClick={() => setStep(0)} disabled={pending}>
                   <ArrowLeft data-icon="inline-start" />
-                  Back
+                  <T>Back</T>
                 </Button>
                 <Button
                   size="lg"
@@ -267,7 +269,7 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
                   className="h-12 min-w-44 rounded-xl px-6 text-base shadow-lg shadow-primary/20"
                 >
                   {pending && <Spinner />}
-                  {pending ? "Creating…" : "Create Campaign"}
+                  {pending ? t("Creating…") : t("Create Campaign")}
                 </Button>
               </div>
             </div>
@@ -288,6 +290,7 @@ function Heading({ title, description }: { title: string; description: string })
 }
 
 function Stepper({ step }: { step: number }) {
+  const t = useT();
   return (
     <ol className="mt-6 flex shrink-0 items-center gap-3">
       {STEPS.map((label, i) => {
@@ -305,7 +308,7 @@ function Stepper({ step }: { step: number }) {
               >
                 {done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
               </span>
-              <span className={cn("text-sm font-semibold", !active && !done && "text-muted-foreground")}>{label}</span>
+              <span className={cn("text-sm font-semibold", !active && !done && "text-muted-foreground")}>{t(label)}</span>
             </span>
           </li>
         );

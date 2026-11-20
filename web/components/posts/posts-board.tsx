@@ -17,6 +17,7 @@ import { PlatformTile } from "@/components/posts/platform-icon";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
+import { T, useT } from "@/lib/i18n/client";
 // Every post in the campaign (written by hand or scheduled from an AI draft), filterable by status,
 // plus the AI team's drafts that are ready to be scheduled
 
@@ -46,6 +47,7 @@ function matches(post: PostView, filter: Filter) {
 }
 
 export function PostsBoard({ posts, drafts }: { posts: PostView[]; drafts: ContentDraftView[] }) {
+  const t = useT();
   const [filter, setFilter] = useState<Filter>("all");
   const [platform, setPlatform] = useState<PostPlatform | null>(null);
 
@@ -66,7 +68,7 @@ export function PostsBoard({ posts, drafts }: { posts: PostView[]; drafts: Conte
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div role="tablist" aria-label="Filter posts" className="inline-flex w-fit rounded-2xl bg-card p-1 ring-1 ring-border/60">
+        <div role="tablist" aria-label={t("Filter posts")} className="inline-flex w-fit rounded-2xl bg-card p-1 ring-1 ring-border/60">
           {FILTERS.map(({ id, label }) => (
             <button
               key={id}
@@ -79,13 +81,13 @@ export function PostsBoard({ posts, drafts }: { posts: PostView[]; drafts: Conte
                 filter === id ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {label}
+              {t(label)}
               <span className={cn("rounded-full px-1.5 text-[11px] tabular-nums", filter === id ? "bg-background/20" : "bg-muted")}>{counts[id]}</span>
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5" aria-label="Filter by platform">
-          <span className="sr-only">Platforms</span>
+        <div className="flex items-center gap-1.5" aria-label={t("Filter by platform")}>
+          <span className="sr-only"><T>Platforms</T></span>
           {POST_PLATFORMS.map((id) => (
             <button
               key={id}
@@ -112,11 +114,11 @@ export function PostsBoard({ posts, drafts }: { posts: PostView[]; drafts: Conte
             Icon={Newspaper}
             tone="bg-linear-to-br from-pink-500 to-rose-600 text-white"
             glow="shadow-pink-500/30"
-            title={posts.length === 0 ? "No posts yet" : "Nothing matches these filters"}
+            title={posts.length === 0 ? t("No posts yet") : t("Nothing matches these filters")}
             description={
               posts.length === 0
-                ? "Write your first post, or ask your AI team to draft one for you."
-                : "Try another status or platform."
+                ? t("Write your first post, or ask your AI team to draft one for you.")
+                : t("Try another status or platform.")
             }
           >
             {posts.length === 0 && <CreatePostMenu align="start" />}
@@ -134,8 +136,8 @@ export function PostsBoard({ posts, drafts }: { posts: PostView[]; drafts: Conte
 
       {drafts.length > 0 && (
         <OverviewPanel
-          title="Drafted by your AI team"
-          action={<span className="text-xs text-muted-foreground">{drafts.length} ready to schedule</span>}
+          title={t("Drafted by your AI team")}
+          action={<span className="text-xs text-muted-foreground">{t("{n} ready to schedule", { n: drafts.length })}</span>}
         >
           <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {drafts.map((draft) => (
@@ -152,6 +154,7 @@ export function PostsBoard({ posts, drafts }: { posts: PostView[]; drafts: Conte
 
 // Where a post is scheduled in Blotato, where it went live (with links), and what went wrong where it didn't
 function PublishResults({ post }: { post: PostView }) {
+  const t = useT();
   const results = post.platforms.flatMap((platform) => (post.results[platform] ? [[platform, post.results[platform]!] as const] : []));
   if (results.length === 0) return post.error ? <p className="mb-3 line-clamp-2 text-xs text-destructive">{post.error}</p> : null;
   return (
@@ -162,19 +165,19 @@ function PublishResults({ post }: { post: PostView }) {
           {result.status === "published" ? (
             result.url ? (
               <a href={result.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-emerald-700 hover:underline dark:text-emerald-300">
-                Live <ExternalLink className="size-3" />
+                <T>Live</T> <ExternalLink className="size-3" />
               </a>
             ) : (
-              <span className="font-medium text-emerald-700 dark:text-emerald-300">Published</span>
+              <span className="font-medium text-emerald-700 dark:text-emerald-300"><T>Published</T></span>
             )
           ) : result.status === "failed" ? (
             <span className="truncate text-destructive" title={result.error ?? undefined}>
-              {result.error ?? "Failed"}
+              {result.error ?? t("Failed")}
             </span>
           ) : result.status === "scheduled" ? (
-            <span className="text-muted-foreground">Scheduled in Blotato</span>
+            <span className="text-muted-foreground"><T>Scheduled</T></span>
           ) : (
-            <span className="text-muted-foreground">Processing in Blotato…</span>
+            <span className="text-muted-foreground"><T>Processing…</T></span>
           )}
         </li>
       ))}
@@ -183,6 +186,7 @@ function PublishResults({ post }: { post: PostView }) {
 }
 
 function PostCard({ post }: { post: PostView }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -209,13 +213,13 @@ function PostCard({ post }: { post: PostView }) {
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted to-muted/40 text-muted-foreground">
             <ImageIcon className="size-6" />
-            <span className="text-xs">No image</span>
+            <span className="text-xs"><T>No image</T></span>
           </div>
         )}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b from-black/35 to-transparent" />
         <span className={cn("absolute top-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur-md", status.tone)}>
           <span className={cn("size-1.5 rounded-full", status.dot)} />
-          {status.label}
+          {t(status.label)}
         </span>
         <span className="absolute top-3 right-3 flex -space-x-1.5">
           {post.platforms.map((platform) => (
@@ -244,14 +248,14 @@ function PostCard({ post }: { post: PostView }) {
           {isEditable(post.status) && (
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon-sm" className="-mt-1 -mr-1 rounded-lg text-muted-foreground" aria-label="Post actions" />}
+                render={<Button variant="ghost" size="icon-sm" className="-mt-1 -mr-1 rounded-lg text-muted-foreground" aria-label={t("Post actions")} />}
               >
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 rounded-xl p-1">
                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => router.push(`/dashboard/posts/${post.id}/edit`)}>
                   {post.status === "scheduled" ? <CalendarClock /> : <PenLine />}
-                  {post.status === "scheduled" ? "Edit & reschedule" : "Edit & schedule"}
+                  {post.status === "scheduled" ? t("Edit & reschedule") : t("Edit & schedule")}
                 </DropdownMenuItem>
                 {post.status === "scheduled" && (
                   <DropdownMenuItem
@@ -265,7 +269,7 @@ function PostCard({ post }: { post: PostView }) {
                     }
                   >
                     <CalendarX2 />
-                    Unschedule
+                    <T>Unschedule</T>
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -273,7 +277,7 @@ function PostCard({ post }: { post: PostView }) {
           )}
         </div>
         <p className="mt-1 line-clamp-2 min-h-10 text-sm text-muted-foreground">
-          {post.caption || <span className="italic">No caption</span>}
+          {post.caption || <span className="italic"><T>No caption</T></span>}
           {post.hashtags.length > 0 && <span className="text-primary"> {post.hashtags.slice(0, 4).join(" ")}</span>}
         </p>
         {(post.status === "scheduled" || post.status === "published" || post.status === "failed") && <PublishResults post={post} />}
@@ -281,7 +285,7 @@ function PostCard({ post }: { post: PostView }) {
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs">
           <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
             <Clock className="size-3.5 shrink-0" />
-            <span className="truncate">{post.scheduledAt ? formatInZone(post.scheduledAt, post.timeZone) : "Not scheduled"}</span>
+            <span className="truncate">{post.scheduledAt ? formatInZone(post.scheduledAt, post.timeZone) : t("Not scheduled")}</span>
           </span>
           <span
             className={cn(
@@ -290,7 +294,7 @@ function PostCard({ post }: { post: PostView }) {
             )}
           >
             {post.source === "ai" ? <Sparkles className="size-3" /> : <PenLine className="size-3" />}
-            {post.source === "ai" ? "AI" : "Manual"}
+            {post.source === "ai" ? "AI" : t("Manual")}
           </span>
         </div>
       </div>
@@ -299,6 +303,7 @@ function PostCard({ post }: { post: PostView }) {
 }
 
 function DraftCard({ draft }: { draft: ContentDraftView }) {
+  const t = useT();
   const image = draft.media.find((item) => !item.mimeType?.startsWith("video/"));
   const schedulable = (POST_PLATFORMS as readonly string[]).includes(draft.platform);
   return (
@@ -318,7 +323,7 @@ function DraftCard({ draft }: { draft: ContentDraftView }) {
         <span className="line-clamp-2 text-xs text-muted-foreground">{draft.hook || draft.body}</span>
         <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
           <span className="truncate text-[11px] text-muted-foreground">
-            {platformName(draft.platform)} · Draft #{draft.id}
+            {platformName(draft.platform)} · {t("Draft #{id}", { id: draft.id })}
           </span>
           <Button
             size="xs"
@@ -328,7 +333,7 @@ function DraftCard({ draft }: { draft: ContentDraftView }) {
             render={<Link href={`/dashboard/posts/create?draft=${draft.id}`} />}
           >
             <CalendarClock data-icon="inline-start" />
-            Schedule
+            <T>Schedule</T>
           </Button>
         </div>
       </div>

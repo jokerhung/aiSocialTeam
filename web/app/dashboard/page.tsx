@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { NoCampaign } from "@/components/dashboard/no-campaign";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/local-user";
@@ -11,10 +12,15 @@ import { MasterAgentCard } from "@/components/dashboard/overview/master-agent-ca
 import { RecentActivityCard } from "@/components/dashboard/overview/recent-activity-card";
 import { UpcomingPostsCard } from "@/components/dashboard/overview/upcoming-posts-card";
 
-export const metadata = { title: "Overview" };
+import { T } from "@/lib/i18n/client";
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("Overview") };
+}
 
 // Shell (sidebar, header, auth + campaign guards) lives in ./layout.tsx
 export default async function OverviewPage() {
+  const { t } = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
@@ -41,12 +47,12 @@ export default async function OverviewPage() {
   return (
     <AgentWorkspace office={office} officeImage={campaign.officeImage} activity={activity} userInitials={initials}>
       <div className="space-y-3 px-1 pt-1">
-        <Greeting name={firstName} />
+        <Greeting name={firstName ? t(firstName) : undefined} />
         <h2 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-          Your AI Creative Team is on it.
+          <T>Your AI Creative Team is on it.</T>
         </h2>
         <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground">
-          From trends to content to posting, your agents work together to turn ideas into real growth.
+          <T>From trends to content to posting, your agents work together to turn ideas into real growth.</T>
         </p>
       </div>
 

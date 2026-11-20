@@ -6,8 +6,10 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
+import { T, useT } from "@/lib/i18n/client";
 // "Create post": write one by hand in the post editor, or brief the AI team on the AI Agent page
 export function CreatePostMenu({ className, align = "end" }: { className?: string; align?: "start" | "end" }) {
+  const t = useT();
   const router = useRouter();
 
   return (
@@ -24,22 +26,22 @@ export function CreatePostMenu({ className, align = "end" }: { className?: strin
         }
       >
         <Plus data-icon="inline-start" />
-        Create post
+        <T>Create post</T>
         <ChevronDown data-icon="inline-end" className="opacity-70 transition-transform group-aria-expanded/button:rotate-180" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} sideOffset={8} className="w-72 rounded-2xl p-1.5 shadow-xl">
         <MenuOption
           Icon={PenLine}
           tone="bg-linear-to-br from-pink-500 to-rose-600 shadow-pink-500/30"
-          title="Create manually"
-          description="Write it, add images and schedule it yourself"
+          title={t("Create manually")}
+          description={t("Write it, add images and schedule it yourself")}
           onClick={() => router.push("/dashboard/posts/create")}
         />
         <MenuOption
           Icon={Bot}
           tone="bg-linear-to-br from-violet-500 to-fuchsia-600 shadow-violet-500/30"
-          title="Create using AI Agent"
-          description="Brief your AI team and let them draft it"
+          title={t("Create using AI Agent")}
+          description={t("Brief your AI team and let them draft it")}
           onClick={() => router.push("/dashboard/ai-agent")}
         />
       </DropdownMenuContent>

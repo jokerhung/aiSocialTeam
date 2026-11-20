@@ -7,6 +7,7 @@ import type { PostView } from "@/lib/posts/shared";
 import { cn } from "@/lib/utils";
 import { DRAG_TYPE, PostBlock, PostChip } from "@/components/calendar/calendar-post";
 
+import { useI18n } from "@/lib/i18n/client";
 // The month and week grids. Both take posts already placed in the calendar's time zone and report
 // drops as (day, minutes): the month grid has no times, so its drops keep the post's time (null).
 
@@ -42,6 +43,7 @@ function isDragOfPost(event: React.DragEvent) {
 const MAX_CHIPS = 3;
 
 export function MonthView({ days, cursor, onShowDay, ...shared }: Shared & { days: string[]; cursor: string; onShowDay: (day: string) => void }) {
+  const { t, locale } = useI18n();
   const { today, postsByDay, dragging, onDrop, onCreate } = shared;
   const [over, setOver] = useState<string | null>(null);
 
@@ -50,8 +52,8 @@ export function MonthView({ days, cursor, onShowDay, ...shared }: Shared & { day
       <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30">
         {WEEKDAYS.map((day, i) => (
           <span key={day} className={cn("px-2 py-2.5 text-center text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:text-left sm:px-3", i >= 5 && "text-muted-foreground/70")}>
-            <span className="sm:hidden">{day[0]}</span>
-            <span className="hidden sm:inline">{day}</span>
+            <span className="sm:hidden">{locale === "vi" ? t(day) : day[0]}</span>
+            <span className="hidden sm:inline">{t(day)}</span>
           </span>
         ))}
       </div>
@@ -103,7 +105,7 @@ export function MonthView({ days, cursor, onShowDay, ...shared }: Shared & { day
                   <button
                     type="button"
                     onClick={() => onCreate(day, null)}
-                    aria-label={`Create a post on ${formatDay(day, { month: "long", day: "numeric" })}`}
+                    aria-label={t("Create a post on {day}", { day: formatDay(day, { month: "long", day: "numeric" }) })}
                     className="hidden size-6 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity outline-none group-hover/day:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 sm:flex"
                   >
                     <Plus className="size-3.5" />
@@ -137,7 +139,7 @@ export function MonthView({ days, cursor, onShowDay, ...shared }: Shared & { day
                     onClick={() => onShowDay(day)}
                     className="rounded-md px-1.5 py-0.5 text-left text-[11px] font-semibold text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
-                    +{extra + 1} more
+                    {t("+{n} more", { n: extra + 1 })}
                   </button>
                 )}
               </div>

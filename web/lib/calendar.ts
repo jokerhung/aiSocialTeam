@@ -1,5 +1,6 @@
 import { utcToZonedParts, type PostView } from "@/lib/posts/shared";
 
+import { displayLocale, intlLocale } from "@/lib/i18n/display";
 // Date maths for the content calendar. Days are "YYYY-MM-DD" keys in the calendar's time zone, so the
 // grid never depends on the browser's own zone; a key is turned into a Date only at UTC midnight.
 
@@ -57,7 +58,7 @@ export function todayKey(timeZone: string) {
 
 // Labels for a day key; formatted in UTC because the key's UTC midnight is that day
 export function formatDay(key: string, options: Intl.DateTimeFormatOptions) {
-  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(keyToUtc(key));
+  return new Intl.DateTimeFormat(intlLocale(), { ...options, timeZone: "UTC" }).format(keyToUtc(key));
 }
 
 // "October 2026" or "Oct 12 – 18, 2026"
@@ -86,10 +87,11 @@ export function placePost(post: Pick<PostView, "scheduledAt" | "publishedAt">, t
 
 // "9:30 AM" in a zone
 export function formatTime(iso: string, timeZone: string) {
-  return new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(intlLocale(), { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(iso));
 }
 
 export function hourLabel(hour: number) {
+  if (displayLocale() === "vi") return `${hour}:00`;
   if (hour === 0) return "12 AM";
   if (hour === 12) return "12 PM";
   return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
@@ -101,5 +103,5 @@ export function minutesToTime(minutes: number) {
 
 // "GMT+5:30" for a zone right now
 export function zoneOffsetLabel(timeZone: string) {
-  return new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "shortOffset" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "";
+  return new Intl.DateTimeFormat(intlLocale(), { timeZone, timeZoneName: "shortOffset" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "";
 }

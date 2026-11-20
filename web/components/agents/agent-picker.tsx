@@ -7,6 +7,7 @@ import { AgentAvatar, STATUS_TONES } from "@/components/agents/agent-avatar";
 import type { WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { useT } from "@/lib/i18n/client";
 // The agent rail: a slim vertical column of avatars beside the open agent's panel. The Master Agent
 // sits on top, set apart from the team. Hovering shows the agent's name and status; the selected
 // agent is ringed.
@@ -24,6 +25,7 @@ export function AgentPicker({
   statuses: Record<string, AgentLiveStatus>;
   onSelect: (id: string) => void;
 }) {
+  const t = useT();
   const master = agents.find((agent) => agent.role.id === "master");
   const team = agents.filter((agent) => agent !== master);
 
@@ -41,7 +43,7 @@ export function AgentPicker({
   return (
     <nav
       role="tablist"
-      aria-label="AI agents"
+      aria-label={t("AI agents")}
       aria-orientation="vertical"
       className="flex shrink-0 flex-col items-center gap-2 self-start rounded-3xl bg-card p-2 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_-16px_rgb(15_23_42/0.12)] ring-1 ring-border/60"
     >
@@ -65,9 +67,10 @@ function RailItem({
   status: AgentLiveStatus | null;
   onSelect: () => void;
 }) {
+  const t = useT();
   const master = agent.role.id === "master";
   const tone = STATUS_TONES[paused ? "paused" : (status ?? "loading")];
-  const label = paused ? "Paused" : status ? AGENT_STATUS_LABELS[status] : null;
+  const label = paused ? t("Paused") : status ? t(AGENT_STATUS_LABELS[status]) : null;
 
   return (
     <Tooltip>
@@ -77,7 +80,7 @@ function RailItem({
             type="button"
             role="tab"
             aria-selected={selected}
-            aria-label={agent.role.name}
+            aria-label={t(agent.role.name)}
             onClick={onSelect}
             className={cn(
               "group/agent relative flex size-12 items-center justify-center rounded-2xl transition-[background-color,box-shadow] duration-300 outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
@@ -106,7 +109,7 @@ function RailItem({
         />
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={10} className="flex-col items-start gap-0.5">
-        <span className="font-semibold">{agent.role.name}</span>
+        <span className="font-semibold">{t(agent.role.name)}</span>
         {label && <span className="opacity-70">{label}</span>}
       </TooltipContent>
     </Tooltip>

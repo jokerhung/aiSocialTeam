@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "@/lib/i18n/format";
 import { AlertTriangle, BarChart3, CalendarRange, FolderKanban, Link2, Plus, RefreshCw, Settings } from "lucide-react";
 import { syncAnalyticsNow } from "@/app/dashboard/analytics/actions";
 import {
@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { T, useI18n, useT } from "@/lib/i18n/client";
 // The Analytics page: real metrics from the user's connected accounts (synced from Blotato), filtered
 // by date range and campaign. Everything is worked out here from the synced posts, in the viewer's
 // time zone, so every card, chart and table agrees and filters apply instantly. Syncs on load when
@@ -69,10 +70,12 @@ function writePrefs(prefs: Prefs) {
 }
 
 function syncedLabel(sync: SyncState) {
-  return sync.lastSyncedAt ? `Synced ${formatDistanceToNow(new Date(sync.lastSyncedAt), { addSuffix: true })}` : "Not synced yet";
+  const t = useT();
+  return sync.lastSyncedAt ? t("Synced {ago}", { ago: formatDistanceToNow(new Date(sync.lastSyncedAt), { addSuffix: true }) }) : t("Not synced yet");
 }
 
 export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Props) {
+  const { t, tn } = useI18n();
   const router = useRouter();
   const [timeZone, setTimeZone] = useState<string | null>(null);
   const [rangeChoice, setRangeChoice] = useState<RangeChoice>("30d");
@@ -149,12 +152,12 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
           Icon={BarChart3}
           tone="bg-linear-to-br from-emerald-400 to-teal-600 text-white"
           glow="shadow-emerald-500/40"
-          title="Connect your accounts to see analytics"
-          description="Analytics come straight from your Instagram, TikTok, YouTube and other accounts through Blotato. Connect it once and your numbers sync automatically."
+          title={t("Connect your accounts to see analytics")}
+          description={t("Analytics come from the numbers saved on each published post. Connect your accounts and your published posts show up here.")}
         >
           <Button size="lg" className="rounded-xl" nativeButton={false} render={<Link href="/dashboard/settings/integrations" />}>
             <Settings data-icon="inline-start" />
-            Go to Settings → Integrations
+            <T>Go to Settings → Integrations</T>
           </Button>
         </OverviewEmptyState>
       </OverviewPanel>
@@ -173,8 +176,8 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
       {/* Filters: one row above everything they scope */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <div role="radiogroup" aria-label="Date range" className="inline-flex flex-wrap rounded-2xl bg-card p-1 ring-1 ring-border/60">
-            {[...RANGE_PRESETS.map((preset) => ({ id: preset.id as RangeChoice, label: preset.label.replace("Last ", "") })), { id: "custom" as RangeChoice, label: "Custom" }].map((option) => (
+          <div role="radiogroup" aria-label={t("Date range")} className="inline-flex flex-wrap rounded-2xl bg-card p-1 ring-1 ring-border/60">
+            {[...RANGE_PRESETS.map((preset) => ({ id: preset.id as RangeChoice, label: t("{n} days", { n: preset.days }) })), { id: "custom" as RangeChoice, label: t("Custom") }].map((option) => (
               <button
                 key={option.id}
                 type="button"
@@ -198,7 +201,7 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
           {rangeChoice === "custom" && custom && (
             <div className="flex items-center gap-1.5 rounded-2xl bg-card px-2 py-1 ring-1 ring-border/60">
               <label className="sr-only" htmlFor="analytics-from">
-                From
+                <T>From</T>
               </label>
               <input
                 id="analytics-from"
@@ -210,7 +213,7 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
               />
               <span className="text-muted-foreground">–</span>
               <label className="sr-only" htmlFor="analytics-to">
-                To
+                <T>To</T>
               </label>
               <input
                 id="analytics-to"
@@ -227,7 +230,7 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
           <div className="relative w-full sm:w-60">
             <FolderKanban className="pointer-events-none absolute top-1/2 left-3 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <NativeSelect
-              aria-label="Campaign"
+              aria-label={t("Campaign")}
               value={String(campaign)}
               onChange={(event) => {
                 const value = event.target.value;
@@ -235,14 +238,14 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
               }}
               className="w-full [&_select]:h-10 [&_select]:rounded-2xl [&_select]:border-0 [&_select]:bg-card [&_select]:pl-8 [&_select]:text-sm [&_select]:ring-1 [&_select]:ring-border/60"
             >
-              <NativeSelectOption value="all">All campaigns &amp; accounts</NativeSelectOption>
+              <NativeSelectOption value="all">{t("All campaigns & accounts")}</NativeSelectOption>
               {campaigns.map((item) => (
                 <NativeSelectOption key={item.id} value={String(item.id)}>
                   {item.name}
                   {item.id === activeCampaignId ? " (current)" : ""}
                 </NativeSelectOption>
               ))}
-              <NativeSelectOption value="outside">Posted outside the app</NativeSelectOption>
+              <NativeSelectOption value="outside">{t("Posted outside the app")}</NativeSelectOption>
             </NativeSelect>
           </div>
         </div>
@@ -250,12 +253,12 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span aria-live="polite" className="flex items-center gap-1.5">
             <span className={cn("size-1.5 rounded-full", syncing ? "animate-pulse bg-amber-500" : error ? "bg-rose-500" : "bg-emerald-500")} />
-            {syncing ? "Syncing with Blotato…" : syncedLabel(sync)}
+            {syncing ? t("Syncing…") : syncedLabel(sync)}
           </span>
           {sync.connected && (
             <Button variant="outline" className="h-9 rounded-xl bg-card" onClick={runSync} disabled={syncing}>
               <RefreshCw data-icon="inline-start" className={cn(syncing && "animate-spin")} />
-              Sync now
+              <T>Sync now</T>
             </Button>
           )}
         </div>
@@ -263,17 +266,17 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
 
       <p className="-mt-1 text-xs text-muted-foreground">
         {formatDay(range.from, { month: "short", day: "numeric", year: range.from.slice(0, 4) === range.to.slice(0, 4) ? undefined : "numeric" })} –{" "}
-        {formatDay(range.to, { month: "short", day: "numeric", year: "numeric" })} · {campaign === "all" ? "All campaigns and accounts" : campaign === "outside" ? "Posts made outside the app" : (campaignNames.get(campaign) ?? "Campaign")}
+        {formatDay(range.to, { month: "short", day: "numeric", year: "numeric" })} · {campaign === "all" ? t("All campaigns and accounts") : campaign === "outside" ? t("Posts made outside the app") : (campaignNames.get(campaign) ?? t("Campaign"))}
       </p>
 
       {!sync.connected && (
-        <Banner tone="warning" action={<Link href="/dashboard/settings/integrations" className="font-medium underline underline-offset-4">Reconnect</Link>}>
-          Blotato isn&apos;t connected, so these numbers can&apos;t update. They&apos;re from the last sync.
+        <Banner tone="warning" action={<Link href="/dashboard/settings/integrations" className="font-medium underline underline-offset-4"><T>Reconnect</T></Link>}>
+          <T>Your accounts aren't connected, so these numbers can't update. They're from the last sync.</T>
         </Banner>
       )}
       {sync.connected && error && !syncing && (
-        <Banner tone="error" action={<button type="button" onClick={runSync} className="font-medium underline underline-offset-4">Try again</button>}>
-          The last sync didn&apos;t finish: {error}
+        <Banner tone="error" action={<button type="button" onClick={runSync} className="font-medium underline underline-offset-4"><T>Try again</T></button>}>
+          {t("The last sync didn't finish: {error}", { error: String(error) })}
         </Banner>
       )}
 
@@ -283,17 +286,17 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
             Icon={syncing ? RefreshCw : Link2}
             tone="bg-linear-to-br from-emerald-400 to-teal-600 text-white"
             glow="shadow-emerald-500/40"
-            title={syncing ? "Fetching your analytics…" : "No published posts yet"}
+            title={syncing ? t("Fetching your analytics…") : t("No published posts yet")}
             description={
               syncing
-                ? "Pulling your published posts and their metrics from your connected accounts. This takes a few seconds."
-                : "Once posts go out on your connected accounts, their views and engagement show up here."
+                ? t("Pulling your published posts and their metrics from your connected accounts. This takes a few seconds.")
+                : t("Once posts go out on your connected accounts, their views and engagement show up here.")
             }
           >
             {!syncing && (
               <Button size="lg" className="rounded-xl" nativeButton={false} render={<Link href="/dashboard/posts/create" />}>
                 <Plus data-icon="inline-start" />
-                Create a post
+                <T>Create a post</T>
               </Button>
             )}
           </OverviewEmptyState>
@@ -314,8 +317,7 @@ export function AnalyticsBoard({ posts, sync, campaigns, activeCampaignId }: Pro
 
           {view.summary.awaitingMetrics > 0 && (
             <p className="text-center text-xs text-muted-foreground">
-              {view.summary.awaitingMetrics} of {view.summary.published} published post{view.summary.published === 1 ? "" : "s"} in this period {view.summary.awaitingMetrics === 1 ? "has" : "have"}n&apos;t reported metrics yet,
-              so totals cover the rest. Platforms usually report within a day.
+              {tn(view.summary.awaitingMetrics, "{waiting} of {published} published post in this period hasn't reported metrics yet, so totals cover the rest. Platforms usually report within a day.", "{waiting} of {published} published posts in this period haven't reported metrics yet, so totals cover the rest. Platforms usually report within a day.", { waiting: view.summary.awaitingMetrics, published: view.summary.published })}
             </p>
           )}
         </>
@@ -341,8 +343,9 @@ function Banner({ tone, action, children }: { tone: "warning" | "error"; action?
 }
 
 function AnalyticsSkeleton() {
+  const t = useT();
   return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading analytics">
+    <div className="space-y-4" aria-busy="true" aria-label={t("Loading analytics")}>
       <div className="flex gap-2">
         <Skeleton className="h-10 w-80 rounded-2xl" />
         <Skeleton className="h-10 w-60 rounded-2xl" />

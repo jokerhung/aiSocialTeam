@@ -17,7 +17,7 @@ export type WorkerRole = AgentRole & { id: WorkerRoleId; computer: boolean };
 export const AGENT_ROLES: WorkerRole[] = [
   { id: "research", name: "Research Agent", emoji: "🔍", description: "Finds trends and topics your audience cares about", computer: true },
   { id: "creator", name: "Creator Agent", emoji: "🎨", description: "Writes captions and designs the posts", computer: true },
-  { id: "scheduler", name: "Scheduler Agent", emoji: "🗓️", description: "Plans the best time to post and schedules posts through Blotato", computer: false },
+  { id: "scheduler", name: "Scheduler Agent", emoji: "🗓️", description: "Plans the best time to post and schedules posts", computer: false },
   { id: "analytics", name: "Analytics Agent", emoji: "📊", description: "Reports on post performance, on request or on a schedule you set", computer: false },
 ];
 

@@ -9,6 +9,7 @@ import { ArtifactGrid, formatElapsed, useNow } from "@/components/agents/task-re
 import { useSandboxController } from "@/components/sandbox/sandbox-controller";
 import { Button } from "@/components/ui/button";
 
+import { T, useT } from "@/lib/i18n/client";
 // What an office agent is doing, shown when you hover (or focus) it. Everything here is the live
 // status from the database (/api/agents/status), polled by the workspace; nothing is assumed.
 export function AgentPreviewCard({
@@ -23,6 +24,7 @@ export function AgentPreviewCard({
   status: AgentStatusView | undefined;
   onOpen: () => void;
 }) {
+  const t = useT();
   const { live, openViewer, retryTask, refresh } = useSandboxController();
   // Opening the popover fetches the latest status rather than showing what the last poll saw
   useEffect(() => {
@@ -62,7 +64,7 @@ export function AgentPreviewCard({
       <header className="flex items-center gap-2.5">
         <AgentAvatar role={role} sprite={sprite} className="size-9" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm leading-tight font-semibold">{role.name}</p>
+          <p className="truncate text-sm leading-tight font-semibold">{t(role.name)}</p>
           <AgentStatus status={status?.status ?? null} className="mt-0.5 px-1.5 py-0 text-[11px]" />
         </div>
       </header>
@@ -70,10 +72,10 @@ export function AgentPreviewCard({
       {!status ? (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <LoaderCircle className="size-3 animate-spin" aria-hidden />
-          Checking what it&apos;s doing…
+          <T>Checking what it's doing…</T>
         </p>
       ) : !task ? (
-        <p className="text-xs text-muted-foreground">No tasks yet. Ask the Master Agent for work and it will assign some.</p>
+        <p className="text-xs text-muted-foreground"><T>No tasks yet. Ask the Master Agent for work and it will assign some.</T></p>
       ) : (
         <>
           <div className="space-y-1 text-xs">
@@ -91,23 +93,23 @@ export function AgentPreviewCard({
               {elapsed && (
                 <div className="flex items-center gap-1">
                   <Timer className="size-3" aria-hidden />
-                  <dt className="sr-only">Elapsed</dt>
+                  <dt className="sr-only"><T>Elapsed</T></dt>
                   <dd className="tabular-nums">{elapsed}</dd>
                 </div>
               )}
               {sandbox && (
                 <div className="flex items-center gap-1">
                   <Monitor className="size-3" aria-hidden />
-                  <dt className="sr-only">Computer</dt>
+                  <dt className="sr-only"><T>Computer</T></dt>
                   <dd>
-                    {SANDBOX_STATUS_LABELS[sandbox.status]}
+                    {t(SANDBOX_STATUS_LABELS[sandbox.status])}
                     {usesComputer ? " · in use" : ""}
                   </dd>
                 </div>
               )}
               <div className="flex items-center gap-1">
                 <Paperclip className="size-3" aria-hidden />
-                <dt className="sr-only">Results</dt>
+                <dt className="sr-only"><T>Results</T></dt>
                 <dd className="tabular-nums">
                   {task.artifactCount} {task.artifactCount === 1 ? "file" : "files"}
                 </dd>
@@ -119,21 +121,21 @@ export function AgentPreviewCard({
             <div className="rounded-lg bg-amber-500/10 px-2.5 py-2 text-xs text-amber-800 dark:text-amber-200">
               <p className="flex items-start gap-1.5">
                 {current === "waiting_for_user" ? <KeyRound className="mt-0.5 size-3.5 shrink-0" aria-hidden /> : <Hourglass className="mt-0.5 size-3.5 shrink-0" aria-hidden />}
-                <span>{task.waitingReason ?? "It's waiting for you."}</span>
+                <span>{task.waitingReason ?? t("It's waiting for you.")}</span>
               </p>
               {current === "waiting_for_user" && task.interruption?.kind !== "takeover" && (
                 <Button className="mt-2 h-7 w-full rounded-lg text-xs" onClick={() => hasComputer(role.id) && openViewer({ kind: "login", agentId: role.id, taskId: task.id })}>
                   <KeyRound data-icon="inline-start" />
-                  Login now
+                  <T>Login now</T>
                 </Button>
               )}
               {current === "waiting_for_user" && task.interruption?.kind === "takeover" && (
                 <Button className="mt-2 h-7 w-full rounded-lg text-xs" onClick={() => hasComputer(role.id) && openViewer({ kind: "takeover", agentId: role.id })}>
                   <Monitor data-icon="inline-start" />
-                  Open the computer
+                  <T>Open the computer</T>
                 </Button>
               )}
-              {current === "needs_input" && <p className="mt-1 text-[11px] opacity-80">Answer it in the Master Agent&apos;s chat.</p>}
+              {current === "needs_input" && <p className="mt-1 text-[11px] opacity-80"><T>Answer it in the Master Agent's chat.</T></p>}
             </div>
           )}
 
@@ -146,10 +148,10 @@ export function AgentPreviewCard({
 
           {(current === "failed" || current === "expired") && (
             <div className="rounded-lg bg-destructive/8 px-2.5 py-2 text-xs text-destructive">
-              <p>{task.error ?? (current === "expired" ? "Nobody picked this up in time." : "It couldn't finish this task.")}</p>
+              <p>{task.error ?? (current === "expired" ? t("Nobody picked this up in time.") : t("It couldn't finish this task."))}</p>
               <Button variant="outline" className="mt-2 h-7 w-full rounded-lg bg-card text-xs text-foreground" disabled={busy} onClick={retry}>
                 {busy ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <RotateCcw data-icon="inline-start" />}
-                Retry
+                <T>Retry</T>
               </Button>
               {error && <p className="mt-1">{error}</p>}
             </div>
@@ -158,7 +160,7 @@ export function AgentPreviewCard({
       )}
 
       <Button variant="ghost" className="h-7 justify-between rounded-lg px-2 text-xs" onClick={onOpen}>
-        Open {role.name}
+        {t("Open {name}", { name: t(role.name) })}
         <ArrowRight data-icon="inline-end" />
       </Button>
     </div>

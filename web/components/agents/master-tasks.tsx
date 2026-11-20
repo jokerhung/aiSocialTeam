@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "@/lib/i18n/format";
 import {
   Ban,
   CalendarClock,
@@ -38,6 +38,7 @@ import { ArtifactGrid, DraftList, ResearchList } from "@/components/agents/task-
 import { useSandboxController } from "@/components/sandbox/sandbox-controller";
 import { Button } from "@/components/ui/button";
 
+import { T, useT } from "@/lib/i18n/client";
 export type PlanAction = "cancel" | "retry";
 
 const TASK_TONES: Record<TaskStatus, { Icon: LucideIcon; tone: string; spin?: boolean }> = {
@@ -73,11 +74,12 @@ const KIND_LABELS: Record<CommunicationKind, string> = {
 };
 
 export function TaskStatusBadge({ status, className }: { status: TaskStatus; className?: string }) {
+  const t = useT();
   const { Icon, tone, spin } = TASK_TONES[status];
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", tone, className)}>
       <Icon className={cn("size-3", spin && "animate-spin")} aria-hidden />
-      {TASK_STATUS_LABELS[status]}
+      {t(TASK_STATUS_LABELS[status])}
     </span>
   );
 }
@@ -93,10 +95,11 @@ export function MasterTasks({
   agents: WorkspaceAgent[];
   onAction: (planId: number, action: PlanAction) => Promise<string | null>;
 }) {
+  const t = useT();
   if (!loaded) {
     return (
       <div className="flex justify-center py-10 text-muted-foreground">
-        <LoaderCircle className="size-5 animate-spin" aria-label="Loading tasks" />
+        <LoaderCircle className="size-5 animate-spin" aria-label={t("Loading tasks")} />
       </div>
     );
   }
@@ -106,8 +109,8 @@ export function MasterTasks({
         Icon={ListChecks}
         tone="bg-linear-to-br from-indigo-500 to-fuchsia-600 text-white"
         glow="shadow-violet-500/30"
-        title="No plans yet"
-        description="Tell the Master Agent what you need in the chat. It will plan the work, assign it to the team and track it here."
+        title={t("No plans yet")}
+        description={t("Tell the Master Agent what you need in the chat. It will plan the work, assign it to the team and track it here.")}
       />
     );
   }
@@ -131,6 +134,7 @@ function PlanCard({
   agents: WorkspaceAgent[];
   onAction: (planId: number, action: PlanAction) => Promise<string | null>;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState<PlanAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const done = plan.tasks.filter((task) => task.status === "completed").length;
@@ -153,18 +157,18 @@ function PlanCard({
         <div className="min-w-0 flex-1">
           <h4 className="text-sm leading-snug font-semibold tracking-tight">{plan.title}</h4>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Plan #{plan.id} · {formatDistanceToNow(new Date(plan.createdAt), { addSuffix: true })}
+            {t("Plan #{id}", { id: plan.id })} · {formatDistanceToNow(new Date(plan.createdAt), { addSuffix: true })}
           </p>
         </div>
-        <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", PLAN_TONES[plan.status])}>{PLAN_STATUS_LABELS[plan.status]}</span>
+        <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", PLAN_TONES[plan.status])}>{t(PLAN_STATUS_LABELS[plan.status])}</span>
       </header>
 
       <div className="mt-3 flex items-center gap-3">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Plan progress">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={t("Plan progress")}>
           <div className="h-full rounded-full bg-linear-to-r from-indigo-500 to-fuchsia-500 transition-[width] duration-500" style={{ width: `${percent}%` }} />
         </div>
         <span className="text-xs text-muted-foreground tabular-nums">
-          {done}/{plan.tasks.length} done
+          {t("{done}/{total} done", { done, total: plan.tasks.length })}
         </span>
       </div>
 
@@ -180,7 +184,7 @@ function PlanCard({
         <details className="group/summary mt-3 rounded-xl bg-muted/50 px-3 py-2">
           <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium">
             <ChevronDown className="size-3.5 transition-transform group-open/summary:rotate-180" aria-hidden />
-            Master Agent&apos;s report
+            <T>Master Agent's report</T>
           </summary>
           <p className="mt-2 text-xs leading-relaxed whitespace-pre-wrap">{plan.summary}</p>
         </details>
@@ -193,13 +197,13 @@ function PlanCard({
           {(active || repeating) && (
             <Button variant="outline" className="h-7 rounded-lg bg-card px-2.5 text-xs" disabled={busy !== null} onClick={() => act("cancel")}>
               {busy === "cancel" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Ban data-icon="inline-start" />}
-              {active ? "Cancel plan" : "Stop repeating"}
+              {active ? t("Cancel plan") : t("Stop repeating")}
             </Button>
           )}
           {retryable && (
             <Button variant="outline" className="h-7 rounded-lg bg-card px-2.5 text-xs" disabled={busy !== null} onClick={() => act("retry")}>
               {busy === "retry" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <RotateCcw data-icon="inline-start" />}
-              Retry
+              <T>Retry</T>
             </Button>
           )}
         </footer>
@@ -219,6 +223,7 @@ function TaskRow({
   positions: Map<number, number>;
   communications: PlanView["communications"];
 }) {
+  const t = useT();
   const after = task.dependsOn.map((id) => positions.get(id)).filter(Boolean);
   const scheduled = task.status === "pending" || task.status === "queued";
   const runAt = new Date(task.scheduledAt);
@@ -230,63 +235,63 @@ function TaskRow({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium">{task.title}</span>
           <span className="block truncate text-[11px] text-muted-foreground">
-            {agent.role.name}
+            {t(agent.role.name)}
             {after.length > 0 && ` · after step ${after.join(", ")}`}
             {task.revisions > 0 && ` · revised`}
-            {showTime && ` · ${format(runAt, "MMM d, h:mm a")}`}
+            {showTime && ` · ${format(runAt, t("MMM d, h:mm a"))}`}
             {task.repeat && task.runCount > 0 && ` · ${task.runCount} ${task.runCount === 1 ? "run" : "runs"}`}
           </span>
         </span>
-        {task.repeat && <Repeat className="size-3.5 shrink-0 text-muted-foreground" aria-label="Repeats" />}
+        {task.repeat && <Repeat className="size-3.5 shrink-0 text-muted-foreground" aria-label={t("Repeats")} />}
         <TaskStatusBadge status={task.status} />
         <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/task:rotate-180" aria-hidden />
       </summary>
 
       <div className="space-y-3 px-2 pt-1 pb-3 text-xs leading-relaxed">
-        <Section label="Instructions">{task.instructions}</Section>
+        <Section label={t("Instructions")}>{task.instructions}</Section>
         {(showTime || task.repeat) && (
-          <Section label="Schedule">
-            {showTime ? `Runs ${format(runAt, "EEE, MMM d 'at' h:mm a")}` : task.status === "completed" ? "Finished" : "Running now or next up"}
-            {task.repeat && `\n${describeRepeat(task.repeat)}`}
-            {task.repeat && task.nextRunAt && `\nThen ${format(new Date(task.nextRunAt), "EEE, MMM d 'at' h:mm a")}`}
+          <Section label={t("Schedule")}>
+            {showTime ? t("Runs {when}", { when: format(runAt, t("EEE, MMM d 'at' h:mm a")) }) : task.status === "completed" ? t("Finished") : t("Running now or next up")}
+            {task.repeat && `\n${describeRepeat(task.repeat, t)}`}
+            {task.repeat && task.nextRunAt && `\n${t("Then {when}", { when: format(new Date(task.nextRunAt), t("EEE, MMM d 'at' h:mm a")) })}`}
           </Section>
         )}
-        {task.status === "in_progress" && task.currentStep && <Section label="Right now">{task.currentStep}</Section>}
-        {task.question && <Section label="Waiting for your answer" tone="text-amber-700 dark:text-amber-300">{task.question}</Section>}
+        {task.status === "in_progress" && task.currentStep && <Section label={t("Right now")}>{task.currentStep}</Section>}
+        {task.question && <Section label={t("Waiting for your answer")} tone="text-amber-700 dark:text-amber-300">{task.question}</Section>}
         {task.status === "waiting_for_user" && task.interruption && <WaitingForUser task={task} />}
-        {task.error && task.status !== "completed" && <Section label="Problem" tone="text-destructive">{task.error}</Section>}
+        {task.error && task.status !== "completed" && <Section label={t("Problem")} tone="text-destructive">{task.error}</Section>}
         {task.drafts.length > 0 && (
           <div>
-            <p className="mb-1 font-medium text-muted-foreground">Drafts</p>
+            <p className="mb-1 font-medium text-muted-foreground"><T>Drafts</T></p>
             <DraftList drafts={task.drafts} />
           </div>
         )}
         {task.research.length > 0 && (
           <div>
-            <p className="mb-1 font-medium text-muted-foreground">Research</p>
+            <p className="mb-1 font-medium text-muted-foreground"><T>Research</T></p>
             <ResearchList research={task.research} />
           </div>
         )}
         {task.artifacts.length > 0 && (
           <div>
-            <p className="mb-1 font-medium text-muted-foreground">Results</p>
+            <p className="mb-1 font-medium text-muted-foreground"><T>Results</T></p>
             <ArtifactGrid artifacts={task.artifacts} />
           </div>
         )}
-        {task.output && task.drafts.length === 0 && task.research.length === 0 && <Section label="Work">{task.output}</Section>}
+        {task.output && task.drafts.length === 0 && task.research.length === 0 && <Section label={t("Work")}>{task.output}</Section>}
         {task.output && (task.drafts.length > 0 || task.research.length > 0) && (
           <details className="group/work">
             <summary className="flex cursor-pointer list-none items-center gap-1 font-medium text-muted-foreground">
               <ChevronDown className="size-3.5 transition-transform group-open/work:rotate-180" aria-hidden />
-              Full report
+              <T>Full report</T>
             </summary>
             <p className="mt-1 whitespace-pre-wrap break-words">{task.output}</p>
           </details>
         )}
-        {task.review && <Section label="Master Agent's review">{task.review}</Section>}
+        {task.review && <Section label={t("Master Agent's review")}>{task.review}</Section>}
         {communications.length > 0 && (
           <div>
-            <p className="mb-1.5 font-medium text-muted-foreground">Agent conversation</p>
+            <p className="mb-1.5 font-medium text-muted-foreground"><T>Agent conversation</T></p>
             <ol className="space-y-1.5 border-l border-border pl-3">
               {communications.map((message) => (
                 <li key={message.id}>
@@ -305,18 +310,19 @@ function TaskRow({
 
 // A task waiting for the user on its agent's computer: open it to log in (or take it back)
 function WaitingForUser({ task }: { task: TaskView }) {
+  const t = useT();
   const { openViewer } = useSandboxController();
   const takeover = task.interruption?.kind === "takeover";
   return (
     <div className="rounded-lg bg-amber-500/10 px-2.5 py-2 text-amber-800 dark:text-amber-200">
-      <p className="font-medium">Waiting for you on the computer</p>
+      <p className="font-medium"><T>Waiting for you on the computer</T></p>
       <p className="mt-0.5">{task.interruption?.reason}</p>
       <Button
         className="mt-2 h-7 rounded-lg px-2.5 text-xs"
         onClick={() => openViewer(takeover ? { kind: "takeover", agentId: task.agentId } : { kind: "login", agentId: task.agentId, taskId: task.id })}
       >
         <KeyRound data-icon="inline-start" />
-        {takeover ? "Open the computer" : "Login now"}
+        {takeover ? t("Open the computer") : t("Login now")}
       </Button>
     </div>
   );
@@ -332,7 +338,8 @@ function Section({ label, tone, children }: { label: string; tone?: string; chil
 }
 
 function speaker(id: AgentRoleId | "user") {
-  return id === "user" ? "You" : getAgentRole(id).name;
+  const t = useT();
+  return id === "user" ? t("You") : t(getAgentRole(id).name);
 }
 
 // The workspace's look for an agent (office sprite), or a plain one for agents without a desk

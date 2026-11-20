@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/local-user";
@@ -7,7 +8,10 @@ import { CreateCampaignWizard } from "@/components/campaign/create-campaign-wiza
 // Reads campaigns from the BotTeam server on every request
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Create your campaign" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: t("Create your campaign") };
+}
 
 export default async function CreateCampaignPage() {
   const user = await getCurrentUser();

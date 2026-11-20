@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { NoCampaign } from "@/components/dashboard/no-campaign";
 import { redirect } from "next/navigation";
 import { getSyncState, listAnalyticsPosts } from "@/lib/analytics/store";
@@ -5,7 +6,10 @@ import { getActiveCampaign, listUserCampaigns } from "@/lib/campaigns";
 import { getCurrentUser } from "@/lib/local-user";
 import { AnalyticsBoard } from "@/components/analytics/analytics-board";
 
-export const metadata = { title: "Analytics" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("Analytics") };
+}
 
 // How the user's posts perform, from the metrics their platforms reported through Blotato (synced into
 // post_analytics; the board syncs again on load when they're stale). Shell (sidebar, header, auth +

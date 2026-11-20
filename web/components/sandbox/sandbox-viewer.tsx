@@ -10,6 +10,7 @@ import { useSandboxController, type ViewerMode } from "@/components/sandbox/sand
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+import { T, useT } from "@/lib/i18n/client";
 // An agent's computer, large. Watching is view only; "Take over" and "Login now" give the user
 // the keyboard and mouse. While the user has control the viewer sends a heartbeat, so the computer
 // isn't paused under them. Passwords are typed straight into the computer: they never pass through
@@ -18,6 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 const HEARTBEAT_MS = 60_000;
 
 export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMode; onModeChange: (mode: ViewerMode) => void; onClose: () => void }) {
+  const t = useT();
   const { live, act, resumeTask } = useSandboxController();
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,7 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
   const [busy, setBusy] = useState<string | null>(null);
 
   const { agentId } = mode;
-  const agentName = getAgentRole(agentId).name;
+  const agentName = t(getAgentRole(agentId).name);
   const sandbox = live?.sandboxes[agentId];
   const sandboxStatus = sandbox?.status ?? "none";
   const interactive = mode.kind !== "watch";
@@ -48,7 +50,7 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
         }
         const data = await response.json().catch(() => null);
         if (cancelled) return;
-        if (!response.ok) throw new Error(data?.error ?? "The computer couldn't be reached.");
+        if (!response.ok) throw new Error(data?.error ?? t("The computer couldn't be reached."));
         setUrl(data?.url ?? null);
       } catch (loadError) {
         if (!cancelled) {
@@ -94,12 +96,12 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
 
   const subtitle =
     mode.kind === "login"
-      ? "Do what the agent asked, right here in the computer. Your password goes straight into the site, never to the agent."
+      ? t("Do what the agent asked, right here in the computer. Your password goes straight into the site, never to the agent.")
       : mode.kind === "takeover"
-        ? `You're in control. The ${agentName} waits until you hand the computer back.`
+        ? t("You're in control. The {agentName} waits until you hand the computer back.", { agentName })
         : sandbox?.activeTaskId
-          ? `The ${agentName} is using it. You're watching.`
-          : `The ${agentName}'s own computer. You're watching.`;
+          ? t("The {agentName} is using it. You're watching.", { agentName })
+          : t("The {agentName}'s own computer. You're watching.", { agentName });
 
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
@@ -107,16 +109,16 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
         <DialogHeader className="pr-8">
           <DialogTitle className="flex flex-wrap items-center gap-2">
             <Monitor className="size-4" aria-hidden />
-            {agentName}&apos;s computer
+            {t("{agent}'s computer", { agent: agentName })}
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[11px] font-medium",
                 sandboxStatus === "running" ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"
               )}
             >
-              {SANDBOX_STATUS_LABELS[sandboxStatus]}
+              {t(SANDBOX_STATUS_LABELS[sandboxStatus])}
             </span>
-            {interactive && <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">You have control</span>}
+            {interactive && <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300"><T>You have control</T></span>}
           </DialogTitle>
           <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
@@ -125,7 +127,7 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
           <p className="flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             <KeyRound className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
-              <span className="font-medium">{getAgentRole(waiting.agentId).name}:</span> {waiting.task.waitingReason}
+              <span className="font-medium">{t(getAgentRole(waiting.agentId).name)}:</span> {waiting.task.waitingReason}
             </span>
           </p>
         )}
@@ -136,18 +138,18 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
           ) : loading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle className="size-5 animate-spin" aria-hidden />
-              {interactive ? "Waking up the computer…" : "Connecting…"}
+              {interactive ? t("Waking up the computer…") : t("Connecting…")}
             </div>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
               {sandbox?.hasPreview && <img src={`/api/sandbox/preview?agent=${agentId}&at=${encodeURIComponent(sandbox.activeAt ?? "")}`} alt="" className="absolute inset-0 size-full object-cover opacity-40 blur-[1px]" />}
               <p className="relative text-sm font-medium">
-                {error ?? (sandboxStatus === "paused" ? "The computer is paused." : sandboxStatus === "killed" ? "This computer was shut down." : "The computer isn't running.")}
+                {error ?? (sandboxStatus === "paused" ? t("The computer is paused.") : sandboxStatus === "killed" ? t("This computer was shut down.") : t("The computer isn't running."))}
               </p>
               {!sandbox?.ended && mode.kind === "watch" && sandboxStatus !== "running" && (
                 <Button className="relative h-8 rounded-lg" disabled={busy !== null} onClick={() => run("start", async () => (await act("start", agentId)).error)}>
                   {busy === "start" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Play data-icon="inline-start" />}
-                  Start it
+                  <T>Start it</T>
                 </Button>
               )}
             </div>
@@ -161,12 +163,12 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
               {sandboxStatus === "running" && (
                 <Button variant="outline" className="h-8 rounded-lg" disabled={busy !== null} onClick={() => run("pause", async () => (await act("pause", agentId)).error)}>
                   {busy === "pause" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Pause data-icon="inline-start" />}
-                  Pause
+                  <T>Pause</T>
                 </Button>
               )}
               <Button className="h-8 rounded-lg" onClick={() => onModeChange({ kind: "takeover", agentId })}>
                 <Hand data-icon="inline-start" />
-                Take over
+                <T>Take over</T>
               </Button>
             </>
           )}
@@ -179,7 +181,7 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
               }
             >
               {busy === "hand-back" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Undo2 data-icon="inline-start" />}
-              Hand back to the agent
+              <T>Hand back to the agent</T>
             </Button>
           )}
           {mode.kind === "login" && (
@@ -189,11 +191,11 @@ export function SandboxViewer({ mode, onModeChange, onClose }: { mode: ViewerMod
               onClick={() => run("done", () => resumeTask(mode.taskId)).then((ok) => ok && onClose())}
             >
               {busy === "done" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Check data-icon="inline-start" />}
-              Done, carry on
+              <T>Done, carry on</T>
             </Button>
           )}
           <Button variant="ghost" className="h-8 rounded-lg" onClick={close}>
-            Close
+            <T>Close</T>
           </Button>
         </footer>
       </DialogContent>

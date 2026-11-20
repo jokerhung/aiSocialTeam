@@ -1,6 +1,7 @@
 import { addDays } from "@/lib/calendar";
 import { utcToZonedParts } from "@/lib/posts/shared";
 
+import { intlLocale } from "@/lib/i18n/display";
 // Post analytics as both the server (sync, agent tools) and the browser (Analytics page) see them,
 // and the maths both use, so the page and the Analytics Agent always agree. Not server-only.
 //
@@ -309,7 +310,7 @@ export function platformColors(platforms: string[]) {
 
 export function formatCount(value: number | null) {
   if (value === null) return "—";
-  return new Intl.NumberFormat("en-US", { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+  return new Intl.NumberFormat(intlLocale(), { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
 }
 
 export function formatPercent(value: number | null, digits = 1) {

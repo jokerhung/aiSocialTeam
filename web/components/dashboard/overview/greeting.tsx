@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { Moon, Sun, Sunrise, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { useT } from "@/lib/i18n/client";
 type Period = { text: string; Icon: LucideIcon; tone: string };
 
 const PERIODS: Record<"morning" | "afternoon" | "evening", Period> = {
@@ -16,6 +17,7 @@ const subscribe = () => () => {};
 
 // Greeting follows the viewer's local clock; the server renders a neutral fallback.
 export function Greeting({ name }: { name?: string }) {
+  const t = useT();
   const hour = useSyncExternalStore(subscribe, () => new Date().getHours(), () => null);
   const period =
     hour === null ? null : hour < 12 ? PERIODS.morning : hour < 18 ? PERIODS.afternoon : PERIODS.evening;
@@ -25,7 +27,7 @@ export function Greeting({ name }: { name?: string }) {
     <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
       <Icon className={cn("size-4 transition-colors", period?.tone ?? "text-amber-500")} />
       <span>
-        {period?.text ?? "Welcome back"}
+        {period ? t(period.text) : t("Welcome back")}
         {name && (
           <>
             , <span className="font-semibold text-foreground">{name}</span>

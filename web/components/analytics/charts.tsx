@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
 import { ChartCard, ChartEmpty, DataTable, PlatformKey, Segmented } from "@/components/analytics/chart-card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
+import { T, useI18n, useT } from "@/lib/i18n/client";
+import { intlLocale } from "@/lib/i18n/display";
 // The Analytics page's charts. Platforms keep one colour everywhere (platformColors). Each has a
 // table view with the same numbers, and a missing metric is a gap, never a 0.
 
 // Axis ticks stay short: 8K, 1.2M
-const axisCount = (value: number) => new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+const axisCount = (value: number) => new Intl.NumberFormat(intlLocale(), { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
 const shortDay = (day: string) => formatDay(day, { month: "short", day: "numeric" });
 const longDay = (day: string) => formatDay(day, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -25,6 +27,7 @@ function tickGap(days: number) {
 
 // Daily posting activity: posts published each day, stacked by platform
 export function ActivityChart({ days, platforms, colors, dimmed }: { days: DayRow[]; platforms: string[]; colors: Record<string, string>; dimmed?: boolean }) {
+  const t = useT();
   const config = useMemo(
     () => Object.fromEntries(platforms.map((platform) => [platform, { label: platformName(platform), color: colors[platform] }])) satisfies ChartConfig,
     [platforms, colors]
@@ -35,11 +38,11 @@ export function ActivityChart({ days, platforms, colors, dimmed }: { days: DayRo
 
   return (
     <ChartCard
-      title="Daily posting activity"
-      subtitle={total ? `${total} published${busiest ? ` · busiest day ${shortDay(busiest.day)} (${busiest.published})` : ""}` : "Posts published each day"}
+      title={t("Daily posting activity")}
+      subtitle={total ? `${total} published${busiest ? ` · busiest day ${shortDay(busiest.day)} (${busiest.published})` : ""}` : t("Posts published each day")}
       table={
         <DataTable
-          head={["Day", ...platforms.map(platformName), "Failed"]}
+          head={[t("Day"), ...platforms.map(platformName), t("Failed")]}
           rows={days.filter((row) => row.published || row.failed).map((row) => [longDay(row.day), ...platforms.map((platform) => row.perPlatform[platform] ?? 0), row.failed])}
         />
       }
@@ -73,7 +76,7 @@ export function ActivityChart({ days, platforms, colors, dimmed }: { days: DayRo
               ))}
             </BarChart>
           </ChartContainer>
-          {total === 0 && <ChartEmpty title="Nothing published in this period" description="Posts appear here once they go out on your connected accounts." />}
+          {total === 0 && <ChartEmpty title={t("Nothing published in this period")} description={t("Posts appear here once they go out on your connected accounts.")} />}
         </div>
       </div>
     </ChartCard>
@@ -84,8 +87,9 @@ type TrendMetric = "views" | "engagement";
 
 // Views or engagement of the posts published each day (one measure at a time, one axis)
 export function TrendChart({ days, dimmed }: { days: DayRow[]; dimmed?: boolean }) {
+  const { t, tn } = useI18n();
   const [metric, setMetric] = useState<TrendMetric>("views");
-  const label = metric === "views" ? "Views" : "Engagement";
+  const label = metric === "views" ? t("Views") : t("Engagement");
   const config = { [metric]: { label, color: "var(--series-1)" } } satisfies ChartConfig;
   const reported = days.filter((row) => row[metric] !== null && row.published > 0);
   const total = reported.reduce((sum, row) => sum + (row[metric] ?? 0), 0);
@@ -94,26 +98,32 @@ export function TrendChart({ days, dimmed }: { days: DayRow[]; dimmed?: boolean 
 
   return (
     <ChartCard
-      title="Views & engagement"
+      title={t("Views & engagement")}
       subtitle={
         reported.length
-          ? `${formatCount(total)} ${label.toLowerCase()} on posts published in this period${peak ? ` · peak ${shortDay(peak.day)}` : ""}${missingDays ? ` · ${missingDays} day${missingDays === 1 ? "" : "s"} not reported yet` : ""}`
-          : "By the day each post was published"
+          ? [
+              t("{count} {metric} on posts published in this period", { count: formatCount(total), metric: label.toLowerCase() }),
+              peak ? t("peak {day}", { day: shortDay(peak.day) }) : null,
+              missingDays ? tn(missingDays, "{n} day not reported yet", "{n} days not reported yet") : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : t("By the day each post was published")
       }
       controls={
         <Segmented
-          label="Metric"
+          label={t("Metric")}
           value={metric}
           onChange={setMetric}
           options={[
-            { id: "views", label: "Views" },
-            { id: "engagement", label: "Engagement" },
+            { id: "views", label: t("Views") },
+            { id: "engagement", label: t("Engagement") },
           ]}
         />
       }
       table={
         <DataTable
-          head={["Published on", "Posts", "Views", "Engagement"]}
+          head={[t("Published on"), t("Posts"), t("Views"), t("Engagement")]}
           rows={days.filter((row) => row.published).map((row) => [longDay(row.day), row.published, formatCount(row.views), formatCount(row.engagement)])}
         />
       }
@@ -157,11 +167,11 @@ export function TrendChart({ days, dimmed }: { days: DayRow[]; dimmed?: boolean 
         </ChartContainer>
         {!reported.length && (
           <ChartEmpty
-            title={`No ${label.toLowerCase()} reported yet`}
+            title={t("No {metric} reported yet", { metric: label.toLowerCase() })}
             description={
               days.some((row) => row.published)
-                ? "Your platforms report metrics a while after a post goes out. They'll show up here after the next sync."
-                : "Nothing was published in this period."
+                ? t("Your platforms report metrics a while after a post goes out. They'll show up here after the next sync.")
+                : t("Nothing was published in this period.")
             }
           />
         )}
@@ -175,42 +185,43 @@ const MAX_SLICES = 5;
 
 // Platform-wise performance: each platform's share of views, engagement or posts
 export function PlatformDonut({ rows, colors, dimmed }: { rows: PlatformRow[]; colors: Record<string, string>; dimmed?: boolean }) {
+  const t = useT();
   const hasViews = rows.some((row) => row.views.total !== null);
   const [picked, setMetric] = useState<ShareMetric | null>(null);
   const metric = picked ?? (hasViews ? "views" : "published");
   const valueOf = (row: PlatformRow) => (metric === "published" ? row.published : (row[metric].total ?? null));
 
-  // Biggest first; past five, the rest fold into "Other"
+  // Biggest first; past five, the rest fold into t("Other")
   const ranked = rows.map((row) => ({ platform: row.platform, value: valueOf(row), row })).sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
   const slices = ranked.slice(0, MAX_SLICES).filter((item) => (item.value ?? 0) > 0);
   const rest = ranked.slice(MAX_SLICES).reduce((sum, item) => sum + (item.value ?? 0), 0);
   const data = [
     ...slices.map((item) => ({ key: item.platform, name: platformName(item.platform), value: item.value!, fill: colors[item.platform] })),
-    ...(rest > 0 ? [{ key: "other", name: "Other", value: rest, fill: "var(--series-other)" }] : []),
+    ...(rest > 0 ? [{ key: "other", name: t("Other"), value: rest, fill: "var(--series-other)" }] : []),
   ];
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  const metricLabel = metric === "published" ? "posts" : metric;
+  const metricLabel = t(metric === "published" ? "posts" : metric);
   const config = Object.fromEntries(data.map((item) => [item.key, { label: item.name, color: item.fill }])) satisfies ChartConfig;
 
   return (
     <ChartCard
-      title="Platform performance"
-      subtitle={`Share of ${metricLabel} by platform`}
+      title={t("Platform performance")}
+      subtitle={t("Share of {metricLabel} by platform", { metricLabel })}
       controls={
         <Segmented
-          label="Metric"
+          label={t("Metric")}
           value={metric}
           onChange={setMetric}
           options={[
-            { id: "views", label: "Views" },
-            { id: "engagement", label: "Engagement" },
-            { id: "published", label: "Posts" },
+            { id: "views", label: t("Views") },
+            { id: "engagement", label: t("Engagement") },
+            { id: "published", label: t("Posts") },
           ]}
         />
       }
       table={
         <DataTable
-          head={["Platform", "Posts", "Failed", "Views", "Engagement"]}
+          head={[t("Platform"), t("Posts"), t("Failed"), t("Views"), t("Engagement")]}
           rows={rows.map((row) => [platformName(row.platform), row.published, row.failed, formatCount(row.views.total), formatCount(row.engagement.total)])}
         />
       }
@@ -236,7 +247,7 @@ export function PlatformDonut({ rows, colors, dimmed }: { rows: PlatformRow[]; c
             </>
           ) : (
             <div className="flex aspect-square w-full items-center justify-center rounded-full border-[14px] border-muted">
-              <span className="max-w-24 text-center text-xs text-muted-foreground">{rows.length ? `No ${metricLabel} reported yet` : "No posts in this period"}</span>
+              <span className="max-w-24 text-center text-xs text-muted-foreground">{rows.length ? t("No {metricLabel} reported yet", { metricLabel }) : t("No posts in this period")}</span>
             </div>
           )}
         </div>
@@ -250,7 +261,7 @@ export function PlatformDonut({ rows, colors, dimmed }: { rows: PlatformRow[]; c
               <span className="w-12 text-right text-xs text-muted-foreground tabular-nums">{item.value !== null && total ? formatPercent(item.value / total, 0) : "—"}</span>
             </li>
           ))}
-          {ranked.length === 0 && <li className="text-sm text-muted-foreground">No platforms in this period.</li>}
+          {ranked.length === 0 && <li className="text-sm text-muted-foreground"><T>No platforms in this period.</T></li>}
         </ul>
       </div>
     </ChartCard>

@@ -11,8 +11,10 @@ import { cn } from "@/lib/utils";
 import { PLATFORM_STYLES, PlatformIcon } from "@/components/posts/platform-icon";
 import { Button } from "@/components/ui/button";
 
+import { T, useT } from "@/lib/i18n/client";
 // Fetches the connected accounts from Composio again, after one was connected or removed there
 export function RefreshAccountsButton({ className }: { className?: string }) {
+  const t = useT();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -33,7 +35,7 @@ export function RefreshAccountsButton({ className }: { className?: string }) {
         }
       >
         <RefreshCw data-icon="inline-start" className={cn(pending && "animate-spin")} />
-        {pending ? "Refreshing…" : "Refresh accounts"}
+        {pending ? t("Refreshing…") : t("Refresh accounts")}
       </Button>
       {error && <p className="max-w-xs text-right text-xs text-destructive">{error}</p>}
     </div>
@@ -42,6 +44,7 @@ export function RefreshAccountsButton({ className }: { className?: string }) {
 
 // The connected accounts: the platforms posts can go to first, then any others
 export function AccountsList({ accounts }: { accounts: BlotatoAccount[] }) {
+  const t = useT();
   const byPlatform = accountsByPlatform(accounts);
   const others = accounts.filter((account) => !(POST_PLATFORMS as readonly string[]).includes(account.platform));
 
@@ -59,7 +62,7 @@ export function AccountsList({ accounts }: { accounts: BlotatoAccount[] }) {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">{PLATFORM_STYLES[platform].name}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {list.length ? `${list.length} account${list.length === 1 ? "" : "s"}` : "Not connected"}
+                    {list.length ? `${list.length} account${list.length === 1 ? "" : "s"}` : t("Not connected")}
                     {platform === "youtube" && " · videos & Shorts"}
                   </p>
                 </div>
@@ -77,7 +80,7 @@ export function AccountsList({ accounts }: { accounts: BlotatoAccount[] }) {
       </ul>
       {others.length > 0 && (
         <div className="rounded-2xl bg-muted/30 p-3.5 ring-1 ring-border/60">
-          <p className="text-xs font-medium text-muted-foreground">Also connected (posting here supports Instagram, TikTok and YouTube for now)</p>
+          <p className="text-xs font-medium text-muted-foreground"><T>Also connected (posting here supports Instagram, TikTok and YouTube for now)</T></p>
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {others.map((account) => (
               <li key={account.id} className="rounded-lg bg-card px-2 py-1 text-xs ring-1 ring-border/60">

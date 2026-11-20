@@ -5,6 +5,7 @@ import type { WorkerRoleId } from "@/lib/agent-roles";
 import type { LiveStatus } from "@/lib/orchestration/types";
 import { SandboxViewer } from "@/components/sandbox/sandbox-viewer";
 
+import { useT } from "@/lib/i18n/client";
 // Everything the UI can do with the agents' computers and with tasks waiting on the user, shared by
 // the office popover, the Computer tab and the viewer. Each computer agent has its own computer.
 // The live status comes from the server.
@@ -37,9 +38,10 @@ export function useSandboxController() {
 }
 
 async function post(url: string, body: unknown) {
+  const t = useT();
   const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
   const data = await response?.json().catch(() => null);
-  return { ok: !!response?.ok, data, error: response?.ok ? null : (data?.error ?? "That didn't work. Please try again.") };
+  return { ok: !!response?.ok, data, error: response?.ok ? null : (data?.error ?? t("That didn't work. Please try again.")) };
 }
 
 export function SandboxProvider({

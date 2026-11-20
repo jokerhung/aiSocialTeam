@@ -8,10 +8,16 @@ import { OverviewEmptyState, OverviewPanel } from "@/components/dashboard/overvi
 import { AccountsList, RefreshAccountsButton } from "@/components/integrations/blotato";
 import { Button } from "@/components/ui/button";
 
-export const metadata = { title: "Accounts" };
+import { T } from "@/lib/i18n/client";
+import { getT } from "@/lib/i18n/server";
+export async function generateMetadata() {
+  const { t, tn } = await getT();
+  return { title: t("Accounts") };
+}
 
 // Every social account connected through Composio, grouped by platform
 export default async function AccountsPage() {
+  const { t, tn } = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
   const integration = await getBlotatoIntegration(user.id);
@@ -23,12 +29,12 @@ export default async function AccountsPage() {
           Icon={Link2}
           tone="bg-linear-to-br from-sky-400 to-cyan-600 text-white"
           glow="shadow-sky-500/40"
-          title="No accounts connected yet"
-          description="Connect your social accounts through Composio to see them here and post to them."
+          title={t("No accounts connected yet")}
+          description={t("Connect your social accounts through Composio to see them here and post to them.")}
         >
           <Button size="lg" className="rounded-xl" nativeButton={false} render={<Link href="/dashboard/settings/integrations" />}>
             <Settings data-icon="inline-start" />
-            Go to Settings → Integrations
+            <T>Go to Settings → Integrations</T>
           </Button>
         </OverviewEmptyState>
       </OverviewPanel>
@@ -37,18 +43,18 @@ export default async function AccountsPage() {
 
   return (
     <OverviewPanel
-      title="Connected accounts"
+      title={t("Connected accounts")}
       action={
         <div className="flex items-start gap-2">
           <Button variant="ghost" size="sm" className="rounded-lg" nativeButton={false} render={<Link href="/dashboard/settings/integrations" />}>
-            Manage
+            <T>Manage</T>
           </Button>
           <RefreshAccountsButton />
         </div>
       }
     >
       <p className="mb-5 text-sm text-muted-foreground">
-        Through Composio · {integration.accounts.length} account{integration.accounts.length === 1 ? "" : "s"} · {refreshedLabel(integration.refreshedAt)}
+        {tn(integration.accounts.length, "Through Composio · {n} account", "Through Composio · {n} accounts")} · {refreshedLabel(integration.refreshedAt, t)}
       </p>
       <AccountsList accounts={integration.accounts} />
     </OverviewPanel>

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isLocale, LANGUAGE_COOKIE, LANGUAGE_COOKIE_MAX_AGE, localeFromAcceptLanguage } from "@/lib/i18n/config";
 
 // The app has no sign-in, so who can open it is decided by the address they used: localhost, a literal LAN or
 // Tailscale IP (the same ranges as server/botteam/auth.py), or a name listed in WEB_ALLOWED_HOSTS. Anything
@@ -37,6 +38,13 @@ function allowedAddress(host: string) {
 export function proxy(request: NextRequest) {
   const authority = request.headers.get("host") ?? "";
   const host = authority.replace(/:\d+$/, "").toLowerCase().replace(/\.$/, "");
-  if (allowedAddress(host) || EXTRA_HOSTS.includes(host)) return NextResponse.next();
+  if (allowedAddress(host) || EXTRA_HOSTS.includes(host)) {
+    const response = NextResponse.next();
+    // First visit: remember the browser's language until the person picks one
+    if (!isLocale(request.cookies.get(LANGUAGE_COOKIE)?.value)) {
+      response.cookies.set(LANGUAGE_COOKIE, localeFromAcceptLanguage(request.headers.get("accept-language")), { path: "/", maxAge: LANGUAGE_COOKIE_MAX_AGE, sameSite: "lax" });
+    }
+    return response;
+  }
   return new NextResponse("This address isn't allowed. Open the app on localhost or a LAN/Tailscale IP, or add the name to WEB_ALLOWED_HOSTS.", { status: 403 });
 }

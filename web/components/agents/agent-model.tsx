@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import type { AgentRoleId } from "@/lib/agent-roles";
 
+import { T, useT } from "@/lib/i18n/client";
 type Selection = { instanceId: string; model: string; effort: string | null };
 type Engine = { id: string; name: string; models: { id: string; label: string }[]; efforts: string[] };
 
@@ -11,6 +12,7 @@ const EFFORT_LABELS: Record<string, string> = { low: "Low", medium: "Medium", hi
 
 // Engine, model and thinking level of an agent: saved on its BotTeam bot, so they apply to its next message
 export function AgentModelPicker({ roleId }: { roleId: AgentRoleId }) {
+  const t = useT();
   const [state, setState] = useState<{ selection: Selection; engines: Engine[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -22,7 +24,7 @@ export function AgentModelPicker({ roleId }: { roleId: AgentRoleId }) {
     fetch(`/api/agents/model?agentId=${roleId}`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json().catch(() => null);
-        if (!response.ok || !body) throw new Error(body?.error ?? "Couldn't load the model settings.");
+        if (!response.ok || !body) throw new Error(body?.error ?? t("Couldn't load the model settings."));
         if (!stale) setState(body);
       })
       .catch((e: Error) => !stale && setError(e.message));
@@ -46,12 +48,12 @@ export function AgentModelPicker({ roleId }: { roleId: AgentRoleId }) {
     if (!response?.ok) {
       const body = await response?.json().catch(() => null);
       setState((current) => (current ? { ...current, selection: previous } : current));
-      setError(body?.error ?? "Couldn't save. Please try again.");
+      setError(body?.error ?? t("Couldn't save. Please try again."));
     }
   }
 
   if (error && !state) return <p className="px-3 text-xs text-destructive">{error}</p>;
-  if (!state) return <p className="px-3 text-xs text-muted-foreground">Loading model settings…</p>;
+  if (!state) return <p className="px-3 text-xs text-muted-foreground"><T>Loading model settings…</T></p>;
 
   const { selection, engines } = state;
   const engine = engines.find((e) => e.id === selection.instanceId) ?? engines[0];
@@ -68,7 +70,7 @@ export function AgentModelPicker({ roleId }: { roleId: AgentRoleId }) {
     <div className="space-y-3 px-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1.5 text-sm font-medium">
-          Engine
+          <T>Engine</T>
           <NativeSelect className="block w-full" disabled={saving} value={selection.instanceId} onChange={(e) => chooseEngine(e.target.value)}>
             {engines.map((e) => (
               <NativeSelectOption key={e.id} value={e.id}>
@@ -78,7 +80,7 @@ export function AgentModelPicker({ roleId }: { roleId: AgentRoleId }) {
           </NativeSelect>
         </label>
         <label className="space-y-1.5 text-sm font-medium">
-          Model
+          <T>Model</T>
           <NativeSelect className="block w-full" disabled={saving} value={selection.model} onChange={(e) => save({ ...selection, model: e.target.value })}>
             {engine?.models.map((m) => (
               <NativeSelectOption key={m.id} value={m.id}>
@@ -90,22 +92,22 @@ export function AgentModelPicker({ roleId }: { roleId: AgentRoleId }) {
         </label>
       </div>
       <label className="block space-y-1.5 text-sm font-medium">
-        Thinking
+        <T>Thinking</T>
         <NativeSelect
           className="block w-full sm:w-1/2"
           disabled={saving || efforts.length === 0}
           value={selection.effort ?? ""}
           onChange={(e) => save({ ...selection, effort: e.target.value || null })}
         >
-          <NativeSelectOption value="">{efforts.length ? "Engine default" : "Not available for this engine"}</NativeSelectOption>
+          <NativeSelectOption value="">{efforts.length ? t("Engine default") : t("Not available for this engine")}</NativeSelectOption>
           {efforts.map((level) => (
             <NativeSelectOption key={level} value={level}>
-              {EFFORT_LABELS[level] ?? level}
+              {t(EFFORT_LABELS[level] ?? level)}
             </NativeSelectOption>
           ))}
         </NativeSelect>
       </label>
-      <p className="text-xs text-muted-foreground">Saved on this agent&apos;s bot in BotTeam and used from its next message.</p>
+      <p className="text-xs text-muted-foreground"><T>Saved on this agent's bot in BotTeam and used from its next message.</T></p>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );

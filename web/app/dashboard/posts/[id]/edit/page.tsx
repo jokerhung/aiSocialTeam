@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { NoCampaign } from "@/components/dashboard/no-campaign";
 import { notFound, redirect } from "next/navigation";
 import { getPublishingAccounts } from "@/lib/blotato/store";
@@ -8,7 +9,10 @@ import { isEditable, utcToZonedParts } from "@/lib/posts/shared";
 import { getPost } from "@/lib/posts/store";
 import { PostComposer, type ComposerInitial } from "@/components/posts/post-composer";
 
-export const metadata = { title: "Edit post" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("Edit post") };
+}
 
 type Props = { params: Promise<{ id: string }> };
 

@@ -3,6 +3,7 @@ import { getActiveCampaign } from "@/lib/campaigns";
 import { AGENT_ROLES } from "@/lib/agent-roles";
 import { api, ApiError } from "@/lib/botteam";
 
+import { getT } from "@/lib/i18n/server";
 export const runtime = "nodejs";
 
 const AGENT_IDS = ["master", ...AGENT_ROLES.map((role) => role.id)] as [string, ...string[]];
@@ -25,17 +26,18 @@ async function botIdFor(agentId: string) {
 
 // An agent's engine, model and thinking level (the BotTeam bot's model selection), and what it can be set to
 export async function GET(request: Request) {
+  const { t } = await getT();
   const parsed = z.enum(AGENT_IDS).safeParse(new URL(request.url).searchParams.get("agentId"));
-  if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: t("Invalid request") }, { status: 400 });
   const botId = await botIdFor(parsed.data);
-  if (!botId) return Response.json({ error: "No active campaign" }, { status: 400 });
+  if (!botId) return Response.json({ error: t("No active campaign") }, { status: 400 });
   try {
     const [{ bots }, { instances }] = await Promise.all([
       api<{ bots: { id: string; modelSelection: Selection }[] }>("/api/bots"),
       api<{ instances: Instance[] }>("/api/instances"),
     ]);
     const bot = bots.find((b) => b.id === botId);
-    if (!bot) return Response.json({ error: "Agent not found" }, { status: 404 });
+    if (!bot) return Response.json({ error: t("Agent not found") }, { status: 404 });
     const engines = instances
       .filter((i) => i.enabled && !i.hidden && (i.snapshot.state === "available" || i.id === bot.modelSelection.instanceId))
       .map((i) => ({ id: i.id, name: i.displayName, models: i.models, efforts: i.capabilities.effortLevels ?? [] }));
@@ -53,11 +55,12 @@ const Body = z.object({
 });
 
 export async function PUT(request: Request) {
+  const { t } = await getT();
   const parsed = Body.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: t("Invalid request") }, { status: 400 });
   const { agentId, instanceId, model, effort } = parsed.data;
   const botId = await botIdFor(agentId);
-  if (!botId) return Response.json({ error: "No active campaign" }, { status: 400 });
+  if (!botId) return Response.json({ error: t("No active campaign") }, { status: 400 });
   try {
     await api(`/api/bots/${botId}`, { method: "PATCH", json: { modelSelection: { instanceId, model, effort } } });
     return Response.json({ selection: { instanceId, model, effort } });

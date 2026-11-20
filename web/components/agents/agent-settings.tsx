@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { AgentModelPicker } from "@/components/agents/agent-model";
 
+import { T, useT } from "@/lib/i18n/client";
 export type AgentSettings = {
   autonomous: boolean;
   approval: boolean;
@@ -29,16 +30,17 @@ export function AgentSettingsForm({
   settings: AgentSettings;
   onChange: (settings: AgentSettings) => void;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="px-3 text-sm font-semibold">Model</h3>
+      <h3 className="px-3 text-sm font-semibold"><T>Model</T></h3>
       <AgentModelPicker roleId={agent.role.id} />
       <div className="my-2 border-t" />
       {TOGGLES.map(({ key, label, description }) => (
         <label key={key} className="flex cursor-pointer items-center gap-4 rounded-2xl p-3 transition-colors hover:bg-muted/60">
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">{label}</span>
-            <span className="block text-xs text-muted-foreground">{description}</span>
+            <span className="block text-sm font-medium">{t(label)}</span>
+            <span className="block text-xs text-muted-foreground">{t(description)}</span>
           </span>
           <Switch checked={settings[key]} onCheckedChange={(checked) => onChange({ ...settings, [key]: checked })} />
         </label>
@@ -46,13 +48,13 @@ export function AgentSettingsForm({
 
       <div className="mt-2 space-y-2 px-3">
         <label htmlFor="agent-instructions" className="block text-sm font-medium">
-          Instructions
+          <T>Instructions</T>
         </label>
         <Textarea
           id="agent-instructions"
           value={settings.instructions}
           onChange={(event) => onChange({ ...settings, instructions: event.target.value })}
-          placeholder={`Anything the ${agent.role.name} should always keep in mind — tone, topics to avoid, sources to trust…`}
+          placeholder={t("Anything the {name} should always keep in mind — tone, topics to avoid, sources to trust…", { name: t(agent.role.name) })}
           className="min-h-28 rounded-xl"
         />
       </div>

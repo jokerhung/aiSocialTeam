@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { NoCampaign } from "@/components/dashboard/no-campaign";
 import { redirect } from "next/navigation";
 import { getPublishingAccounts } from "@/lib/blotato/store";
@@ -8,7 +9,10 @@ import { isTimeZone, POST_PLATFORMS, type PostPlatform } from "@/lib/posts/share
 import { getDraft } from "@/lib/posts/store";
 import { PostComposer, type ComposerInitial } from "@/components/posts/post-composer";
 
-export const metadata = { title: "Create post" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("Create post") };
+}
 
 type Props = { searchParams: Promise<{ draft?: string; date?: string; time?: string; tz?: string }> };
 

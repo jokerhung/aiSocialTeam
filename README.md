@@ -2,7 +2,7 @@
 
 BotTeam is a local chat app where every contact in the sidebar is a real AI agent: the Claude Code, Codex or Antigravity CLI (or any OpenAI-compatible endpoint) running on your computer, with its own name, instructions, model, memory and connected apps. Bots work together in channels, hand tasks to each other, run on a schedule, and answer people who write to them on Telegram or Zalo. Everything is kept on your machine.
 
-The web app is a social-media dashboard: you create a campaign and get an AI team of five bots (Master, Research, Creator, Scheduler, Analytics) that you brief in chat, with posts, a calendar, analytics and social accounts connected through Composio next to them.
+The web app is a social-media dashboard: you create a campaign and get an AI team of five bots (Master, Research, Creator, Scheduler, Analytics) that you brief in chat, with posts, a calendar, analytics and social accounts connected through Composio next to them. The interface is in English and Vietnamese: the Language button just above Settings at the bottom of the sidebar picks the language.
 
 It is built with a Next.js web app and a Python (FastAPI) server, and is inspired by [OpenMausBot](https://github.com/milind-soni/OpenMausBot).
 
@@ -88,7 +88,7 @@ flowchart LR
 
 | Path | Purpose |
 |---|---|
-| `web/` | Next.js (App Router) social-media dashboard (Socialix look: overview, AI Agent office and chat, posts, calendar, analytics, accounts), React, Tailwind v4. Pages read the server in `server/botteam` from the Next.js side (`BOTTEAM_API`, default `http://127.0.0.1:8899`) |
+| `web/` | Next.js (App Router) social-media dashboard (SocialTeam look: overview, AI Agent office and chat, posts, calendar, analytics, accounts), React, Tailwind v4. Pages read the server in `server/botteam` from the Next.js side (`BOTTEAM_API`, default `http://127.0.0.1:8899`) |
 | `web/lib/` | `botteam.ts` (server client), `campaigns.ts`, `posts/`, `analytics/`, `agent-chats.ts`: the data layer over `/api/social/*` and the bots' chat |
 | `server/botteam/social.py` | Campaigns (each creates a team of five bots: Master, Research, Creator, Scheduler, Analytics), posts and analytics for the dashboard; stored in the same SQLite file |
 | `server/botteam/` | FastAPI server: `main.py` (routes), `turns.py`, `registry.py`, `broker.py`, `store.py`, `routines.py`, `memory.py` |
@@ -165,7 +165,7 @@ To use BotTeam from another computer on your LAN or Tailscale, keep `WEB_HOST=0.
 #### Build packages and run checks
 
 ```bash
-pnpm test              # server (pytest) and the Zalo service (node:test); the web app has no tests yet
+pnpm test              # server (pytest), the web app's language checks (scripts/check-i18n.mjs, scripts/i18n.test.mjs) and the Zalo service (node:test)
 pnpm typecheck         # TypeScript
 pnpm --filter web build  # production build of the web app, then `pnpm start:web`
 ```

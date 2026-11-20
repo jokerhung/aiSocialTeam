@@ -1,4 +1,7 @@
+"use client";
+
 /* eslint-disable @next/next/no-img-element -- avatars are crops of the office sprites served from our own API */
+import { useT } from "@/lib/i18n/client";
 import { BrainCircuit } from "lucide-react";
 import type { AgentRole, AgentRoleId } from "@/lib/agent-roles";
 import { AGENT_STATUS_LABELS, type AgentLiveStatus } from "@/lib/orchestration/types";
@@ -57,12 +60,13 @@ export const STATUS_TONES: Record<AgentLiveStatus | "paused" | "loading", { pill
 // null means it hasn't loaded yet, which shows a neutral placeholder rather than a made-up state.
 // "Paused" is the chat's local pause switch.
 export function AgentStatus({ status, paused = false, className }: { status: AgentLiveStatus | null; paused?: boolean; className?: string }) {
+  const t = useT();
   const key = paused ? "paused" : (status ?? "loading");
   const tone = STATUS_TONES[key];
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium", tone.pill, className)}>
       <span className={cn("size-1.5 rounded-full", tone.dot, tone.pulse && "animate-pulse")} />
-      {paused ? "Paused" : status ? AGENT_STATUS_LABELS[status] : "…"}
+      {paused ? t("Paused") : status ? t(AGENT_STATUS_LABELS[status]) : "…"}
     </span>
   );
 }

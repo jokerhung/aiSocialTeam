@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { format } from "@/lib/i18n/format";
 import {
   ArrowLeft,
   CalendarDays,
@@ -62,6 +62,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { T, useI18n, useT } from "@/lib/i18n/client";
 // The post editor: details, platforms, images (upload, ImageKit AI generation and the Edit Image
 // dialog) and the schedule on the left; a live preview for each chosen platform on the right.
 
@@ -116,6 +117,7 @@ function relative(ms: number) {
 }
 
 export function PostComposer({ initial, account, initials, imageKit, publishing }: Props) {
+  const { t, tn } = useI18n();
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
   const [caption, setCaption] = useState(initial.caption);
@@ -154,9 +156,9 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
   }, [initial.schedule]);
 
   const allTags = useMemo(() => (tagDraft.trim() ? parseHashtags([...hashtags, tagDraft].join(" ")) : hashtags), [hashtags, tagDraft]);
-  const check = checkPost({ title, caption, hashtags: allTags, platforms, media });
+  const check = checkPost({ title, caption, hashtags: allTags, platforms, media }, t);
   const scheduledAt = date && time ? zonedTimeToUtc(format(date, "yyyy-MM-dd"), time, timeZone) : null;
-  const scheduleError = !scheduledAt ? "Pick a date and time." : scheduledAt.getTime() < now + 60_000 ? "Pick a time at least a minute from now." : null;
+  const scheduleError = !scheduledAt ? t("Pick a date and time.") : scheduledAt.getTime() < now + 60_000 ? t("Pick a time at least a minute from now.") : null;
   const shownPreview = platforms.includes(previewPlatform) ? previewPlatform : (platforms[0] ?? previewPlatform);
 
   // The tightest caption limit among the chosen platforms
@@ -214,12 +216,12 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="lg" className="-ml-2 rounded-xl text-muted-foreground" nativeButton={false} render={<Link href="/dashboard/posts" />}>
           <ArrowLeft data-icon="inline-start" />
-          All posts
+          <T>All posts</T>
         </Button>
         {initial.postId !== undefined ? (
           <span className="flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-700 dark:text-blue-300">
             <Pencil className="size-3.5" />
-            {initial.schedule ? "Editing scheduled post" : "Editing draft"}
+            {initial.schedule ? t("Editing scheduled post") : t("Editing draft")}
           </span>
         ) : initial.draftId !== null && (
           <span className="flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-700 dark:text-violet-300">
@@ -231,10 +233,10 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_440px]">
         <div className="min-w-0 space-y-5">
-          <Panel step={1} title="Post details" description="What your audience will read">
+          <Panel step={1} title={t("Post details")} description={t("What your audience will read")}>
             <Field>
               <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="post-title" className="font-semibold">Title</FieldLabel>
+                <FieldLabel htmlFor="post-title" className="font-semibold"><T>Title</T></FieldLabel>
                 <Counter value={title.length} max={platforms.includes("youtube") ? PLATFORM_RULES.youtube.maxTitle! : 200} />
               </div>
               <Input
@@ -242,15 +244,15 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
-                placeholder="e.g. Our summer collection is here"
+                placeholder={t("e.g. Our summer collection is here")}
                 className="h-11 rounded-xl px-3.5"
               />
-              <p className="text-xs text-muted-foreground">Used as the YouTube title and to find the post in your library.</p>
+              <p className="text-xs text-muted-foreground"><T>Used as the YouTube title and to find the post in your library.</T></p>
             </Field>
 
             <Field>
               <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="post-caption" className="font-semibold">Caption</FieldLabel>
+                <FieldLabel htmlFor="post-caption" className="font-semibold"><T>Caption</T></FieldLabel>
                 {Number.isFinite(captionLimit) && <Counter value={captionLength} max={captionLimit} />}
               </div>
               <Textarea
@@ -259,21 +261,21 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                 onChange={(e) => setCaption(e.target.value)}
                 rows={6}
                 maxLength={5000}
-                placeholder="Hook them in the first line, then tell the story…"
+                placeholder={t("Hook them in the first line, then tell the story…")}
                 className="min-h-36 rounded-xl px-3.5 py-3 leading-relaxed"
               />
             </Field>
 
             <Field>
               <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="post-tags" className="font-semibold">Hashtags</FieldLabel>
-                <span className="text-xs text-muted-foreground tabular-nums">{allTags.length} tags</span>
+                <FieldLabel htmlFor="post-tags" className="font-semibold"><T>Hashtags</T></FieldLabel>
+                <span className="text-xs text-muted-foreground tabular-nums">{tn(allTags.length, "{n} tag", "{n} tags")}</span>
               </div>
               <div className="flex min-h-11 flex-wrap items-center gap-1.5 rounded-xl border border-input px-2 py-1.5 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
                 {hashtags.map((tag) => (
                   <span key={tag} className="flex items-center gap-1 rounded-lg bg-primary/10 py-0.5 pr-1 pl-2 text-xs font-medium text-primary animate-in zoom-in-95">
                     {tag}
-                    <button type="button" aria-label={`Remove ${tag}`} onClick={() => setHashtags(hashtags.filter((t) => t !== tag))} className="rounded p-0.5 hover:bg-primary/15">
+                    <button type="button" aria-label={t("Remove {tag}", { tag })} onClick={() => setHashtags(hashtags.filter((t) => t !== tag))} className="rounded p-0.5 hover:bg-primary/15">
                       <X className="size-3" />
                     </button>
                   </span>
@@ -298,30 +300,30 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                       setHashtags(parseHashtags([...hashtags, tagDraft, e.clipboardData.getData("text")].join(" ")));
                       setTagDraft("");
                     }}
-                    placeholder={hashtags.length ? "Add more…" : "summer, newdrop, style"}
+                    placeholder={hashtags.length ? t("Add more…") : "summer, newdrop, style"}
                     className="h-7 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                   />
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">Press Enter, space or comma to add. 3–5 relevant tags usually work best.</p>
+              <p className="text-xs text-muted-foreground"><T>Press Enter, space or comma to add. 3–5 relevant tags usually work best.</T></p>
             </Field>
           </Panel>
 
-          <Panel step={2} title="Platforms" description="Your accounts connected through Blotato">
+          <Panel step={2} title={t("Platforms")} description={t("Your accounts connected through Composio")}>
             {publishing.platforms.length === 0 && (
               <div className="flex flex-col items-start gap-3 rounded-2xl bg-sky-500/5 p-4 text-sm ring-1 ring-sky-500/25 sm:flex-row sm:items-center">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-600">
                   <Link2 className="size-4.5" />
                 </span>
                 <span className="flex-1 text-muted-foreground">
-                  No Instagram, TikTok or YouTube accounts are connected yet. Connect Blotato to schedule posts. You can still save this as a draft.
+                  <T>No Instagram, TikTok or YouTube accounts are connected yet. Connect them through Composio to schedule posts. You can still save this as a draft.</T>
                 </span>
                 <Button size="sm" className="rounded-lg" nativeButton={false} render={<Link href="/dashboard/settings/integrations" />}>
-                  Connect accounts
+                  <T>Connect accounts</T>
                 </Button>
               </div>
             )}
-            <div role="group" aria-label="Platforms" className="grid gap-3 sm:grid-cols-3">
+            <div role="group" aria-label={t("Platforms")} className="grid gap-3 sm:grid-cols-3">
               {publishing.platforms.map((platform) => {
                 const selected = platforms.includes(platform);
                 const style = PLATFORM_STYLES[platform];
@@ -341,7 +343,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold">{style.name}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">{PLATFORM_HINTS[platform]}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{t(PLATFORM_HINTS[platform])}</span>
                     </span>
                     <span
                       className={cn(
@@ -362,7 +364,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                   .map((platform) => (
                     <Field key={platform}>
                       <FieldLabel htmlFor={`account-${platform}`} className="text-xs font-semibold">
-                        {PLATFORM_STYLES[platform].name} account
+                        {t("{platform} account", { platform: PLATFORM_STYLES[platform].name })}
                       </FieldLabel>
                       <NativeSelect
                         id={`account-${platform}`}
@@ -383,14 +385,14 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
             )}
           </Panel>
 
-          <Panel step={3} title="Media" description={`Up to ${MAX_MEDIA} images and one video. The first one is the cover; YouTube needs the video.`}>
+          <Panel step={3} title={t("Media")} description={t("Up to {MAX_MEDIA} images and one video. The first one is the cover; YouTube needs the video.", { MAX_MEDIA })}>
             <MediaManager media={media} setMedia={setMedia} imageKit={imageKit} onEdit={setEditing} />
           </Panel>
 
-          <Panel step={4} title="Schedule" description="When it goes live, in the time zone you pick">
+          <Panel step={4} title={t("Schedule")} description={t("When it goes live, in the time zone you pick")}>
             <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_1.4fr]">
               <Field>
-                <FieldLabel className="font-semibold">Date</FieldLabel>
+                <FieldLabel className="font-semibold"><T>Date</T></FieldLabel>
                 <Popover open={dateOpen} onOpenChange={setDateOpen}>
                   <PopoverTrigger
                     render={
@@ -398,7 +400,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                     }
                   >
                     <CalendarDays data-icon="inline-start" className="text-muted-foreground" />
-                    {date ? format(date, "EEE, MMM d, yyyy") : "Pick a date"}
+                    {date ? format(date, t("EEE, MMM d, yyyy")) : t("Pick a date")}
                   </PopoverTrigger>
                   <PopoverContent align="start" className="w-auto rounded-2xl p-1.5">
                     <Calendar
@@ -415,14 +417,14 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                 </Popover>
               </Field>
               <Field>
-                <FieldLabel htmlFor="post-time" className="font-semibold">Time</FieldLabel>
+                <FieldLabel htmlFor="post-time" className="font-semibold"><T>Time</T></FieldLabel>
                 <div className="relative">
                   <Clock className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input id="post-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} className="h-11 rounded-xl pl-10" />
                 </div>
               </Field>
               <Field>
-                <FieldLabel htmlFor="post-zone" className="font-semibold">Time zone</FieldLabel>
+                <FieldLabel htmlFor="post-zone" className="font-semibold"><T>Time zone</T></FieldLabel>
                 <div className="relative">
                   <Globe className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
                   <NativeSelect id="post-zone" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} className="w-full [&_select]:h-11 [&_select]:rounded-xl [&_select]:pl-10">
@@ -450,10 +452,10 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
               ) : (
                 <span className="min-w-0">
                   <span className="block font-semibold">
-                    Goes live {date && format(date, "EEEE, MMMM d")} at {time} <span className="font-normal text-muted-foreground">({timeZone.replace(/_/g, " ")})</span>
+                    {t("Goes live {date} at {time}", { date: date ? format(date, t("EEEE, MMMM d")) : "", time })} <span className="font-normal text-muted-foreground">({timeZone.replace(/_/g, " ")})</span>
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    {relative(scheduledAt.getTime() - now)} · your local time {format(scheduledAt, "MMM d, h:mm a")}
+                    {t("{relative} · your local time {time}", { relative: relative(scheduledAt.getTime() - now), time: format(scheduledAt, t("MMM d, h:mm a")) })}
                   </span>
                 </span>
               )}
@@ -470,10 +472,10 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
                 </span>
-                Live preview
+                <T>Live preview</T>
               </h3>
               {platforms.length > 0 && (
-                <div role="tablist" aria-label="Preview platform" className="flex gap-1 rounded-xl bg-muted p-1">
+                <div role="tablist" aria-label={t("Preview platform")} className="flex gap-1 rounded-xl bg-muted p-1">
                   {platforms.map((platform) => (
                     <button
                       key={platform}
@@ -497,7 +499,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
             {platforms.length === 0 ? (
               <div className="flex aspect-4/5 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed text-center text-sm text-muted-foreground">
                 <Globe className="size-6" />
-                Pick a platform to preview the post
+                <T>Pick a platform to preview the post</T>
               </div>
             ) : (
               <div key={shownPreview} className="rounded-[26px] bg-linear-to-br from-muted/80 to-muted/30 p-3 animate-in duration-300 fade-in-0 zoom-in-[0.98]">
@@ -536,14 +538,14 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
             {platforms.length
               ? `Publishes to ${platforms.map((p) => PLATFORM_STYLES[p].name).join(", ")} from your Blotato calendar, scheduled there when you click Schedule.`
               : publishing.platforms.length
-                ? "Pick at least one platform."
-                : "Connect your accounts in Settings → Integrations to schedule."}
+                ? t("Pick at least one platform.")
+                : t("Connect your accounts in Settings → Integrations to schedule.")}
           </p>
         )}
         <div className="flex shrink-0 gap-2">
           <Button variant="outline" size="lg" className="h-11 rounded-xl px-4" disabled={saving || !title.trim() || platforms.length === 0} onClick={() => submit("draft")}>
             {saving && intent === "draft" && <Spinner />}
-            Save draft
+            <T>Save draft</T>
           </Button>
           <Tooltip disabled={canSchedule}>
             <TooltipTrigger render={<span />}>
@@ -554,10 +556,10 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                 onClick={() => submit("schedule")}
               >
                 {saving && intent === "schedule" ? <Spinner /> : <CalendarClock data-icon="inline-start" />}
-                {initial.schedule ? "Reschedule post" : "Schedule post"}
+                {initial.schedule ? t("Reschedule post") : t("Schedule post")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{!title.trim() ? "Add a title" : platforms.length === 0 ? "Pick a platform" : (check.errors[0] ?? scheduleError)}</TooltipContent>
+            <TooltipContent>{!title.trim() ? t("Add a title") : platforms.length === 0 ? t("Pick a platform") : (check.errors[0] ?? scheduleError)}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -611,6 +613,7 @@ function MediaManager({
   imageKit: boolean;
   onEdit: (index: number) => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<"upload" | "generate">("upload");
   const [uploading, setUploading] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -635,7 +638,7 @@ function MediaManager({
       })
       .slice(0, Math.max(0, room));
     if (accepted.length < files.length) {
-      setError(`Some files were skipped: images must be PNG, JPG, WEBP or GIF up to 10MB; one MP4, MOV or WEBM video up to 100MB; ${MAX_MEDIA} files per post.`);
+      setError(t("Some files were skipped: images must be PNG, JPG, WEBP or GIF up to 10MB; one MP4, MOV or WEBM video up to 100MB; {MAX_MEDIA} files per post.", { MAX_MEDIA }));
     }
     setUploading((n) => n + accepted.length);
     await Promise.all(
@@ -645,7 +648,7 @@ function MediaManager({
           form.set("file", file);
           const response = await fetch("/api/media/upload", { method: "POST", body: form });
           const body = (await response.json().catch(() => null)) as { media?: PostMedia; error?: string } | null;
-          if (!response.ok || !body?.media) throw new Error(body?.error ?? "The upload failed.");
+          if (!response.ok || !body?.media) throw new Error(body?.error ?? t("The upload failed."));
           setMedia((current) => [...current, body.media!]);
         } catch (e) {
           setError((e as Error).message);
@@ -666,7 +669,7 @@ function MediaManager({
         body: JSON.stringify({ prompt, aspect }),
       });
       const body = (await response.json().catch(() => null)) as { media?: PostMedia; error?: string } | null;
-      if (!response.ok || !body?.media) throw new Error(body?.error ?? "The image couldn't be generated.");
+      if (!response.ok || !body?.media) throw new Error(body?.error ?? t("The image couldn't be generated."));
       setMedia((current) => [...current, body.media!]);
     } catch (e) {
       setError((e as Error).message);
@@ -689,8 +692,8 @@ function MediaManager({
       <div role="tablist" className="inline-flex rounded-xl bg-muted p-1">
         {(
           [
-            { id: "upload", label: "Upload", Icon: Upload },
-            { id: "generate", label: "Generate with AI", Icon: Sparkles },
+            { id: "upload", label: t("Upload"), Icon: Upload },
+            { id: "generate", label: t("Generate with AI"), Icon: Sparkles },
           ] as const
         ).map(({ id, label, Icon }) => (
           <button
@@ -705,7 +708,7 @@ function MediaManager({
             )}
           >
             <Icon className="size-4" />
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -733,18 +736,18 @@ function MediaManager({
           <span className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <ImagePlus className="size-5" />
           </span>
-          <span className="text-sm font-semibold">{dragging ? "Drop to upload" : "Drop images or a video here, or click to browse"}</span>
-          <span className="text-xs text-muted-foreground">Images: PNG, JPG, WEBP or GIF up to 10MB · Video: MP4, MOV or WEBM up to 100MB</span>
+          <span className="text-sm font-semibold">{dragging ? t("Drop to upload") : t("Drop images or a video here, or click to browse")}</span>
+          <span className="text-xs text-muted-foreground"><T>Images: PNG, JPG, WEBP or GIF up to 10MB · Video: MP4, MOV or WEBM up to 100MB</T></span>
         </button>
       ) : (
         <div className="space-y-3 rounded-2xl bg-linear-to-br from-violet-500/5 to-fuchsia-500/5 p-4 ring-1 ring-violet-500/20">
-          {!imageKit && <p className="text-xs text-amber-700 dark:text-amber-300">Add IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT to .env.local to generate images.</p>}
+          {!imageKit && <p className="text-xs text-amber-700 dark:text-amber-300"><T>Add IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT to .env.local to generate images.</T></p>}
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
             maxLength={900}
-            placeholder="Describe the image: subject, style, mood, colours… e.g. a flat-lay of iced coffee on a pastel pink table, soft morning light"
+            placeholder={t("Describe the image: subject, style, mood, colours… e.g. a flat-lay of iced coffee on a pastel pink table, soft morning light")}
             className="min-h-0 resize-none rounded-xl bg-card text-sm"
           />
           <div className="flex flex-wrap items-center gap-2">
@@ -768,10 +771,10 @@ function MediaManager({
               onClick={generate}
             >
               {generating ? <Spinner /> : <Wand2 data-icon="inline-start" />}
-              {generating ? "Generating…" : "Generate"}
+              {generating ? t("Generating…") : t("Generate")}
             </Button>
           </div>
-          {generating && <p className="text-xs text-muted-foreground">ImageKit is painting your image. This can take up to a minute.</p>}
+          {generating && <p className="text-xs text-muted-foreground"><T>ImageKit is painting your image. This can take up to a minute.</T></p>}
         </div>
       )}
 
@@ -799,7 +802,7 @@ function MediaManager({
                   <video src={item.url} muted playsInline preload="metadata" className="size-full object-cover" />
                   <span className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur group-hover/media:opacity-0">
                     <Video className="size-2.5" />
-                    Video
+                    <T>Video</T>
                   </span>
                 </>
               ) : (
@@ -808,7 +811,7 @@ function MediaManager({
               {index === 0 && (
                 <span className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
                   <Star className="size-2.5 fill-current" />
-                  Cover
+                  <T>Cover</T>
                 </span>
               )}
               {item.origin !== "upload" && (
@@ -818,14 +821,14 @@ function MediaManager({
               )}
               <div className="absolute inset-0 flex flex-col justify-end bg-linear-to-t from-black/70 via-black/10 to-transparent p-1.5 opacity-0 transition-opacity group-focus-within/media:opacity-100 group-hover/media:opacity-100">
                 <div className="flex items-center gap-1">
-                  <MediaAction label="Move left" disabled={index === 0} onClick={() => move(index, -1)}>
+                  <MediaAction label={t("Move left")} disabled={index === 0} onClick={() => move(index, -1)}>
                     <ChevronLeft />
                   </MediaAction>
-                  <MediaAction label="Move right" disabled={index === media.length - 1} onClick={() => move(index, 1)}>
+                  <MediaAction label={t("Move right")} disabled={index === media.length - 1} onClick={() => move(index, 1)}>
                     <ChevronRight />
                   </MediaAction>
                   <span className="flex-1" />
-                  <MediaAction label="Remove" onClick={() => setMedia((current) => current.filter((_, i) => i !== index))}>
+                  <MediaAction label={t("Remove")} onClick={() => setMedia((current) => current.filter((_, i) => i !== index))}>
                     <X />
                   </MediaAction>
                 </div>
@@ -834,11 +837,11 @@ function MediaManager({
                     size="sm"
                     className="mt-1.5 w-full rounded-lg bg-white/95 text-neutral-900 hover:bg-white"
                     disabled={!imageKit}
-                    title={imageKit ? undefined : "Image editing needs ImageKit"}
+                    title={imageKit ? undefined : t("Image editing needs ImageKit")}
                     onClick={() => onEdit(index)}
                   >
                     <Pencil data-icon="inline-start" />
-                    Edit image
+                    <T>Edit image</T>
                   </Button>
                 )}
               </div>
@@ -848,7 +851,7 @@ function MediaManager({
             <li key={`pending-${i}`} className="relative flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl bg-muted text-xs text-muted-foreground ring-1 ring-border/60">
               <span className="absolute size-full animate-pulse rounded-2xl bg-muted-foreground/5" />
               <Spinner />
-              {i < uploading ? "Uploading…" : "Generating…"}
+              {i < uploading ? t("Uploading…") : t("Generating…")}
             </li>
           ))}
         </ul>

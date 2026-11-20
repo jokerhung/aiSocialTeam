@@ -7,6 +7,7 @@ import { platformName } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 import { PlatformTile } from "@/components/posts/platform-icon";
 
+import { useT } from "@/lib/i18n/client";
 // Pieces shared by the Analytics page's charts
 
 export const PANEL = "rounded-3xl bg-card shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_-16px_rgb(15_23_42/0.12)] ring-1 ring-border/60";
@@ -27,6 +28,7 @@ export function ChartCard({
   className?: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const [view, setView] = useState<"chart" | "table">("chart");
   return (
     <section className={cn(PANEL, "flex min-w-0 flex-col p-5 sm:p-6", className)}>
@@ -40,15 +42,15 @@ export function ChartCard({
           <div className="inline-flex rounded-xl bg-muted/60 p-0.5" role="group" aria-label={`${title}: chart or table`}>
             {(
               [
-                { id: "chart", label: "Chart", Icon: BarChart3 },
-                { id: "table", label: "Table", Icon: Table2 },
+                { id: "chart", label: t("Chart"), Icon: BarChart3 },
+                { id: "table", label: t("Table"), Icon: Table2 },
               ] as const
             ).map(({ id, label, Icon }) => (
               <button
                 key={id}
                 type="button"
                 aria-pressed={view === id}
-                title={`Show as ${label.toLowerCase()}`}
+                title={t("Show as {label}", { label: label.toLowerCase() })}
                 onClick={() => setView(id)}
                 className={cn(
                   "flex size-7 items-center justify-center rounded-[10px] transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring/50",

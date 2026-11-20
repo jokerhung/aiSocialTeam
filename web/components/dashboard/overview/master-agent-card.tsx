@@ -6,8 +6,10 @@ import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { MASTER_ID, useAgentWorkspace } from "@/components/agents/agent-workspace";
 import { Button } from "@/components/ui/button";
 
+import { useT } from "@/lib/i18n/client";
 // Overview entry point to the Master Agent: opens its chat in place of the overview cards
 export function MasterAgentCard() {
+  const t = useT();
   const workspace = useAgentWorkspace();
   if (!workspace) return null;
   const { openAgent, activePlans } = workspace;
@@ -20,19 +22,21 @@ export function MasterAgentCard() {
         <AgentAvatar role={MASTER_AGENT} className="size-12 shadow-lg shadow-violet-500/30" />
         <div className="min-w-0 flex-1">
           <h3 className="flex items-center gap-1.5 text-base font-semibold tracking-tight">
-            {MASTER_AGENT.name}
+            {t(MASTER_AGENT.name)}
             <Sparkles className="size-3.5 text-fuchsia-500" aria-hidden />
           </h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {waiting
-              ? "Your team has a question for you."
+              ? t("Your team has a question for you.")
               : activePlans.length
-                ? `Your team is working on ${activePlans.length === 1 ? `"${activePlans[0].title}"` : `${activePlans.length} plans`}.`
-                : "Tell it what you need. It plans the work, assigns your agents and reports back."}
+                ? activePlans.length === 1
+                  ? t("Your team is working on “{title}”.", { title: activePlans[0].title })
+                  : t("Your team is working on {n} plans.", { n: activePlans.length })
+                : t("Tell it what you need. It plans the work, assigns your agents and reports back.")}
           </p>
         </div>
         <Button className="h-9 rounded-xl px-3.5 shadow-lg shadow-primary/25" onClick={() => openAgent(MASTER_ID)}>
-          {waiting ? "Answer now" : "Chat with Master Agent"}
+          {waiting ? t("Answer now") : t("Chat with Master Agent")}
           <ArrowRight data-icon="inline-end" />
         </Button>
       </div>

@@ -8,6 +8,7 @@ import { isEditable, isVideo, type PostMedia, type PostStatus, type PostView } f
 import { cn } from "@/lib/utils";
 import { PlatformTile } from "@/components/posts/platform-icon";
 
+import { useT } from "@/lib/i18n/client";
 // A post as it sits on the calendar: a compact chip in the month grid, a timed card in the week grid.
 // Both are drag handles for rescheduling (posts that haven't gone out yet) and open the details panel.
 
@@ -61,6 +62,7 @@ type PostItemProps = {
 };
 
 function dragProps({ post, pending, onDragStart, onDragEnd }: PostItemProps) {
+  const t = useT();
   const draggable = isEditable(post.status) && !pending;
   return {
     draggable,
@@ -70,7 +72,7 @@ function dragProps({ post, pending, onDragStart, onDragEnd }: PostItemProps) {
       onDragStart(post.id);
     },
     onDragEnd,
-    "aria-roledescription": draggable ? "Draggable post" : undefined,
+    "aria-roledescription": draggable ? t("Draggable post") : undefined,
   };
 }
 

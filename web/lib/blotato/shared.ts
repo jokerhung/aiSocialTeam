@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "@/lib/i18n/format";
 import type { PostPlatform } from "@/lib/posts/shared";
 
 // Blotato connections as both the server and the browser see them. Not server-only: nothing here
@@ -42,6 +42,6 @@ export function accountLabel(account: BlotatoAccount) {
   return account.username ? `@${account.username.replace(/^@/, "")}` : account.name;
 }
 
-export function refreshedLabel(refreshedAt: string | null) {
-  return refreshedAt ? `Checked ${formatDistanceToNow(new Date(refreshedAt), { addSuffix: true })}` : "Not checked yet";
+export function refreshedLabel(refreshedAt: string | null, tr: (text: string, params?: Record<string, string | number>) => string) {
+  return refreshedAt ? tr("Checked {ago}", { ago: formatDistanceToNow(new Date(refreshedAt), { addSuffix: true }) }) : tr("Not checked yet");
 }

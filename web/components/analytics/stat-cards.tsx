@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { PANEL } from "@/components/analytics/chart-card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { T, useI18n, useT } from "@/lib/i18n/client";
+import { intlLocale } from "@/lib/i18n/display";
 // The four headline numbers. Each compares with the previous period of the same length when both
 // have a value; a metric nobody reported shows "—" with why, never 0.
 
@@ -20,7 +22,8 @@ type Card = {
 };
 
 function Delta({ value, period }: { value: number | null; period: string }) {
-  if (value === null) return <span className="text-xs text-muted-foreground">No earlier data to compare</span>;
+  const t = useT();
+  if (value === null) return <span className="text-xs text-muted-foreground"><T>No earlier data to compare</T></span>;
   const up = value >= 0;
   const Arrow = up ? ArrowUpRight : ArrowDownRight;
   return (
@@ -35,32 +38,33 @@ function Delta({ value, period }: { value: number | null; period: string }) {
         {up ? "+" : ""}
         {formatPercent(value)}
       </span>
-      <span className="text-muted-foreground">vs {period}</span>
+      <span className="text-muted-foreground">{t("vs {period}", { period })}</span>
     </span>
   );
 }
 
 export function StatCards({ current, previous, periodLabel, dimmed }: { current: Summary; previous: Summary; periodLabel: string; dimmed?: boolean }) {
+  const { t, tn } = useI18n();
   const viewsDetail =
     current.views.total === null
       ? current.published
-        ? "Not reported by the platforms yet"
-        : "No posts published in this period"
+        ? t("Not reported by the platforms yet")
+        : t("No posts published in this period")
       : current.views.reported < current.published
-        ? `From ${current.views.reported} of ${current.published} posts; the rest haven't reported views`
-        : `Across ${current.published} post${current.published === 1 ? "" : "s"}`;
+        ? t("From {reported} of {published} posts; the rest haven't reported views", { reported: current.views.reported, published: current.published })
+        : tn(current.published, "Across {n} post", "Across {n} posts");
 
   const cards: Card[] = [
     {
-      label: "Posts published",
-      value: current.published.toLocaleString("en-US"),
-      detail: current.failed ? `${current.failed} failed to publish` : "None failed",
+      label: t("Posts published"),
+      value: current.published.toLocaleString(intlLocale()),
+      detail: current.failed ? `${current.failed} failed to publish` : t("None failed"),
       Icon: Send,
       tile: "bg-linear-to-br from-blue-500 to-indigo-600 shadow-blue-500/30",
       delta: change(current.published, previous.published),
     },
     {
-      label: "Total views",
+      label: t("Total views"),
       value: formatCount(current.views.total),
       detail: viewsDetail,
       Icon: Eye,
@@ -68,23 +72,23 @@ export function StatCards({ current, previous, periodLabel, dimmed }: { current:
       delta: change(current.views.total, previous.views.total),
     },
     {
-      label: "Publishing success rate",
+      label: t("Publishing success rate"),
       value: formatPercent(current.successRate),
-      detail: current.successRate === null ? "Nothing was published in this period" : `${current.published} of ${current.published + current.failed} went out`,
+      detail: current.successRate === null ? t("Nothing was published in this period") : `${current.published} of ${current.published + current.failed} went out`,
       Icon: CheckCircle2,
       tile: "bg-linear-to-br from-emerald-400 to-teal-600 shadow-emerald-500/30",
       delta: current.successRate !== null && previous.successRate !== null ? current.successRate - previous.successRate : null,
     },
     {
-      label: "Est. time saved",
+      label: t("Est. time saved"),
       value: formatMinutes(current.timeSavedMinutes),
       detail: current.appDeliveries
         ? `${current.appDeliveries} platform post${current.appDeliveries === 1 ? "" : "s"} sent by the app · ${current.aiPosts} made by AI`
-        : "Counts posts sent from the app",
+        : t("Counts posts sent from the app"),
       Icon: Clock,
       tile: "bg-linear-to-br from-amber-400 to-orange-500 shadow-orange-500/30",
       delta: change(current.timeSavedMinutes, previous.timeSavedMinutes),
-      info: `An estimate, not a measurement: ${TIME_SAVED_ASSUMPTIONS.minutesPerDelivery} minutes for each platform post the app published for you, plus ${TIME_SAVED_ASSUMPTIONS.minutesPerAiPost} minutes for each post your AI team wrote and designed.`,
+      info: t("An estimate, not a measurement: {minutesPerDelivery} minutes for each platform post the app published for you, plus {minutesPerAiPost} minutes for each post your AI team wrote and designed.", { minutesPerDelivery: TIME_SAVED_ASSUMPTIONS.minutesPerDelivery, minutesPerAiPost: TIME_SAVED_ASSUMPTIONS.minutesPerAiPost }),
     },
   ];
 
@@ -102,7 +106,7 @@ export function StatCards({ current, previous, periodLabel, dimmed }: { current:
                     render={<button type="button" className="rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50" />}
                   >
                     <Info className="size-3.5" />
-                    <span className="sr-only">How this is estimated</span>
+                    <span className="sr-only"><T>How this is estimated</T></span>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-64 text-pretty">{card.info}</TooltipContent>
                 </Tooltip>
@@ -121,9 +125,9 @@ export function StatCards({ current, previous, periodLabel, dimmed }: { current:
               <span className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground tabular-nums">
                   {card.delta >= 0 ? "+" : ""}
-                  {(card.delta * 100).toFixed(1).replace(/\.0$/, "")} pts
+                  {t("{n} pts", { n: (card.delta * 100).toFixed(1).replace(/\.0$/, "") })}
                 </span>{" "}
-                vs {periodLabel}
+                {t("vs {period}", { period: periodLabel })}
               </span>
             ) : (
               <Delta value={card.delta} period={periodLabel} />

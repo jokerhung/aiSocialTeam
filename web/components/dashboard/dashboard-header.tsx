@@ -20,7 +20,9 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { CreatePostMenu } from "@/components/posts/create-post-menu";
 
+import { T, useT } from "@/lib/i18n/client";
 export function DashboardHeader({ user }: { user: DashboardUser }) {
+  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   const { toggleSidebar, openMobile } = useDashboardShell();
@@ -48,7 +50,7 @@ export function DashboardHeader({ user }: { user: DashboardUser }) {
           size="icon-lg"
           className="rounded-xl bg-card md:hidden"
           onClick={openMobile}
-          aria-label="Open navigation"
+          aria-label={t("Open navigation")}
         >
           <Menu />
         </Button>
@@ -57,25 +59,25 @@ export function DashboardHeader({ user }: { user: DashboardUser }) {
           size="icon-lg"
           className="hidden rounded-xl text-muted-foreground md:inline-flex"
           onClick={toggleSidebar}
-          aria-label="Toggle sidebar"
-          title="Toggle sidebar (⌘B)"
+          aria-label={t("Toggle sidebar")}
+          title={t("Toggle sidebar (⌘B)")}
         >
           <PanelLeft />
         </Button>
 
         {/* Keyed so the title re-animates on navigation */}
         <div key={page.slug} className="min-w-0 animate-in duration-300 fade-in-0 slide-in-from-left-1">
-          <h1 className="truncate text-lg leading-tight font-semibold tracking-tight sm:text-xl">{page.label}</h1>
-          <p className="hidden truncate text-xs text-muted-foreground sm:block">{page.description}</p>
+          <h1 className="truncate text-lg leading-tight font-semibold tracking-tight sm:text-xl">{t(page.label)}</h1>
+          <p className="hidden truncate text-xs text-muted-foreground sm:block">{t(page.description)}</p>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
           <label className="group/search relative hidden h-10 w-64 items-center rounded-xl bg-card ring-1 ring-border/70 transition-all duration-300 focus-within:w-80 focus-within:ring-2 focus-within:ring-ring/40 lg:flex">
             <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-            <span className="sr-only">Search</span>
+            <span className="sr-only"><T>Search</T></span>
             <input
               type="search"
-              placeholder="Search posts, campaigns…"
+              placeholder={t("Search posts, campaigns…")}
               className="h-full w-full bg-transparent pr-12 pl-9 text-sm outline-none placeholder:text-muted-foreground/80"
             />
             <Kbd className="pointer-events-none absolute right-2.5 transition-opacity group-focus-within/search:opacity-0">
@@ -87,7 +89,7 @@ export function DashboardHeader({ user }: { user: DashboardUser }) {
             variant="outline"
             size="icon-lg"
             className="size-10 rounded-xl bg-card text-muted-foreground lg:hidden"
-            aria-label="Search"
+            aria-label={t("Search")}
           >
             <Search />
           </Button>
@@ -96,7 +98,7 @@ export function DashboardHeader({ user }: { user: DashboardUser }) {
             variant="outline"
             size="icon-lg"
             className="size-10 rounded-xl bg-card text-muted-foreground"
-            aria-label="Notifications"
+            aria-label={t("Notifications")}
           >
             <Bell />
           </Button>
@@ -105,7 +107,7 @@ export function DashboardHeader({ user }: { user: DashboardUser }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label="Account menu"
+              aria-label={t("Account menu")}
               className="rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-canvas transition-shadow outline-none hover:ring-border focus-visible:ring-ring/50 data-popup-open:ring-primary/40"
             >
               <Avatar className="size-10">
@@ -125,7 +127,7 @@ export function DashboardHeader({ user }: { user: DashboardUser }) {
               <DropdownMenuSeparator className="my-1.5" />
               <DropdownMenuItem className="gap-2.5 rounded-xl p-2" onClick={() => router.push("/dashboard/settings")}>
                 <Settings />
-                Settings
+                <T>Settings</T>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

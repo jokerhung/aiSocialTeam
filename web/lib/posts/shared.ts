@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { normalizeHashtags, PLATFORM_RULES } from "@/lib/social-platforms";
+import { makeTranslate, type Translate } from "@/lib/i18n/translate";
 
+import { intlLocale } from "@/lib/i18n/display";
 // Posts as both the server (actions, queries) and the browser (editor, list) see them. Not
 // server-only: nothing here touches the database or a key.
 
@@ -122,25 +124,28 @@ export function parseHashtags(text: string) {
 }
 
 // What stops a post from going out on each platform (errors) and what's worth a look (warnings)
-export function checkPost(post: { title: string; caption: string; hashtags: string[]; platforms: PostPlatform[]; media: { mimeType: string | null; url: string }[] }) {
+export function checkPost(
+  post: { title: string; caption: string; hashtags: string[]; platforms: PostPlatform[]; media: { mimeType: string | null; url: string }[] },
+  t: Translate = makeTranslate("en", {})
+) {
   const errors: string[] = [];
   const warnings: string[] = [];
   const length = postCaption(post).length;
   for (const platform of post.platforms) {
     const rules = PLATFORM_RULES[platform];
-    if (rules.maxChars && length > rules.maxChars) errors.push(`${rules.name} captions allow ${rules.maxChars.toLocaleString()} characters; this is ${length.toLocaleString()}.`);
-    if (rules.maxTitle && post.title.length > rules.maxTitle) errors.push(`${rules.name} titles allow ${rules.maxTitle} characters; this is ${post.title.length}.`);
-    if (rules.maxHashtags !== null && post.hashtags.length > rules.maxHashtags) errors.push(`${rules.name} allows ${rules.maxHashtags} hashtags; this has ${post.hashtags.length}.`);
-    else if (post.hashtags.length > rules.bestHashtags[1] * 2) warnings.push(`${post.hashtags.length} hashtags is a lot for ${rules.name}; ${rules.bestHashtags[0]}–${rules.bestHashtags[1]} usually works best.`);
+    if (rules.maxChars && length > rules.maxChars) errors.push(t("{platform} captions allow {max} characters; this is {length}.", { platform: rules.name, max: rules.maxChars.toLocaleString(intlLocale()), length: length.toLocaleString(intlLocale()) }));
+    if (rules.maxTitle && post.title.length > rules.maxTitle) errors.push(t("{platform} titles allow {max} characters; this is {length}.", { platform: rules.name, max: rules.maxTitle, length: post.title.length }));
+    if (rules.maxHashtags !== null && post.hashtags.length > rules.maxHashtags) errors.push(t("{platform} allows {max} hashtags; this has {count}.", { platform: rules.name, max: rules.maxHashtags, count: post.hashtags.length }));
+    else if (post.hashtags.length > rules.bestHashtags[1] * 2) warnings.push(t("{count} hashtags is a lot for {platform}; {from}–{to} usually works best.", { count: post.hashtags.length, platform: rules.name, from: rules.bestHashtags[0], to: rules.bestHashtags[1] }));
   }
   const videos = post.media.filter((item) => isVideo(item)).length;
   const images = post.media.length - videos;
-  if (videos > 1) errors.push("Add at most one video to a post.");
-  if (post.platforms.includes("instagram") && post.media.length === 0) errors.push("Instagram posts need an image or a video.");
-  if (post.platforms.includes("tiktok") && post.media.length === 0) errors.push("TikTok posts need a video or at least one image.");
-  if (post.platforms.includes("tiktok") && videos === 1 && images > 0) warnings.push("TikTok gets only the video; the images are left out there.");
-  if (post.platforms.includes("youtube") && videos === 0) errors.push("YouTube only takes videos and Shorts: add a video.");
-  else if (post.platforms.includes("youtube") && images > 0) warnings.push("YouTube gets only the video; the images are left out there.");
+  if (videos > 1) errors.push(t("Add at most one video to a post."));
+  if (post.platforms.includes("instagram") && post.media.length === 0) errors.push(t("Instagram posts need an image or a video."));
+  if (post.platforms.includes("tiktok") && post.media.length === 0) errors.push(t("TikTok posts need a video or at least one image."));
+  if (post.platforms.includes("tiktok") && videos === 1 && images > 0) warnings.push(t("TikTok gets only the video; the images are left out there."));
+  if (post.platforms.includes("youtube") && videos === 0) errors.push(t("YouTube only takes videos and Shorts: add a video."));
+  else if (post.platforms.includes("youtube") && images > 0) warnings.push(t("YouTube gets only the video; the images are left out there."));
   return { errors, warnings };
 }
 
@@ -189,7 +194,7 @@ export function utcToZonedParts(at: Date, timeZone: string) {
 
 // "Tue, Oct 20 · 9:30 AM GMT+5:30" in the post's own time zone
 export function formatInZone(iso: string, timeZone: string, style: "full" | "short" = "full") {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(intlLocale(), {
     timeZone,
     weekday: style === "full" ? "short" : undefined,
     month: "short",
@@ -205,7 +210,7 @@ export function listTimeZones() {
   const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["UTC"];
   const now = new Date();
   return (zones.includes("UTC") ? zones : ["UTC", ...zones]).map((zone) => {
-    const offset = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "shortOffset" }).formatToParts(now).find((part) => part.type === "timeZoneName")?.value ?? "";
+    const offset = new Intl.DateTimeFormat(intlLocale(), { timeZone: zone, timeZoneName: "shortOffset" }).formatToParts(now).find((part) => part.type === "timeZoneName")?.value ?? "";
     return { value: zone, label: `${zone.replace(/_/g, " ")} (${offset})` };
   });
 }

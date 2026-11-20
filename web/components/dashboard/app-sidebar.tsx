@@ -3,8 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronsUpDown, Flag, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Flag, Languages, Plus } from "lucide-react";
 import { endCampaign, switchCampaign } from "@/app/dashboard/actions";
+import { setLanguage } from "@/app/language-actions";
+import { LANGUAGES, LOCALES } from "@/lib/i18n/config";
+import { T, useI18n, useT } from "@/lib/i18n/client";
 import { NAV_ITEMS, getActiveNav, navHref, type NavItem } from "@/lib/dashboard-nav";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
@@ -29,7 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Geometry: the collapsed panel is 64px wide with 8px padding, leaving a 48px row —
@@ -40,8 +42,6 @@ type Props = {
   activeCampaignId: number;
   pathname: string;
   expanded: boolean;
-  // Desktop only: collapse/expand button at the bottom
-  onToggle?: () => void;
   // Mobile drawer: close after navigating
   onNavigate?: () => void;
 };
@@ -49,7 +49,8 @@ type Props = {
 const MAIN_NAV = NAV_ITEMS.filter((item) => item.slug !== "settings");
 const SETTINGS_NAV = NAV_ITEMS.find((item) => item.slug === "settings")!;
 
-export function AppSidebar({ campaigns, activeCampaignId, pathname, expanded, onToggle, onNavigate }: Props) {
+export function AppSidebar({ campaigns, activeCampaignId, pathname, expanded, onNavigate }: Props) {
+  const t = useT();
   const activeSlug = getActiveNav(pathname).slug;
 
   return (
@@ -71,9 +72,9 @@ export function AppSidebar({ campaigns, activeCampaignId, pathname, expanded, on
         <NewCampaignLink expanded={expanded} onNavigate={onNavigate} />
       )}
 
-      <SectionLabel expanded={expanded}>Menu</SectionLabel>
+      <SectionLabel expanded={expanded}><T>Menu</T></SectionLabel>
 
-      <nav aria-label="Main" className="no-scrollbar -mx-2 min-h-0 flex-1 overflow-y-auto px-2">
+      <nav aria-label={t("Main")} className="no-scrollbar -mx-2 min-h-0 flex-1 overflow-y-auto px-2">
         <ul className="flex flex-col gap-1">
           {MAIN_NAV.map((item) => (
             <NavLink
@@ -90,40 +91,13 @@ export function AppSidebar({ campaigns, activeCampaignId, pathname, expanded, on
       <Divider />
 
       <ul className="flex flex-col gap-1">
+        <LanguageMenu expanded={expanded} />
         <NavLink
           item={SETTINGS_NAV}
           active={SETTINGS_NAV.slug === activeSlug}
           expanded={expanded}
           onNavigate={onNavigate}
         />
-        {onToggle && (
-          <li>
-            <Tooltip disabled={expanded}>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    onClick={onToggle}
-                    aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-                    aria-expanded={expanded}
-                    className={cn(rowClass, "w-full text-muted-foreground hover:bg-muted/60 hover:text-foreground")}
-                  />
-                }
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-transform duration-300 group-hover/row:scale-105">
-                  {expanded ? <PanelLeftClose className="size-4.5" /> : <PanelLeftOpen className="size-4.5" />}
-                </span>
-                <span className={cn("flex min-w-0 flex-1 items-center justify-between gap-2", fade(expanded))}>
-                  Collapse
-                  <Kbd>⌘B</Kbd>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={14}>
-                Expand <Kbd className="bg-background/15 text-background">⌘B</Kbd>
-              </TooltipContent>
-            </Tooltip>
-          </li>
-        )}
       </ul>
     </div>
   );
@@ -172,6 +146,7 @@ function NavLink({
   expanded: boolean;
   onNavigate?: () => void;
 }) {
+  const t = useT();
   const { Icon } = item;
 
   return (
@@ -207,10 +182,10 @@ function NavLink({
           >
             <Icon className="size-4.5" strokeWidth={active ? 2.25 : 2} />
           </span>
-          <span className={cn("min-w-0 flex-1 truncate", fade(expanded))}>{item.label}</span>
+          <span className={cn("min-w-0 flex-1 truncate", fade(expanded))}>{t(item.label)}</span>
         </TooltipTrigger>
         <TooltipContent side="right" sideOffset={14}>
-          {item.label}
+          {t(item.label)}
         </TooltipContent>
       </Tooltip>
     </li>
@@ -228,6 +203,7 @@ function CampaignSwitcher({
   expanded: boolean;
   onNavigate?: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -247,7 +223,7 @@ function CampaignSwitcher({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          aria-label={`Current campaign: ${active.name}. Switch campaign`}
+          aria-label={t("Current campaign: {name}. Switch campaign", { name: active.name })}
           className={cn(
             rowClass,
             "w-full data-popup-open:bg-muted",
@@ -274,10 +250,10 @@ function CampaignSwitcher({
             </span>
           </span>
           <span className={cn("min-w-0 flex-1", fade(expanded))}>
-            <span className="block text-[11px] font-medium tracking-wide text-muted-foreground">Campaign</span>
+            <span className="block text-[11px] font-medium tracking-wide text-muted-foreground"><T>Campaign</T></span>
             <span className="block truncate text-sm font-semibold text-foreground">
               {active.name}
-              {active.ended && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(ended)</span>}
+              {active.ended && <span className="ml-1.5 text-xs font-normal text-muted-foreground"><T>(ended)</T></span>}
             </span>
           </span>
           <ChevronsUpDown className={cn("mr-1 size-4 shrink-0 text-muted-foreground", fade(expanded))} />
@@ -290,7 +266,7 @@ function CampaignSwitcher({
           className="w-64 rounded-2xl p-1.5 shadow-xl"
         >
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="px-2 pt-1.5 pb-2">Your campaigns</DropdownMenuLabel>
+            <DropdownMenuLabel className="px-2 pt-1.5 pb-2"><T>Your campaigns</T></DropdownMenuLabel>
             {campaigns.map((campaign) => {
               const isActive = campaign.id === active.id;
               return (
@@ -319,7 +295,7 @@ function CampaignSwitcher({
             <span className="flex size-8 items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 text-muted-foreground">
               <Plus className="size-4" />
             </span>
-            Create new campaign
+            <T>Create new campaign</T>
           </DropdownMenuItem>
           {!active.ended && (
             <DropdownMenuItem
@@ -341,17 +317,17 @@ function CampaignSwitcher({
       <AlertDialog open={confirmEnd} onOpenChange={setConfirmEnd}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>End this campaign?</AlertDialogTitle>
+            <AlertDialogTitle><T>End this campaign?</T></AlertDialogTitle>
             <AlertDialogDescription>
-              Running plans stop and no new work can be planned. The files on the campaign&apos;s computer are saved to your results, then
-              the computer is shut down for good (with any logins on it).
+              <T>Running plans stop and no new work can be planned. The files on the campaign's computer are saved to your results, then
+              the computer is shut down for good (with any logins on it).</T>
             </AlertDialogDescription>
           </AlertDialogHeader>
           {endError && <p className="text-sm text-destructive">{endError}</p>}
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep it running</AlertDialogCancel>
+            <AlertDialogCancel><T>Keep it running</T></AlertDialogCancel>
             <Button variant="destructive" disabled={ending} onClick={end}>
-              {ending ? "Ending…" : "End campaign"}
+              {ending ? t("Ending…") : t("End campaign")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -362,11 +338,12 @@ function CampaignSwitcher({
 
 // With no campaign yet the switcher has nothing to show: offer to create the first one
 function NewCampaignLink({ expanded, onNavigate }: { expanded: boolean; onNavigate?: () => void }) {
+  const t = useT();
   const router = useRouter();
   return (
     <button
       type="button"
-      aria-label="Create your first campaign"
+      aria-label={t("Create your first campaign")}
       onClick={() => {
         onNavigate?.();
         router.push("/create-campaign");
@@ -376,7 +353,57 @@ function NewCampaignLink({ expanded, onNavigate }: { expanded: boolean; onNaviga
       <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-dashed border-muted-foreground/40 text-muted-foreground">
         <Plus className="size-4" />
       </span>
-      <span className={cn("min-w-0 flex-1 truncate text-left text-sm font-semibold", !expanded && "hidden")}>New campaign</span>
+      <span className={cn("min-w-0 flex-1 truncate text-left text-sm font-semibold", !expanded && "hidden")}><T>New campaign</T></span>
     </button>
+  );
+}
+
+// The language button, above Settings: a menu with the interface languages
+function LanguageMenu({ expanded }: { expanded: boolean }) {
+  const router = useRouter();
+  const { t, locale } = useI18n();
+  const [pending, startTransition] = useTransition();
+
+  function choose(next: string) {
+    if (next === locale) return;
+    startTransition(async () => {
+      await setLanguage(next);
+      router.refresh();
+    });
+  }
+
+  return (
+    <li>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={t("Language")}
+          title={t("Language")}
+          className={cn(rowClass, "w-full text-muted-foreground hover:text-foreground data-popup-open:bg-muted", expanded && "hover:bg-muted/50")}
+        >
+          <span
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 transition-all duration-300 group-hover/row:scale-105 dark:text-sky-300",
+              pending && "animate-pulse"
+            )}
+          >
+            <Languages className="size-4.5" />
+          </span>
+          <span className={cn("min-w-0 flex-1 truncate", fade(expanded))}>{LANGUAGES[locale].name}</span>
+          <span className={cn("mr-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground", fade(expanded))}>{LANGUAGES[locale].code}</span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side={expanded ? "top" : "right"} align="start" sideOffset={expanded ? 8 : 14} className="w-56 rounded-2xl p-1.5 shadow-xl">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="px-2 pt-1 pb-1.5">{t("Language")}</DropdownMenuLabel>
+            {LOCALES.map((code) => (
+              <DropdownMenuItem key={code} className="gap-2.5 rounded-xl p-2" aria-checked={code === locale} onClick={() => choose(code)}>
+                <span className="flex h-5 w-7 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">{LANGUAGES[code].code}</span>
+                <span className={cn("min-w-0 flex-1 truncate", code === locale && "font-semibold")}>{LANGUAGES[code].name}</span>
+                {code === locale && <Check className="size-4 text-primary" strokeWidth={2.5} />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </li>
   );
 }

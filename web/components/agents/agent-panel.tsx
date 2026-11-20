@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { T, useT } from "@/lib/i18n/client";
 export type AgentTab = "chat" | "history" | "tasks" | "computer" | "settings";
 
 // The Master Agent's middle tab tracks the team's plans; a worker's shows its own history.
@@ -86,6 +87,7 @@ export function AgentPanel({
   // avatar and name plus a close button, no description or agent actions
   onClose?: () => void;
 }) {
+  const t = useT();
   const { role } = agent;
   const master = role.id === "master";
   const computer = hasComputer(role.id);
@@ -96,13 +98,13 @@ export function AgentPanel({
   ) : (
     <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-violet-500/8 px-3 py-2 text-xs text-muted-foreground dark:bg-violet-500/15">
       <BrainCircuit className="size-3.5 shrink-0 text-violet-600 dark:text-violet-300" aria-hidden />
-      <span className="min-w-0 flex-1">The {role.name} takes tasks from the Master Agent. Ask it questions here.</span>
+      <span className="min-w-0 flex-1">{t("The {name} takes tasks from the Master Agent. Ask it questions here.", { name: t(role.name) })}</span>
       <button
         type="button"
         onClick={onOpenMaster}
         className="inline-flex items-center gap-1 font-medium text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
       >
-        Request work
+        <T>Request work</T>
         <ArrowRight className="size-3" aria-hidden />
       </button>
     </div>
@@ -110,7 +112,7 @@ export function AgentPanel({
 
   return (
     <section
-      aria-label={role.name}
+      aria-label={t(role.name)}
       className={cn(
         "flex min-h-0 flex-1 animate-in flex-col rounded-3xl bg-card p-4 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_-16px_rgb(15_23_42/0.12)] ring-1 duration-300 fade-in-0 slide-in-from-bottom-1 sm:p-5",
         master ? "ring-violet-500/30" : "ring-border/60"
@@ -120,42 +122,42 @@ export function AgentPanel({
         <AgentAvatar role={role} sprite={agent.sprite} className="size-11" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg leading-tight font-semibold tracking-tight">{role.name}</h3>
+            <h3 className="text-lg leading-tight font-semibold tracking-tight">{t(role.name)}</h3>
             <AgentStatus paused={paused} status={status?.status ?? null} />
           </div>
-          {!onClose && <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{role.description}</p>}
+          {!onClose && <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{t(role.description)}</p>}
         </div>
         {onClose ? (
-          <Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground" onClick={onClose} aria-label="Close chat">
+          <Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground" onClick={onClose} aria-label={t("Close chat")}>
             <X />
           </Button>
         ) : (
         <div className="flex items-center gap-2">
           <Button variant="outline" className="h-8 rounded-lg bg-card px-2.5" onClick={onTogglePaused}>
             {paused ? <Play data-icon="inline-start" /> : <Pause data-icon="inline-start" />}
-            {paused ? "Resume" : "Pause"}
+            {paused ? t("Resume") : t("Pause")}
           </Button>
           <Button variant="outline" className="h-8 rounded-lg bg-card px-2.5" onClick={() => onTabChange("settings")}>
             <Settings data-icon="inline-start" />
-            Settings
+            <T>Settings</T>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground" aria-label="More actions" />}
+              render={<Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground" aria-label={t("More actions")} />}
             >
               <MoreVertical />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={6} className="w-48 rounded-2xl p-1.5 shadow-xl">
               <DropdownMenuItem className="gap-2.5 rounded-xl p-2" onClick={() => onTabChange(historyTab)}>
                 {master ? <ListChecks /> : <History />}
-                {master ? "View tasks" : "View history"}
+                {master ? t("View tasks") : t("View history")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2.5 rounded-xl p-2"
                 onClick={() => onSettingsChange(DEFAULT_AGENT_SETTINGS)}
               >
                 <RotateCcw />
-                Reset settings
+                <T>Reset settings</T>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -175,7 +177,7 @@ export function AgentPanel({
               )}
             >
               <Icon />
-              {label}
+              {t(label)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -221,6 +223,7 @@ export function AgentPanel({
 
 // Plans the team is working on, above the Master Agent's message box; opens the Tasks tab
 function ActivePlans({ plans, onOpen }: { plans: PlanView[]; onOpen: () => void }) {
+  const t = useT();
   const active = plans.filter((plan) => ACTIVE_PLAN_STATUSES.includes(plan.status)).slice(0, 2);
   if (active.length === 0) return null;
   return (
@@ -242,10 +245,10 @@ function ActivePlans({ plans, onOpen }: { plans: PlanView[]; onOpen: () => void 
           >
             <span className={cn("size-1.5 shrink-0 rounded-full", waiting ? "bg-amber-500" : "animate-pulse bg-sky-500")} aria-hidden />
             <span className="min-w-0 flex-1 truncate">
-              {waiting ? "Waiting for your answer" : "Team is working on"}: <span className="font-medium text-foreground">{plan.title}</span>
+              {waiting ? t("Waiting for your answer") : t("Team is working on")}: <span className="font-medium text-foreground">{plan.title}</span>
             </span>
             <span className="shrink-0 tabular-nums">
-              {done}/{plan.tasks.length} done
+              {t("{done}/{total} done", { done, total: plan.tasks.length })}
             </span>
             <ArrowRight className="size-3 shrink-0" aria-hidden />
           </button>

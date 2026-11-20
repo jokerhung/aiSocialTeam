@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { NoCampaign } from "@/components/dashboard/no-campaign";
 import { redirect } from "next/navigation";
 import { getActiveCampaign } from "@/lib/campaigns";
@@ -5,7 +6,10 @@ import { getCurrentUser } from "@/lib/local-user";
 import { listCalendarPosts } from "@/lib/posts/store";
 import { CalendarBoard } from "@/components/calendar/calendar-board";
 
-export const metadata = { title: "Calendar" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("Calendar") };
+}
 
 // The active campaign's posts on a month or week calendar. Shell (sidebar, header, auth + campaign
 // guards) lives in ../layout.tsx

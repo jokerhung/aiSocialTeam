@@ -8,14 +8,16 @@ import { platformName } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 import { PANEL, PlatformMark, Segmented } from "@/components/analytics/chart-card";
 
+import { T, useT } from "@/lib/i18n/client";
 // The period's best posts by a metric. Posts that haven't reported it yet are counted, not ranked.
 
 const LIMIT = 6;
 
 function Metric({ label, value }: { label: string; value: string }) {
+  const t = useT();
   return (
     <div className="text-right">
-      <p className={cn("text-sm font-semibold tabular-nums", value === "—" && "font-normal text-muted-foreground")} title={value === "—" ? "Not reported yet" : undefined}>
+      <p className={cn("text-sm font-semibold tabular-nums", value === "—" && "font-normal text-muted-foreground")} title={value === "—" ? t("Not reported yet") : undefined}>
         {value}
       </p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
@@ -36,6 +38,7 @@ export function TopPosts({
   timeZone: string;
   dimmed?: boolean;
 }) {
+  const t = useT();
   const published = posts.filter((post) => post.state === "published");
   const [metric, setMetric] = useState<SortMetric>("views");
   const ranked = rankPosts(published, metric);
@@ -46,20 +49,20 @@ export function TopPosts({
     <section className={cn(PANEL, "p-5 sm:p-6")}>
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold tracking-tight">Top posts</h3>
+          <h3 className="text-base font-semibold tracking-tight"><T>Top posts</T></h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {published.length ? `Ranked by ${metric === "engagement_rate" ? "engagement rate" : metric}${unranked ? ` · ${unranked} not ranked (metric not reported yet)` : ""}` : "Your best performing posts in this period"}
+            {published.length ? [t("Ranked by {metric}", { metric: t(metric === "engagement_rate" ? "engagement rate" : metric) }), unranked ? t("{n} not ranked (metric not reported yet)", { n: unranked }) : null].filter(Boolean).join(" · ") : t("Your best performing posts in this period")}
           </p>
         </div>
         <Segmented
-          label="Rank by"
+          label={t("Rank by")}
           value={metric}
           onChange={setMetric}
           options={[
-            { id: "views", label: "Views" },
-            { id: "engagement", label: "Engagement" },
-            { id: "engagement_rate", label: "Eng. rate" },
-            { id: "comments", label: "Comments" },
+            { id: "views", label: t("Views") },
+            { id: "engagement", label: t("Engagement") },
+            { id: "engagement_rate", label: t("Eng. rate") },
+            { id: "comments", label: t("Comments") },
           ]}
         />
       </header>
@@ -70,18 +73,18 @@ export function TopPosts({
             <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-card text-muted-foreground shadow-sm ring-1 ring-border/60">
               {published.length ? <Hourglass className="size-4" /> : <Trophy className="size-4" />}
             </span>
-            <p className="text-sm font-medium">{published.length ? "Waiting for metrics" : "No published posts in this period"}</p>
+            <p className="text-sm font-medium">{published.length ? t("Waiting for metrics") : t("No published posts in this period")}</p>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground">
               {published.length
                 ? `${published.length} post${published.length === 1 ? " is" : "s are"} out, but the platforms haven't reported this metric yet. It usually shows up within a day.`
-                : "Once your posts go out, the best ones will be ranked here."}
+                : t("Once your posts go out, the best ones will be ranked here.")}
             </p>
           </div>
         ) : (
           <ol className="divide-y divide-border/60">
             {ranked.slice(0, LIMIT).map((post, index) => {
               const rate = sortValue(post, "engagement_rate");
-              const label = post.title ?? post.text?.replace(/\s+/g, " ").trim() ?? "Untitled post";
+              const label = post.title ?? post.text?.replace(/\s+/g, " ").trim() ?? t("Untitled post");
               const campaign = post.campaignId !== null ? campaignNames.get(post.campaignId) : null;
               return (
                 <li key={post.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
@@ -97,12 +100,12 @@ export function TopPosts({
                     </p>
                   </div>
                   <div className="hidden gap-5 sm:flex">
-                    <Metric label="Views" value={formatCount(post.metrics.views)} />
-                    <Metric label="Engagement" value={formatCount(engagementOf(post.metrics))} />
-                    <Metric label="Eng. rate" value={formatPercent(rate, 1)} />
+                    <Metric label={t("Views")} value={formatCount(post.metrics.views)} />
+                    <Metric label={t("Engagement")} value={formatCount(engagementOf(post.metrics))} />
+                    <Metric label={t("Eng. rate")} value={formatPercent(rate, 1)} />
                   </div>
                   <div className="sm:hidden">
-                    <Metric label={metric === "engagement_rate" ? "Eng. rate" : metric} value={metric === "engagement_rate" ? formatPercent(rate) : formatCount(sortValue(post, metric))} />
+                    <Metric label={metric === "engagement_rate" ? t("Eng. rate") : metric} value={metric === "engagement_rate" ? formatPercent(rate) : formatCount(sortValue(post, metric))} />
                   </div>
                   {post.postUrl ? (
                     <a
@@ -110,7 +113,7 @@ export function TopPosts({
                       target="_blank"
                       rel="noreferrer"
                       className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-                      aria-label={`Open on ${platformName(post.platform)}`}
+                      aria-label={t("Open on {platform}", { platform: platformName(post.platform) })}
                     >
                       <ExternalLink className="size-3.5" />
                     </a>

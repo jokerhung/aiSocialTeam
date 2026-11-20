@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { NoCampaign } from "@/components/dashboard/no-campaign";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/local-user";
@@ -6,7 +7,10 @@ import { getRecentActivity } from "@/lib/overview";
 import { getOfficeScene, officeIdFromImage } from "@/lib/office-studio";
 import { AgentWorkspace } from "@/components/agents/agent-workspace";
 
-export const metadata = { title: "AI Agent" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("AI Agent") };
+}
 
 // Shell (sidebar, header, auth + campaign guards) lives in ../layout.tsx
 export default async function AiAgentPage() {

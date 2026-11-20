@@ -43,6 +43,16 @@ Trình duyệt tích hợp (Computer) dùng Microsoft Edge hoặc Chrome có s�
 3. Bot tự chào và hỏi bạn muốn được giúp gì. Gõ vào ô chat để trò chuyện.
 4. Mức duyệt của bot (Ask / Edits / Auto / Full) quyết định lúc nào bot phải xin phép trước khi chạy lệnh hoặc sửa file.
 
+## 2b. Đổi ngôn ngữ giao diện (web dashboard)
+
+Web dashboard (cổng 5499 khi chạy `pnpm dev`) có **English** và **Tiếng Việt**.
+
+1. Bấm nút **Language / Ngôn ngữ** (biểu tượng chữ A-文) ngay phía trên nút Cài đặt ở cuối thanh bên.
+2. Chọn **English** hoặc **Tiếng Việt** (dấu ✓ ở ngôn ngữ đang dùng). Giao diện đổi ngay, không cần tải lại trang. Trang Cài đặt không có mục chọn ngôn ngữ.
+3. Lần đầu vào, ngôn ngữ lấy theo ngôn ngữ của trình duyệt (bắt đầu bằng `vi` thì tiếng Việt, còn lại tiếng Anh). Lựa chọn của bạn được nhớ bằng cookie `lang` trong một năm.
+
+Nội dung do bạn hoặc bot tạo (tên chiến dịch, tiêu đề bài đăng, tin nhắn chat) không bị dịch; bot trả lời theo ngôn ngữ bạn viết. Một số thông báo lỗi do máy chủ trả về vẫn bằng tiếng Anh.
+
 ## 3. Cấu hình engine
 
 - **Claude Code / Codex CLI:** cài CLI chính thức và đăng nhập (`claude login`, `codex login`). BotTeam tự dò.

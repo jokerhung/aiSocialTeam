@@ -1,5 +1,6 @@
 import "server-only";
 import { api, ApiError } from "@/lib/botteam";
+import { getT } from "@/lib/i18n/server";
 import type { Scope } from "@/lib/local-user";
 import { checkPost, POST_PLATFORMS, zonedTimeToUtc, type PostInput, type PostView } from "@/lib/posts/shared";
 
@@ -9,19 +10,20 @@ import { checkPost, POST_PLATFORMS, zonedTimeToUtc, type PostInput, type PostVie
 type Result = { post?: PostView; error?: string };
 type ServerPost = PostView & { campaignId: number };
 
-const fail = (error: unknown): Result => ({ error: error instanceof ApiError ? error.message : "That didn't work. Please try again." });
+const fail = async (error: unknown): Promise<Result> => ({ error: error instanceof ApiError ? error.message : (await getT()).t("That didn't work. Please try again.") });
 
 function payload(post: ServerPost, change: Partial<{ status: "draft" | "scheduled"; scheduledAt: string | null }>) {
   return { ...post, status: change.status ?? (post.status === "scheduled" ? "scheduled" : "draft"), scheduledAt: change.scheduledAt === undefined ? post.scheduledAt : change.scheduledAt };
 }
 
 export async function savePostForScope(scope: Scope, input: PostInput, intent: "schedule" | "draft"): Promise<Result> {
-  const { errors } = checkPost(input);
+  const { t } = await getT();
+  const { errors } = checkPost(input, t);
   const scheduledAt = input.date && input.time ? zonedTimeToUtc(input.date, input.time, input.timeZone).toISOString() : null;
   if (intent === "schedule") {
     if (errors.length) return { error: errors[0] };
-    if (!scheduledAt) return { error: "Pick a date and time to schedule the post." };
-    if (Date.parse(scheduledAt) <= Date.now()) return { error: "Pick a time in the future." };
+    if (!scheduledAt) return { error: t("Pick a date and time to schedule the post.") };
+    if (Date.parse(scheduledAt) <= Date.now()) return { error: t("Pick a time in the future.") };
   }
   const body = {
     campaignId: scope.campaignId,
@@ -43,7 +45,7 @@ export async function savePostForScope(scope: Scope, input: PostInput, intent: "
       : await api<PostView>("/api/social/posts", { method: "POST", json: body });
     return { post };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -54,7 +56,7 @@ export async function unschedulePostForScope(_scope: Scope, postId: number): Pro
     const updated = await api<PostView>(`/api/social/posts/${postId}`, { method: "PUT", json: payload(post, { status: "draft" }) });
     return { post: updated };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -69,6 +71,6 @@ export async function reschedulePostForScope(_scope: Scope, postId: number, at: 
     });
     return { post: updated };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }

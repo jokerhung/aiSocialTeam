@@ -10,6 +10,7 @@ import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import { T } from "@/lib/i18n/client";
 export type CampaignOption = Pick<Campaign, "id" | "name" | "icon" | "iconUrl"> & { ended: boolean };
 export type DashboardUser = { name: string; email: string; initials: string; avatarUrl?: string };
 
@@ -75,7 +76,7 @@ export function DashboardShell({ campaigns, activeCampaignId, user, defaultExpan
               expanded ? "w-66" : "w-22"
             )}
           >
-            <AppSidebar {...sidebarProps} expanded={expanded} onToggle={toggleSidebar} />
+            <AppSidebar {...sidebarProps} expanded={expanded} />
           </aside>
 
           {/* Mobile: same panel in a drawer, always expanded */}
@@ -85,7 +86,7 @@ export function DashboardShell({ campaigns, activeCampaignId, user, defaultExpan
               showCloseButton={false}
               className="w-72 border-0 bg-transparent p-3 shadow-none data-[side=left]:w-72 md:hidden"
             >
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
+              <SheetTitle className="sr-only"><T>Navigation</T></SheetTitle>
               <AppSidebar {...sidebarProps} expanded onNavigate={() => setMobileOpen(false)} />
             </SheetContent>
           </Sheet>

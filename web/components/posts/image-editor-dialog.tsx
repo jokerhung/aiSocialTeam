@@ -46,6 +46,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
+import { T, useI18n, useT } from "@/lib/i18n/client";
 // Edits a post image with ImageKit (lib/imagekit/transformations.ts, the same edits the Creator
 // Agent's transform_image tool has). Crop, adjust and text edits preview live straight from
 // ImageKit's URL API; AI edits run on the server (/api/media/edit) and each result is stored as a new
@@ -144,13 +145,14 @@ function useDebounced<T>(value: T, ms: number) {
 }
 
 async function requestEdit(image: PostMedia, edits: EditInput[]): Promise<PostMedia> {
+  const t = useT();
   const response = await fetch("/api/media/edit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: image.url, name: image.name, edits }),
   });
   const body = (await response.json().catch(() => null)) as { media?: PostMedia; error?: string } | null;
-  if (!response.ok || !body?.media) throw new Error(body?.error ?? "The edit failed. Please try again.");
+  if (!response.ok || !body?.media) throw new Error(body?.error ?? t("The edit failed. Please try again."));
   return body.media;
 }
 
@@ -176,6 +178,7 @@ export function ImageEditorDialog({
 }
 
 function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () => void; onSave: (image: PostMedia) => void }) {
+  const { t, tn } = useI18n();
   const [history, setHistory] = useState<PostMedia[]>([image]);
   const current = history[history.length - 1];
   const [tab, setTab] = useState<Tab>("ai");
@@ -227,7 +230,7 @@ function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () =>
       onSave(current);
       return;
     }
-    setBusy("Saving your edits");
+    setBusy(t("Saving your edits"));
     try {
       const result = await requestEdit(current, live);
       onSave(result);
@@ -246,8 +249,8 @@ function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () =>
           <Wand2 className="size-4.5" />
         </span>
         <div className="min-w-0">
-          <DialogTitle className="text-base font-semibold">Edit image</DialogTitle>
-          <DialogDescription className="text-xs">AI edits, crops, adjustments and text, powered by ImageKit</DialogDescription>
+          <DialogTitle className="text-base font-semibold"><T>Edit image</T></DialogTitle>
+          <DialogDescription className="text-xs"><T>AI edits, crops, adjustments and text, powered by ImageKit</T></DialogDescription>
         </div>
       </header>
 
@@ -268,12 +271,12 @@ function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () =>
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="flex items-center gap-2 rounded-full bg-background/90 px-4 py-2 text-sm font-medium shadow-lg ring-1 ring-border backdrop-blur">
                 <Spinner />
-                {busy ? `${busy}…` : "Rendering preview…"}
+                {busy ? `${busy}…` : t("Rendering preview…")}
               </span>
             </div>
           )}
-          {busy && busy !== "Saving your edits" && (
-            <p className="absolute inset-x-0 bottom-3 text-center text-xs text-muted-foreground">AI edits can take up to a minute.</p>
+          {busy && busy !== t("Saving your edits") && (
+            <p className="absolute inset-x-0 bottom-3 text-center text-xs text-muted-foreground"><T>AI edits can take up to a minute.</T></p>
           )}
           <div className="absolute top-3 left-3 flex gap-1.5">
             <Button
@@ -287,7 +290,7 @@ function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () =>
               }}
             >
               <Undo2 data-icon="inline-start" />
-              Undo
+              <T>Undo</T>
             </Button>
             <Button
               variant="outline"
@@ -300,12 +303,12 @@ function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () =>
               }}
             >
               <RotateCcw data-icon="inline-start" />
-              Reset
+              <T>Reset</T>
             </Button>
           </div>
           {history.length > 1 && (
             <span className="absolute top-3 right-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium shadow-sm ring-1 ring-border backdrop-blur">
-              {history.length - 1} AI {history.length === 2 ? "edit" : "edits"} applied
+              {tn(history.length - 1, "{n} AI edit applied", "{n} AI edits applied")}
             </span>
           )}
         </div>
@@ -326,7 +329,7 @@ function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () =>
                 )}
               >
                 <Icon className="size-4" />
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -343,15 +346,15 @@ function Editor({ image, onCancel, onSave }: { image: PostMedia; onCancel: () =>
 
       <footer className="flex flex-col gap-2 border-t bg-muted/40 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className={cn("min-h-4 text-xs", error ? "text-destructive" : "text-muted-foreground")}>
-          {error ?? (live.length ? `${live.length} live ${live.length === 1 ? "edit" : "edits"}: saved as a new image` : "The original image is kept: edits save as a new image.")}
+          {error ?? (live.length ? `${live.length} live ${live.length === 1 ? "edit" : "edits"}: saved as a new image` : t("The original image is kept: edits save as a new image."))}
         </p>
         <div className="flex gap-2">
-          <Button variant="ghost" size="lg" className="rounded-xl" onClick={onCancel} disabled={busy === "Saving your edits"}>
-            Cancel
+          <Button variant="ghost" size="lg" className="rounded-xl" onClick={onCancel} disabled={busy === t("Saving your edits")}>
+            <T>Cancel</T>
           </Button>
           <Button size="lg" className="min-w-32 rounded-xl px-4 shadow-lg shadow-primary/20" onClick={save} disabled={!changed || !!busy || !!liveProblem}>
-            {busy === "Saving your edits" && <Spinner />}
-            Save image
+            {busy === t("Saving your edits") && <Spinner />}
+            <T>Save image</T>
           </Button>
         </div>
       </footer>
@@ -364,6 +367,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function AiPanel({ busy, onRun }: { busy: boolean; onRun: (label: string, edits: EditInput[]) => void }) {
+  const t = useT();
   const [prompt, setPrompt] = useState("");
   const [background, setBackground] = useState("");
   const [fillAspect, setFillAspect] = useState<Aspect>("portrait");
@@ -380,7 +384,7 @@ function AiPanel({ busy, onRun }: { busy: boolean; onRun: (label: string, edits:
   return (
     <>
       <section>
-        <SectionTitle>One-click</SectionTitle>
+        <SectionTitle><T>One-click</T></SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           {quick.map(({ kind, Icon, edits }) => (
             <button
@@ -394,41 +398,41 @@ function AiPanel({ busy, onRun }: { busy: boolean; onRun: (label: string, edits:
               <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-violet-500/15 to-fuchsia-500/15 text-violet-600 transition-transform group-hover/ai:scale-105 dark:text-violet-300">
                 <Icon className="size-3.5" />
               </span>
-              {kind === "drop_shadow" ? "Cut out + shadow" : EDITS[kind].label}
+              {kind === "drop_shadow" ? t("Cut out + shadow") : EDITS[kind].label}
             </button>
           ))}
         </div>
       </section>
 
       <PromptAction
-        title="Edit with a prompt"
-        placeholder="e.g. make it golden hour, add steam rising from the coffee"
+        title={t("Edit with a prompt")}
+        placeholder={t("e.g. make it golden hour, add steam rising from the coffee")}
         value={prompt}
         onChange={setPrompt}
         busy={busy}
         Icon={Wand2}
         action="Apply edit"
-        onRun={() => onRun("Editing with AI", [input("edit", { prompt })])}
+        onRun={() => onRun(t("Editing with AI"), [input("edit", { prompt })])}
       />
       <PromptAction
-        title="Change background"
-        placeholder="e.g. a sunny beach with soft bokeh"
+        title={t("Change background")}
+        placeholder={t("e.g. a sunny beach with soft bokeh")}
         value={background}
         onChange={setBackground}
         busy={busy}
         Icon={ImagePlus}
         action="Replace background"
-        onRun={() => onRun("Changing the background", [input("change_background", { prompt: background })])}
+        onRun={() => onRun(t("Changing the background"), [input("change_background", { prompt: background })])}
       />
 
       <section>
-        <SectionTitle>Generative fill</SectionTitle>
-        <p className="mb-2 text-xs text-muted-foreground">Extend the image to a new shape and let AI paint the new space.</p>
+        <SectionTitle><T>Generative fill</T></SectionTitle>
+        <p className="mb-2 text-xs text-muted-foreground"><T>Extend the image to a new shape and let AI paint the new space.</T></p>
         <AspectPicker value={fillAspect} onChange={setFillAspect} />
         <Input
           value={fillPrompt}
           onChange={(e) => setFillPrompt(e.target.value)}
-          placeholder="What to fill it with (optional)"
+          placeholder={t("What to fill it with (optional)")}
           className="mt-2 h-9 rounded-xl"
         />
         <Button
@@ -436,7 +440,7 @@ function AiPanel({ busy, onRun }: { busy: boolean; onRun: (label: string, edits:
           variant="secondary"
           className="mt-2 w-full rounded-xl"
           disabled={busy}
-          onClick={() => onRun("Filling the new space", [input("extend", { aspect: fillAspect, prompt: fillPrompt.trim() || null })])}
+          onClick={() => onRun(t("Filling the new space"), [input("extend", { aspect: fillAspect, prompt: fillPrompt.trim() || null })])}
         >
           <Sparkles data-icon="inline-start" />
           Extend to {ASPECTS[fillAspect].label}
@@ -505,20 +509,21 @@ function AspectPicker({ value, onChange }: { value: Aspect | null; onChange: (as
 }
 
 function CropPanel({ crop, onChange }: { crop: Controls["crop"]; onChange: (crop: Controls["crop"]) => void }) {
+  const t = useT();
   const modes: { id: NonNullable<Controls["crop"]>["mode"]; label: string; Icon: LucideIcon }[] = [
-    { id: "smart_crop", label: "Smart", Icon: Sparkles },
-    { id: "face_crop", label: "Face", Icon: ScanFace },
-    { id: "resize", label: "Center", Icon: Crop },
+    { id: "smart_crop", label: t("Smart"), Icon: Sparkles },
+    { id: "face_crop", label: t("Face"), Icon: ScanFace },
+    { id: "resize", label: t("Center"), Icon: Crop },
   ];
   return (
     <>
       <section>
-        <SectionTitle>Shape</SectionTitle>
+        <SectionTitle><T>Shape</T></SectionTitle>
         <AspectPicker value={crop?.aspect ?? null} onChange={(aspect) => onChange({ aspect, mode: crop?.mode ?? "smart_crop" })} />
-        <p className="mt-2 text-xs text-muted-foreground">Feed 4:5 suits Instagram, 9:16 TikTok and Reels, 16:9 YouTube.</p>
+        <p className="mt-2 text-xs text-muted-foreground"><T>Feed 4:5 suits Instagram, 9:16 TikTok and Reels, 16:9 YouTube.</T></p>
       </section>
       <section>
-        <SectionTitle>Focus on</SectionTitle>
+        <SectionTitle><T>Focus on</T></SectionTitle>
         <div className="grid grid-cols-3 gap-1.5">
           {modes.map(({ id, label, Icon }) => (
             <button
@@ -541,7 +546,7 @@ function CropPanel({ crop, onChange }: { crop: Controls["crop"]; onChange: (crop
       </section>
       {crop && (
         <Button variant="ghost" size="sm" className="w-full rounded-xl text-muted-foreground" onClick={() => onChange(null)}>
-          Remove crop
+          <T>Remove crop</T>
         </Button>
       )}
     </>
@@ -559,11 +564,12 @@ function ToggleRow({ label, Icon, checked, onChange }: { label: string; Icon: Lu
 }
 
 function SliderRow({ label, value, max, unit = "", onChange }: { label: string; value: number; max: number; unit?: string; onChange: (value: number) => void }) {
+  const t = useT();
   return (
     <div className="space-y-2 px-1">
       <div className="flex items-center justify-between text-sm">
         <span>{label}</span>
-        <span className="text-xs text-muted-foreground tabular-nums">{value ? `${value}${unit}` : "Off"}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">{value ? `${value}${unit}` : t("Off")}</span>
       </div>
       <Slider value={[value]} min={0} max={max} onValueChange={(next) => onChange(Array.isArray(next) ? next[0] : next)} />
     </div>
@@ -582,40 +588,41 @@ function ColorInput({ value, onChange, label }: { value: string; onChange: (valu
 type SetControl = <K extends keyof Controls>(key: K, value: Controls[K]) => void;
 
 function AdjustPanel({ controls, set }: { controls: Controls; set: SetControl }) {
+  const t = useT();
   return (
     <>
       <section>
-        <SectionTitle>Orientation</SectionTitle>
+        <SectionTitle><T>Orientation</T></SectionTitle>
         <div className="grid grid-cols-4 gap-1.5">
-          <IconButton label="Rotate left" Icon={RotateCcw} onClick={() => set("rotate", (controls.rotate - 90) % 360)} />
-          <IconButton label="Rotate right" Icon={RotateCw} onClick={() => set("rotate", (controls.rotate + 90) % 360)} />
-          <IconButton label="Flip horizontal" Icon={FlipHorizontal2} active={controls.flipH} onClick={() => set("flipH", !controls.flipH)} />
-          <IconButton label="Flip vertical" Icon={FlipVertical2} active={controls.flipV} onClick={() => set("flipV", !controls.flipV)} />
+          <IconButton label={t("Rotate left")} Icon={RotateCcw} onClick={() => set("rotate", (controls.rotate - 90) % 360)} />
+          <IconButton label={t("Rotate right")} Icon={RotateCw} onClick={() => set("rotate", (controls.rotate + 90) % 360)} />
+          <IconButton label={t("Flip horizontal")} Icon={FlipHorizontal2} active={controls.flipH} onClick={() => set("flipH", !controls.flipH)} />
+          <IconButton label={t("Flip vertical")} Icon={FlipVertical2} active={controls.flipV} onClick={() => set("flipV", !controls.flipV)} />
         </div>
       </section>
       <section>
-        <SectionTitle>Look</SectionTitle>
-        <ToggleRow label="Grayscale" Icon={SunMedium} checked={controls.grayscale} onChange={(v) => set("grayscale", v)} />
-        <ToggleRow label="Auto contrast" Icon={Contrast} checked={controls.contrast} onChange={(v) => set("contrast", v)} />
+        <SectionTitle><T>Look</T></SectionTitle>
+        <ToggleRow label={t("Grayscale")} Icon={SunMedium} checked={controls.grayscale} onChange={(v) => set("grayscale", v)} />
+        <ToggleRow label={t("Auto contrast")} Icon={Contrast} checked={controls.contrast} onChange={(v) => set("contrast", v)} />
         <div className="mt-2 space-y-4">
-          <SliderRow label="Sharpen" value={controls.sharpen} max={100} onChange={(v) => set("sharpen", v)} />
-          <SliderRow label="Blur" value={controls.blur} max={50} onChange={(v) => set("blur", v)} />
+          <SliderRow label={t("Sharpen")} value={controls.sharpen} max={100} onChange={(v) => set("sharpen", v)} />
+          <SliderRow label={t("Blur")} value={controls.blur} max={50} onChange={(v) => set("blur", v)} />
         </div>
       </section>
       <section className="space-y-4">
-        <SectionTitle>Frame</SectionTitle>
-        <SliderRow label="Rounded corners" value={controls.rounded} max={200} unit="px" onChange={(v) => set("rounded", v)} />
+        <SectionTitle><T>Frame</T></SectionTitle>
+        <SliderRow label={t("Rounded corners")} value={controls.rounded} max={200} unit="px" onChange={(v) => set("rounded", v)} />
         <div className="flex items-end gap-3">
           <div className="flex-1">
-            <SliderRow label="Border" value={controls.border} max={60} unit="px" onChange={(v) => set("border", v)} />
+            <SliderRow label={t("Border")} value={controls.border} max={60} unit="px" onChange={(v) => set("border", v)} />
           </div>
-          <ColorInput label="Border colour" value={controls.borderColor} onChange={(v) => set("borderColor", v)} />
+          <ColorInput label={t("Border colour")} value={controls.borderColor} onChange={(v) => set("borderColor", v)} />
         </div>
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <ToggleRow label="Gradient fade" Icon={Droplet} checked={controls.gradient} onChange={(v) => set("gradient", v)} />
+            <ToggleRow label={t("Gradient fade")} Icon={Droplet} checked={controls.gradient} onChange={(v) => set("gradient", v)} />
           </div>
-          <ColorInput label="Gradient colour" value={controls.gradientColor} onChange={(v) => set("gradientColor", v)} />
+          <ColorInput label={t("Gradient colour")} value={controls.gradientColor} onChange={(v) => set("gradientColor", v)} />
         </div>
       </section>
     </>
@@ -641,21 +648,22 @@ function IconButton({ label, Icon, active, onClick }: { label: string; Icon: Luc
 }
 
 function TextPanel({ controls, set }: { controls: Controls; set: SetControl }) {
+  const t = useT();
   return (
     <>
       <section>
-        <SectionTitle>Text on image</SectionTitle>
+        <SectionTitle><T>Text on image</T></SectionTitle>
         <Textarea
           value={controls.text}
           onChange={(e) => set("text", e.target.value)}
-          placeholder="e.g. Summer drop · 20% off"
+          placeholder={t("e.g. Summer drop · 20% off")}
           rows={2}
           maxLength={200}
           className="min-h-0 resize-none rounded-xl text-sm"
         />
       </section>
       <section>
-        <SectionTitle>Position</SectionTitle>
+        <SectionTitle><T>Position</T></SectionTitle>
         <div className="grid grid-cols-3 gap-1.5">
           {(["top", "center", "bottom"] as const).map((position) => (
             <button
@@ -674,20 +682,20 @@ function TextPanel({ controls, set }: { controls: Controls; set: SetControl }) {
         </div>
       </section>
       <section className="space-y-4">
-        <SectionTitle>Style</SectionTitle>
+        <SectionTitle><T>Style</T></SectionTitle>
         <div className="flex items-end gap-3">
           <div className="flex-1">
-            <SliderRow label="Size" value={controls.textSize} max={160} unit="px" onChange={(v) => set("textSize", Math.max(12, v))} />
+            <SliderRow label={t("Size")} value={controls.textSize} max={160} unit="px" onChange={(v) => set("textSize", Math.max(12, v))} />
           </div>
-          <ColorInput label="Text colour" value={controls.textColor} onChange={(v) => set("textColor", v)} />
+          <ColorInput label={t("Text colour")} value={controls.textColor} onChange={(v) => set("textColor", v)} />
         </div>
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <ToggleRow label="Background box" Icon={Type} checked={controls.textBox} onChange={(v) => set("textBox", v)} />
+            <ToggleRow label={t("Background box")} Icon={Type} checked={controls.textBox} onChange={(v) => set("textBox", v)} />
           </div>
-          <ColorInput label="Box colour" value={controls.textBoxColor} onChange={(v) => set("textBoxColor", v)} />
+          <ColorInput label={t("Box colour")} value={controls.textBoxColor} onChange={(v) => set("textBoxColor", v)} />
         </div>
-        <p className="text-xs text-muted-foreground">Tip: add a gradient fade (Adjust) behind light text so it stays readable.</p>
+        <p className="text-xs text-muted-foreground"><T>Tip: add a gradient fade (Adjust) behind light text so it stays readable.</T></p>
       </section>
     </>
   );

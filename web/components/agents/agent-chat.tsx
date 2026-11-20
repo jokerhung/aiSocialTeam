@@ -2,13 +2,14 @@
 
 /* eslint-disable @next/next/no-img-element -- previews are remote ImageKit / storage URLs of any size */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { format } from "date-fns";
+import { format } from "@/lib/i18n/format";
 import { LoaderCircle, SendHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { thumbnail } from "@/components/agents/task-results";
 import type { ChatState, WorkspaceAgent } from "@/components/agents/agent-workspace";
 
+import { T, useT } from "@/lib/i18n/client";
 // failed: an error notice or cut-off reply, shown in the chat but not sent back as context
 export type ChatMessage = { id: string; from: "user" | "agent"; text: string; createdAt: Date; failed?: boolean };
 
@@ -33,6 +34,7 @@ export function AgentChat({
   // Shown just above the message box (the Master Agent's running plans, or a hint for workers)
   notice?: React.ReactNode;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -99,17 +101,17 @@ export function AgentChat({
           <Bubble from="agent" agent={agent}>
             {master ? (
               <>
-                <p>Hi! I&apos;m your Master Agent. I coordinate your AI team.</p>
+                <p><T>Hi! I'm your Master Agent. I coordinate your AI team.</T></p>
                 <p className="mt-2">
-                  Tell me what you need, like &quot;Plan a week of Instagram posts about our launch&quot;. I&apos;ll break it into tasks,
-                  assign them to the right agents, check their work and report back here.
+                  <T>Tell me what you need, like "Plan a week of Instagram posts about our launch". I'll break it into tasks,
+                  assign them to the right agents, check their work and report back here.</T>
                 </p>
               </>
             ) : (
               <>
-                <p>Hi! I&apos;m your {role.name}. {role.description}.</p>
+                <p>{t("Hi! I'm your {name}. {description}.", { name: t(role.name), description: t(role.description) })}</p>
                 <p className="mt-2">
-                  I take my tasks from the Master Agent, but you can ask me anything about my work here.
+                  <T>I take my tasks from the Master Agent, but you can ask me anything about my work here.</T>
                 </p>
               </>
             )}
@@ -120,11 +122,11 @@ export function AgentChat({
               <span>
                 {error}{" "}
                 <button type="button" onClick={onLoadOlder} className="font-medium text-primary underline-offset-2 hover:underline">
-                  Try again
+                  <T>Try again</T>
                 </button>
               </span>
             ) : (
-              (loading || !loaded) && <LoaderCircle className="size-4 animate-spin" aria-label="Loading messages" />
+              (loading || !loaded) && <LoaderCircle className="size-4 animate-spin" aria-label={t("Loading messages")} />
             )}
           </div>
         )}
@@ -138,7 +140,7 @@ export function AgentChat({
         {typing && (
           <div className="flex items-end gap-3" aria-live="polite">
             <AgentAvatar role={role} sprite={agent.sprite} className="size-9" />
-            <span className="flex gap-1 rounded-2xl bg-muted px-3.5 py-3" aria-label={`${role.name} is typing`}>
+            <span className="flex gap-1 rounded-2xl bg-muted px-3.5 py-3" aria-label={t("{name} is typing", { name: t(role.name) })}>
               {[0, 150, 300].map((delay) => (
                 <span key={delay} className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: `${delay}ms` }} />
               ))}
@@ -154,7 +156,7 @@ export function AgentChat({
         className="flex items-center gap-2 rounded-2xl bg-card p-2 pl-4 ring-1 ring-border/70 transition-shadow focus-within:ring-2 focus-within:ring-ring/40"
       >
         <label htmlFor="agent-task" className="sr-only">
-          Message for {role.name}
+          {t("Message for {name}", { name: t(role.name) })}
         </label>
         <input
           id="agent-task"
@@ -164,17 +166,17 @@ export function AgentChat({
           autoComplete="off"
           placeholder={
             paused
-              ? `${role.name} is paused — resume it to chat`
+              ? t("{name} is paused — resume it to chat", { name: t(role.name) })
               : master
-                ? "Tell the Master Agent what you need…"
-                : `Ask the ${role.name} a question…`
+                ? t("Tell the Master Agent what you need…")
+                : t("Ask the {name} a question…", { name: t(role.name) })
           }
           className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/80 disabled:cursor-not-allowed"
         />
         <button
           type="submit"
           disabled={paused || typing || !loaded || !draft.trim()}
-          aria-label="Send message"
+          aria-label={t("Send message")}
           className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-[translate,opacity,box-shadow] outline-none hover:-translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none"
         >
           <SendHorizontal className="size-4" />
@@ -190,6 +192,7 @@ const IMAGE_URL = /!\[[^\]]*\]\((https?:\/\/[^\s)]+?\.(?:png|jpe?g|webp|gif|avif
 
 // The message text with its image links shown as small previews underneath
 function MessageBody({ text }: { text: string }) {
+  const t = useT();
   const images = [...new Set([...text.matchAll(IMAGE_URL)].map((match) => match[1] ?? match[0]))];
   if (images.length === 0) return text;
   const rest = text
@@ -209,7 +212,7 @@ function MessageBody({ text }: { text: string }) {
             rel="noreferrer"
             className="block overflow-hidden rounded-xl ring-1 ring-border/70 transition-opacity hover:opacity-90"
           >
-            <img src={thumbnail(url, 320)} alt="Generated image" loading="lazy" className="size-40 bg-background object-cover" />
+            <img src={thumbnail(url, 320)} alt={t("Generated image")} loading="lazy" className="size-40 bg-background object-cover" />
           </a>
         ))}
       </span>
@@ -232,6 +235,7 @@ function Bubble({
   failed?: boolean;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const mine = from === "user";
   return (
     <div className={cn("flex animate-in items-start gap-3 duration-300 fade-in-0 slide-in-from-bottom-1", mine && "flex-row-reverse")}>
@@ -254,7 +258,7 @@ function Bubble({
         </div>
         {time && (
           <time dateTime={time.toISOString()} className="px-1 text-[11px] text-muted-foreground">
-            {format(time, "h:mm a")}
+            {format(time, t("h:mm a"))}
           </time>
         )}
       </div>

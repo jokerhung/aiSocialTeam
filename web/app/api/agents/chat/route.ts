@@ -4,6 +4,7 @@ import { AGENT_ROLES } from "@/lib/agent-roles";
 import { botIdFor, CHAT_PAGE_SIZE, getBot, listChatMessages, listChatMessagesAfter, replyText, sendToBot } from "@/lib/agent-chats";
 import { ApiError } from "@/lib/botteam";
 
+import { getT } from "@/lib/i18n/server";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
@@ -35,12 +36,13 @@ async function botFor(agentId: string) {
 // A page of the saved chat with an agent: ?agentId=research[&before=<message id>][&limit=10],
 // or everything newer than a message: ?agentId=master&after=<message id>
 export async function GET(request: Request) {
+  const { t } = await getT();
   const parsed = HistoryQuery.safeParse(Object.fromEntries(new URL(request.url).searchParams));
-  if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: t("Invalid request") }, { status: 400 });
   const { agentId, before, after, limit } = parsed.data;
 
   const botId = await botFor(agentId);
-  if (!botId) return Response.json({ error: "No active campaign" }, { status: 400 });
+  if (!botId) return Response.json({ error: t("No active campaign") }, { status: 400 });
   try {
     const body = after !== undefined ? { messages: await listChatMessagesAfter(botId, after) } : await listChatMessages(botId, { before, limit });
     return Response.json(body, { headers: { "Cache-Control": "no-store" } });
@@ -51,19 +53,20 @@ export async function GET(request: Request) {
 
 // Sends the person's message to the agent's bot, then streams the reply as plain text while the bot writes it
 export async function POST(request: Request) {
+  const { t } = await getT();
   const parsed = ChatRequest.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: t("Invalid request") }, { status: 400 });
   const { agentId, text, instructions } = parsed.data;
 
   const botId = await botFor(agentId);
-  if (!botId) return Response.json({ error: "No active campaign" }, { status: 400 });
+  if (!botId) return Response.json({ error: t("No active campaign") }, { status: 400 });
 
   let sent;
   try {
     // The per-agent instructions typed in the agent's Settings tab go along with the message
     sent = await sendToBot(botId, instructions?.trim() ? `${text}\n\n(Standing instructions from the person: ${instructions.trim()})` : text);
   } catch (error) {
-    const message = error instanceof ApiError && error.status === 409 ? "That agent is still answering. Wait a moment and try again." : (error as Error).message;
+    const message = error instanceof ApiError && error.status === 409 ? t("That agent is still answering. Wait a moment and try again.") : (error as Error).message;
     return Response.json({ error: message }, { status: 502 });
   }
 

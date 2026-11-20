@@ -1,6 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element -- fallback office image */
+import { newId } from "@/lib/id";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AGENT_ROLES, MASTER_AGENT, type AgentRole, type AgentRoleId } from "@/lib/agent-roles";
 import type { OfficeScene } from "@/lib/office-studio";
@@ -17,6 +18,7 @@ import type { PlanAction } from "@/components/agents/master-tasks";
 import type { StoredChatMessage } from "@/lib/agent-chats";
 import { DEFAULT_AGENT_SETTINGS, type AgentSettings } from "@/components/agents/agent-settings";
 
+import { T, useT } from "@/lib/i18n/client";
 // An agent as the workspace sees it: its office seat id (or role id without a scene) and its look
 export type WorkspaceAgent = { id: string; role: AgentRole; sprite?: string };
 
@@ -65,6 +67,7 @@ export function AgentWorkspace({
   // page: the agent row plus the first agent's panel.
   children?: React.ReactNode;
 }) {
+  const t = useT();
   const overview = children !== undefined;
   const agents: WorkspaceAgent[] = [
     { id: MASTER_ID, role: MASTER_AGENT },
@@ -138,7 +141,7 @@ export function AgentWorkspace({
       if (before) params.set("before", String(before));
       const response = await fetch(`/api/agents/chat?${params}`, { signal: controller.signal });
       const body = await response.json().catch(() => null);
-      if (!response.ok || !body) throw new Error(body?.error ?? "Couldn't load messages.");
+      if (!response.ok || !body) throw new Error(body?.error ?? t("Couldn't load messages."));
 
       const { messages, nextCursor } = body as { messages: StoredChatMessage[]; nextCursor: number | null };
       const page = messages.map((message): ChatMessage => ({ ...message, createdAt: new Date(message.createdAt) }));
@@ -188,7 +191,7 @@ export function AgentWorkspace({
       if (resume) params.set("resume", "1");
       const response = await fetch(`/api/agents/tasks?${params}`);
       const body = await response.json().catch(() => null);
-      if (!response.ok || !body) throw new Error(body?.error ?? "Couldn't load tasks.");
+      if (!response.ok || !body) throw new Error(body?.error ?? t("Couldn't load tasks."));
       const next = body.plans as PlanView[];
       setPlans(next);
       setPlansLoaded(true);
@@ -236,7 +239,7 @@ export function AgentWorkspace({
     }).catch(() => null);
     const body = await response?.json().catch(() => null);
     setPollKey((key) => key + 1);
-    return response?.ok ? null : (body?.error ?? "That didn't work. Please try again.");
+    return response?.ok ? null : (body?.error ?? t("That didn't work. Please try again."));
   }
 
   // Each agent's live status, by role and by workspace id (office seat)
@@ -313,7 +316,7 @@ export function AgentWorkspace({
     const roleId = agent.role.id;
     // Wait for the saved chat first, or the new message would show up twice once it loads
     if (typing.has(roleId) || !chats[roleId]?.loaded) return;
-    const userMessage: ChatMessage = { id: crypto.randomUUID(), from: "user", text, createdAt: new Date() };
+    const userMessage: ChatMessage = { id: newId(), from: "user", text, createdAt: new Date() };
 
     updateChat(roleId, (messages) => [...messages, userMessage]);
     setTyping((current) => new Set(current).add(roleId));
@@ -321,7 +324,7 @@ export function AgentWorkspace({
     const controller = new AbortController();
     requestsRef.current.get(roleId)?.abort();
     requestsRef.current.set(roleId, controller);
-    const replyId = crypto.randomUUID();
+    const replyId = newId();
     let reply = "";
 
     try {
@@ -338,7 +341,7 @@ export function AgentWorkspace({
       });
       if (!response.ok || !response.body) {
         const body = await response.json().catch(() => null);
-        throw new Error(body?.error ?? "The agent couldn't reply right now. Please try again.");
+        throw new Error(body?.error ?? t("The agent couldn't reply right now. Please try again."));
       }
 
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -354,7 +357,7 @@ export function AgentWorkspace({
         const current = reply;
         updateChat(roleId, (messages) => messages.map((message) => (message.id === replyId ? { ...message, text: current } : message)));
       }
-      if (!reply) throw new Error("The agent didn't reply. Please try again.");
+      if (!reply) throw new Error(t("The agent didn't reply. Please try again."));
     } catch (error) {
       if (controller.signal.aborted) return;
       const failure: ChatMessage = {
@@ -465,7 +468,7 @@ export function AgentWorkspace({
               />
             ) : (
               // No scene bundle for this office yet: show the plain office image
-              <img src={officeImage} alt="AI agent office" className="block aspect-[3/2] w-full object-cover lg:h-full" />
+              <img src={officeImage} alt={t("AI agent office")} className="block aspect-[3/2] w-full object-cover lg:h-full" />
             )}
           </div>
         </div>

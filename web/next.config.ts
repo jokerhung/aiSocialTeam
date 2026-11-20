@@ -10,6 +10,8 @@ for (const list of Object.values(networkInterfaces())) {
 for (const host of (process.env.WEB_ALLOWED_HOSTS ?? "").split(",")) if (host.trim()) devOrigins.add(host.trim());
 
 const nextConfig: NextConfig = {
+  // A second build next to the running one (tests use NEXT_DIST_DIR=.next-test)
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   reactStrictMode: true,
   allowedDevOrigins: [...devOrigins],
   // Office scene bundles are read from disk at runtime (lib/office-studio.ts)

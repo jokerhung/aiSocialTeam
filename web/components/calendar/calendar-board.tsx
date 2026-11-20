@@ -32,6 +32,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { T, useT } from "@/lib/i18n/client";
 // The campaign's content calendar: every post with a time, by month or week, in a time zone of the
 // user's choosing (their browser's by default). Posts that haven't gone out can be dragged to another
 // day or time, which reschedules them (in Blotato too). Picking a post opens its details on the
@@ -79,6 +80,7 @@ const SUMMARY: { label: string; statuses: PostStatus[] }[] = [
 ];
 
 export function CalendarBoard({ posts, account, initials }: Props) {
+  const t = useT();
   const router = useRouter();
   const wide = useWide();
   const [timeZone, setTimeZone] = useState<string | null>(null);
@@ -183,7 +185,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
     if (!post || !timeZone || !isEditable(post.status) || pendingIds.has(postId)) return;
     if (post.scheduledAt && Date.parse(post.scheduledAt) === at.getTime()) return;
     if (at.getTime() < Date.now() + 60_000) {
-      setNotice({ tone: "error", text: "Pick a time at least a minute from now." });
+      setNotice({ tone: "error", text: t("Pick a time at least a minute from now.") });
       return;
     }
     const iso = at.toISOString();
@@ -195,7 +197,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
       setNotice(
         result.error
           ? { tone: "error", text: result.error }
-          : { tone: "success", text: `“${post.title}” ${post.status === "scheduled" ? "rescheduled" : "moved"} to ${formatInZone(iso, timeZone)}` }
+          : { tone: "success", text: t(post.status === "scheduled" ? "“{title}” rescheduled to {when}" : "“{title}” moved to {when}", { title: post.title, when: formatInZone(iso, timeZone) }) }
       );
     });
   }
@@ -263,15 +265,15 @@ export function CalendarBoard({ posts, account, initials }: Props) {
       {/* Navigation and view */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-10 rounded-xl bg-card px-3.5" onClick={goToday} title="Today (T)">
-            Today
+          <Button variant="outline" className="h-10 rounded-xl bg-card px-3.5" onClick={goToday} title={t("Today (T)")}>
+            <T>Today</T>
           </Button>
           <div className="flex rounded-xl bg-card ring-1 ring-border/60">
-            <Button variant="ghost" size="icon-lg" className="rounded-l-xl rounded-r-none" onClick={() => step(-1)} aria-label={`Previous ${view}`} title={`Previous ${view} ([)`}>
+            <Button variant="ghost" size="icon-lg" className="rounded-l-xl rounded-r-none" onClick={() => step(-1)} aria-label={t("Previous {view}", { view: t(view) })} title={t("Previous {view} ([)", { view: t(view) })}>
               <ChevronLeft />
             </Button>
             <span className="w-px bg-border/60" />
-            <Button variant="ghost" size="icon-lg" className="rounded-l-none rounded-r-xl" onClick={() => step(1)} aria-label={`Next ${view}`} title={`Next ${view} (])`}>
+            <Button variant="ghost" size="icon-lg" className="rounded-l-none rounded-r-xl" onClick={() => step(1)} aria-label={t("Next {view}", { view: t(view) })} title={t("Next {view} (])", { view: t(view) })}>
               <ChevronRight />
             </Button>
           </div>
@@ -281,11 +283,11 @@ export function CalendarBoard({ posts, account, initials }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Calendar view" className="inline-flex rounded-2xl bg-card p-1 ring-1 ring-border/60">
+          <div role="tablist" aria-label={t("Calendar view")} className="inline-flex rounded-2xl bg-card p-1 ring-1 ring-border/60">
             {(
               [
-                { id: "month", label: "Month", Icon: LayoutGrid },
-                { id: "week", label: "Week", Icon: CalendarRange },
+                { id: "month", label: t("Month"), Icon: LayoutGrid },
+                { id: "week", label: t("Week"), Icon: CalendarRange },
               ] as const
             ).map(({ id, label, Icon }) => (
               <button
@@ -294,14 +296,14 @@ export function CalendarBoard({ posts, account, initials }: Props) {
                 role="tab"
                 aria-selected={view === id}
                 onClick={() => setView(id)}
-                title={`${label} view (${label[0]})`}
+                title={t("{label} view ({key})", { label: t(label), key: label[0] })}
                 className={cn(
                   "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                   view === id ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Icon className="size-3.5" />
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -319,14 +321,14 @@ export function CalendarBoard({ posts, account, initials }: Props) {
               <span key={label} className="flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 font-medium ring-1 ring-border/60">
                 <span className={cn("size-1.5 rounded-full", CALENDAR_STATUS[statuses[0]].dot)} />
                 <span className="tabular-nums">{count}</span>
-                <span className="text-muted-foreground">{label.toLowerCase()}</span>
+                <span className="text-muted-foreground">{t(label).toLowerCase()}</span>
               </span>
             );
           })}
-          <span className="text-muted-foreground">{view === "month" ? `in ${formatDay(cursor, { month: "long" })}` : "this week"}</span>
+          <span className="text-muted-foreground">{view === "month" ? t("in {month}", { month: formatDay(cursor, { month: "long" }) }) : t("this week")}</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1" aria-label="Filter by platform">
+          <div className="flex items-center gap-1" aria-label={t("Filter by platform")}>
             {POST_PLATFORMS.map((id) => (
               <button
                 key={id}
@@ -347,7 +349,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
           <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
             <Globe className="pointer-events-none absolute top-1/2 left-2.5 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <NativeSelect
-              aria-label="Time zone"
+              aria-label={t("Time zone")}
               value={timeZone}
               onChange={(event) => setTimeZone(event.target.value)}
               className="w-full [&_select]:h-9 [&_select]:rounded-xl [&_select]:bg-card [&_select]:pl-8 [&_select]:text-xs"
@@ -365,7 +367,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
       <div className="flex items-start gap-4">
         <section
           className="relative min-w-0 flex-1 overflow-hidden rounded-3xl bg-card shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_-16px_rgb(15_23_42/0.12)] ring-1 ring-border/60"
-          aria-label="Calendar"
+          aria-label={t("Calendar")}
         >
           <div key={`${view}-${view === "month" ? cursor.slice(0, 7) : days[0]}`} className="animate-in fade-in-0 duration-300">
             {view === "month" ? (
@@ -392,23 +394,25 @@ export function CalendarBoard({ posts, account, initials }: Props) {
                   glow="shadow-orange-500/30"
                   title={
                     posts.length === 0
-                      ? "Your calendar is empty"
+                      ? t("Your calendar is empty")
                       : platform
-                        ? `No ${platformName(platform)} posts here`
-                        : `Nothing planned ${view === "month" ? `in ${formatDay(cursor, { month: "long" })}` : "this week"}`
+                        ? t("No {platform} posts here", { platform: platformName(platform) })
+                        : view === "month"
+                          ? t("Nothing planned in {month}", { month: formatDay(cursor, { month: "long" }) })
+                          : t("Nothing planned this week")
                   }
                   description={
                     posts.length === 0
-                      ? "Schedule a post, or ask your AI team to plan some, and it will show up here."
+                      ? t("Schedule a post, or ask your AI team to plan some, and it will show up here.")
                       : view === "month"
-                        ? "Pick a day's + to plan a post there."
-                        : "Double-click a time slot to plan a post there."
+                        ? t("Pick a day's + to plan a post there.")
+                        : t("Double-click a time slot to plan a post there.")
                   }
                 >
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     {nextDay && (
                       <Button variant="outline" className="h-10 rounded-xl" onClick={() => setCursor(nextDay)}>
-                        Next post: {formatDay(nextDay, { month: "short", day: "numeric" })}
+                        {t("Next post: {day}", { day: formatDay(nextDay, { month: "short", day: "numeric" }) })}
                         <ChevronRight data-icon="inline-end" />
                       </Button>
                     )}
@@ -422,7 +426,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
           <p className="flex items-center gap-1.5 border-t border-border/60 px-4 py-2.5 text-[11px] text-muted-foreground">
             <Info className="size-3.5 shrink-0" />
             <span className="truncate">
-              Drag a post to {view === "month" ? "another day" : "another day or time"} to reschedule it · Times in {timeZone.replace(/_/g, " ")} ({zoneOffsetLabel(timeZone)})
+              {t("Drag a post to {target} to reschedule it · Times in {zone} ({offset})", { target: view === "month" ? t("another day") : t("another day or time"), zone: timeZone.replace(/_/g, " "), offset: zoneOffsetLabel(timeZone) })}
             </span>
           </p>
         </section>
@@ -436,7 +440,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
 
       <Sheet open={!wide && !!selected} onOpenChange={(open) => !open && setSelectedId(null)}>
         <SheetContent side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-md">
-          <SheetTitle className="sr-only">{selected?.title ?? "Post details"}</SheetTitle>
+          <SheetTitle className="sr-only">{selected?.title ?? t("Post details")}</SheetTitle>
           {details}
         </SheetContent>
       </Sheet>
@@ -451,7 +455,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
         >
           {notice.tone === "error" ? <X className="mt-0.5 size-4 shrink-0 text-destructive" /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />}
           <span className="min-w-0 flex-1">{notice.text}</span>
-          <Button variant="ghost" size="icon-xs" className="rounded-lg text-muted-foreground" onClick={() => setNotice(null)} aria-label="Dismiss">
+          <Button variant="ghost" size="icon-xs" className="rounded-lg text-muted-foreground" onClick={() => setNotice(null)} aria-label={t("Dismiss")}>
             <X />
           </Button>
         </div>

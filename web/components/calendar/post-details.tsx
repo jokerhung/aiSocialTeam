@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
+import { T, useT } from "@/lib/i18n/client";
 // The post picked on the calendar: when it goes out, how it looks and what's checked on each of its
 // platforms, and ways to edit, reschedule or unschedule it.
 
@@ -36,6 +37,7 @@ function relative(iso: string) {
 }
 
 export function PostDetails({ post, timeZone, account, initials, pending, onClose, onMove, onUnschedule }: Props) {
+  const t = useT();
   const [platform, setPlatform] = useState<PostPlatform>(post.platforms[0] ?? "instagram");
   const shown = post.platforms.includes(platform) ? platform : (post.platforms[0] ?? "instagram");
   const status = CALENDAR_STATUS[post.status];
@@ -49,7 +51,7 @@ export function PostDetails({ post, timeZone, account, initials, pending, onClos
           <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
             <span className={cn("flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold", status.badge)}>
               <span className={cn("size-1.5 rounded-full", status.dot)} />
-              {status.label}
+              {t(status.label)}
             </span>
             <span
               className={cn(
@@ -58,12 +60,12 @@ export function PostDetails({ post, timeZone, account, initials, pending, onClos
               )}
             >
               {post.source === "ai" ? <Sparkles className="size-3" /> : <PenLine className="size-3" />}
-              {post.source === "ai" ? "AI" : "Manual"}
+              {post.source === "ai" ? "AI" : t("Manual")}
             </span>
           </div>
           <h2 className="text-base leading-snug font-semibold tracking-tight break-words">{post.title}</h2>
         </div>
-        <Button variant="ghost" size="icon-sm" className="-mt-1 -mr-1 rounded-lg text-muted-foreground" onClick={onClose} aria-label="Close details">
+        <Button variant="ghost" size="icon-sm" className="-mt-1 -mr-1 rounded-lg text-muted-foreground" onClick={onClose} aria-label={t("Close details")}>
           <X />
         </Button>
       </header>
@@ -76,12 +78,12 @@ export function PostDetails({ post, timeZone, account, initials, pending, onClos
               {formatInZone(moment, timeZone)}
             </p>
             <p className="mt-0.5 pl-6 text-xs text-muted-foreground">
-              {post.status === "published" ? "Went out" : post.status === "scheduled" ? "Goes live" : "Planned"} {relative(moment)}
+              {post.status === "published" ? t("Went out") : post.status === "scheduled" ? t("Goes live") : t("Planned")} {relative(moment)}
             </p>
             {post.timeZone !== timeZone && (
               <p className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2 text-xs text-muted-foreground">
                 <Globe className="size-3.5" />
-                {formatInZone(moment, post.timeZone)} in {post.timeZone.replace(/_/g, " ")}
+                {t("{when} in {zone}", { when: formatInZone(moment, post.timeZone), zone: post.timeZone.replace(/_/g, " ") })}
               </p>
             )}
           </div>
@@ -92,7 +94,7 @@ export function PostDetails({ post, timeZone, account, initials, pending, onClos
 
         {post.platforms.length > 0 && (
           <section>
-            <div role="tablist" aria-label="Platform" className="flex gap-1 rounded-2xl bg-muted/60 p-1">
+            <div role="tablist" aria-label={t("Platform")} className="flex gap-1 rounded-2xl bg-muted/60 p-1">
               {post.platforms.map((id) => (
                 <button
                   key={id}
@@ -123,31 +125,32 @@ export function PostDetails({ post, timeZone, account, initials, pending, onClos
 
 // What this platform gets: the format, its limits, any problems, and where it stands in Blotato
 function PlatformDetails({ post, platform }: { post: PostView; platform: PostPlatform }) {
+  const t = useT();
   const rules = PLATFORM_RULES[platform];
   const media = mediaForPlatform(platform, post.media);
   const video = media.find((item) => isVideo(item));
   const length = postCaption(post).length;
-  const { errors, warnings } = checkPost({ ...post, platforms: [platform] });
+  const { errors, warnings } = checkPost({ ...post, platforms: [platform] }, t);
   const result = post.results[platform];
 
   const format =
     platform === "youtube"
-      ? video ? "Video / Short" : "Needs a video"
-      : video ? (platform === "instagram" ? "Reel" : "Video")
+      ? video ? t("Video / Short") : t("Needs a video")
+      : video ? (platform === "instagram" ? t("Reel") : t("Video"))
       : media.length > 1 ? `${platform === "instagram" ? "Carousel" : "Photo post"} · ${media.length}`
-      : media.length === 1 ? "Photo post" : "No media";
+      : media.length === 1 ? t("Photo post") : t("No media");
   const [low, high] = rules.bestHashtags;
 
   return (
     <div className="mt-3 space-y-3">
       <dl className="grid grid-cols-2 gap-2 text-xs">
-        <Stat Icon={Layers} label="Format" value={format} warn={media.length === 0} />
-        <Stat Icon={Type} label="Caption" value={rules.maxChars ? `${length.toLocaleString()} / ${rules.maxChars.toLocaleString()}` : length.toLocaleString()} warn={!!rules.maxChars && length > rules.maxChars} />
-        <Stat Icon={Hash} label="Hashtags" value={`${post.hashtags.length} · best ${low}–${high}`} warn={post.hashtags.length > high * 2} />
+        <Stat Icon={Layers} label={t("Format")} value={format} warn={media.length === 0} />
+        <Stat Icon={Type} label={t("Caption")} value={rules.maxChars ? `${length.toLocaleString()} / ${rules.maxChars.toLocaleString()}` : length.toLocaleString()} warn={!!rules.maxChars && length > rules.maxChars} />
+        <Stat Icon={Hash} label={t("Hashtags")} value={`${post.hashtags.length} · best ${low}–${high}`} warn={post.hashtags.length > high * 2} />
         {rules.maxTitle ? (
-          <Stat Icon={Type} label="Title" value={`${post.title.length} / ${rules.maxTitle}`} warn={post.title.length > rules.maxTitle} />
+          <Stat Icon={Type} label={t("Title")} value={`${post.title.length} / ${rules.maxTitle}`} warn={post.title.length > rules.maxTitle} />
         ) : (
-          <Stat Icon={Globe} label="Account" value={post.accountIds[platform] ? "Chosen account" : "Default account"} />
+          <Stat Icon={Globe} label={t("Account")} value={post.accountIds[platform] ? t("Chosen account") : t("Default account")} />
         )}
       </dl>
 
@@ -156,22 +159,22 @@ function PlatformDetails({ post, platform }: { post: PostView; platform: PostPla
           {result.status === "published" ? (
             <>
               <CheckCircle2 className="size-4 text-emerald-600" />
-              <span className="font-medium text-emerald-700 dark:text-emerald-300">Published</span>
+              <span className="font-medium text-emerald-700 dark:text-emerald-300"><T>Published</T></span>
               {result.url && (
                 <a href={result.url} target="_blank" rel="noreferrer" className="ml-auto flex items-center gap-1 font-semibold text-primary hover:underline">
-                  View live <ExternalLink className="size-3" />
+                  <T>View live</T> <ExternalLink className="size-3" />
                 </a>
               )}
             </>
           ) : result.status === "failed" ? (
             <>
               <XCircle className="size-4 shrink-0 text-destructive" />
-              <span className="line-clamp-2 text-destructive">{result.error ?? "Failed"}</span>
+              <span className="line-clamp-2 text-destructive">{result.error ?? t("Failed")}</span>
             </>
           ) : (
             <>
               <CalendarClock className="size-4 text-blue-600" />
-              <span className="text-muted-foreground">{result.status === "scheduled" ? "Scheduled in Blotato" : "Processing in Blotato…"}</span>
+              <span className="text-muted-foreground">{result.status === "scheduled" ? t("Scheduled") : t("Processing…")}</span>
             </>
           )}
         </div>
@@ -183,7 +186,7 @@ function PlatformDetails({ post, platform }: { post: PostView; platform: PostPla
           {text}
         </p>
       ))}
-      {rules.tips && <p className="text-xs leading-relaxed text-muted-foreground">{rules.tips}</p>}
+      {rules.tips && <p className="text-xs leading-relaxed text-muted-foreground">{t(rules.tips)}</p>}
     </div>
   );
 }
@@ -202,23 +205,24 @@ function Stat({ Icon, label, value, warn }: { Icon: typeof Hash; label: string; 
 
 // Edit, quick reschedule (in the calendar's zone) and unschedule
 function Actions({ post, timeZone, pending, onMove, onUnschedule }: Pick<Props, "post" | "timeZone" | "pending" | "onMove" | "onUnschedule">) {
+  const t = useT();
   const placed = placePost(post, timeZone);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(placed?.date ?? "");
   const [time, setTime] = useState(placed?.time ?? "09:00");
   const at = date && time ? zonedTimeToUtc(date, time, timeZone) : null;
-  const invalid = !at ? "Pick a date and time." : at.getTime() < Date.now() + 60_000 ? "Pick a time at least a minute from now." : null;
+  const invalid = !at ? t("Pick a date and time.") : at.getTime() < Date.now() + 60_000 ? t("Pick a time at least a minute from now.") : null;
 
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <Button variant="outline" className="h-9 rounded-xl" nativeButton={false} render={<Link href={`/dashboard/posts/${post.id}/edit`} />}>
           <PenLine data-icon="inline-start" />
-          Edit post
+          <T>Edit post</T>
         </Button>
         <Button variant={open ? "secondary" : "outline"} className="h-9 rounded-xl" onClick={() => setOpen(!open)} disabled={pending}>
           {pending ? <Spinner data-icon="inline-start" /> : <CalendarClock data-icon="inline-start" />}
-          Reschedule
+          <T>Reschedule</T>
         </Button>
       </div>
       {open && (
@@ -232,13 +236,13 @@ function Actions({ post, timeZone, pending, onMove, onUnschedule }: Pick<Props, 
           }}
         >
           <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Input type="date" aria-label="Date" value={date} onChange={(event) => setDate(event.target.value)} className="h-9 rounded-xl bg-card" />
-            <Input type="time" aria-label="Time" value={time} onChange={(event) => setTime(event.target.value)} className="h-9 rounded-xl bg-card" />
+            <Input type="date" aria-label={t("Date")} value={date} onChange={(event) => setDate(event.target.value)} className="h-9 rounded-xl bg-card" />
+            <Input type="time" aria-label={t("Time")} value={time} onChange={(event) => setTime(event.target.value)} className="h-9 rounded-xl bg-card" />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className={cn("text-[11px]", invalid ? "text-destructive" : "text-muted-foreground")}>{invalid ?? `In ${timeZone.replace(/_/g, " ")}`}</span>
+            <span className={cn("text-[11px]", invalid ? "text-destructive" : "text-muted-foreground")}>{invalid ?? t("In {zone}", { zone: timeZone.replace(/_/g, " ") })}</span>
             <Button type="submit" size="sm" className="rounded-lg" disabled={!!invalid}>
-              Move post
+              <T>Move post</T>
             </Button>
           </div>
         </form>
@@ -246,7 +250,7 @@ function Actions({ post, timeZone, pending, onMove, onUnschedule }: Pick<Props, 
       {post.status === "scheduled" && (
         <Button variant="ghost" className="h-9 w-full rounded-xl text-muted-foreground hover:text-destructive" onClick={() => onUnschedule(post.id)} disabled={pending}>
           <CalendarX2 data-icon="inline-start" />
-          Unschedule (keep as draft)
+          <T>Unschedule (keep as draft)</T>
         </Button>
       )}
     </div>

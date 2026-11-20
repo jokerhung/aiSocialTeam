@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/dashboard-nav";
 import { cn } from "@/lib/utils";
 
+import { getT } from "@/lib/i18n/server";
 // Placeholder for sections that don't have their own page yet.
 type Props = { params: Promise<{ section: string }> };
 
@@ -11,11 +12,13 @@ function findSection(slug: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { t } = await getT();
   const item = findSection((await params).section);
-  return { title: item?.label ?? "Not found" };
+  return { title: item?.label ?? t("Not found") };
 }
 
 export default async function SectionPage({ params }: Props) {
+  const { t } = await getT();
   const item = findSection((await params).section);
   if (!item) notFound();
 
@@ -26,8 +29,8 @@ export default async function SectionPage({ params }: Props) {
       <span className={cn("relative flex size-16 items-center justify-center rounded-2xl shadow-xl", item.solid, item.glow)}>
         <Icon className="size-7" />
       </span>
-      <h2 className="relative mt-6 text-xl font-semibold tracking-tight">{item.label} is on its way</h2>
-      <p className="relative mt-2 max-w-sm text-sm text-muted-foreground">{item.description}. This section is coming soon.</p>
+      <h2 className="relative mt-6 text-xl font-semibold tracking-tight">{t("{label} is on its way", { label: t(item.label) })}</h2>
+      <p className="relative mt-2 max-w-sm text-sm text-muted-foreground">{t("{description}. This section is coming soon.", { description: t(item.description) })}</p>
     </section>
   );
 }

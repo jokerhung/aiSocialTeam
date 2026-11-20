@@ -7,6 +7,7 @@ import type { ArtifactType, ArtifactView, ContentDraftView, ResearchMethod, Rese
 import { platformName, postText } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 
+import { T, useT } from "@/lib/i18n/client";
 // What the agents made: image thumbnails and file/link cards, each opening its permanent URL, plus
 // the Creator Agent's drafts (with their images) and the Research Agent's findings with sources.
 // Files that only exist on an agent's computer show their path instead.
@@ -26,6 +27,7 @@ export function thumbnail(url: string, width: number) {
 }
 
 export function ArtifactGrid({ artifacts, total, compact = false, className }: { artifacts: ArtifactView[]; total?: number; compact?: boolean; className?: string }) {
+  const t = useT();
   if (artifacts.length === 0) return null;
   const images = artifacts.filter((artifact) => artifact.type === "image" && artifact.url);
   const files = artifacts.filter((artifact) => !images.includes(artifact));
@@ -78,7 +80,7 @@ export function ArtifactGrid({ artifacts, total, compact = false, className }: {
                     {body}
                   </a>
                 ) : (
-                  <div className={className} title="Saved on the agent's computer">
+                  <div className={className} title={t("Saved on the agent's computer")}>
                     {body}
                   </div>
                 )}
@@ -87,7 +89,7 @@ export function ArtifactGrid({ artifacts, total, compact = false, className }: {
           })}
         </ul>
       )}
-      {more > 0 && <p className="text-[11px] text-muted-foreground">+{more} more in the Tasks tab</p>}
+      {more > 0 && <p className="text-[11px] text-muted-foreground">{t("+{more} more in the Tasks tab", { more })}</p>}
     </div>
   );
 }
@@ -117,6 +119,7 @@ const KIND_LABELS: Record<ContentDraftView["kind"], string> = {
 };
 
 function DraftCard({ draft }: { draft: ContentDraftView }) {
+  const t = useT();
   const images = draft.media.filter((item) => !item.mimeType?.startsWith("video/"));
   const videos = draft.media.filter((item) => item.mimeType?.startsWith("video/"));
   const Icon = draft.kind === "idea" ? Lightbulb : FileText;
@@ -127,10 +130,10 @@ function DraftCard({ draft }: { draft: ContentDraftView }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium">{draft.title}</span>
           <span className="block text-[11px] text-muted-foreground">
-            {platformName(draft.platform)} · {KIND_LABELS[draft.kind]} · Draft #{draft.id}
+            {platformName(draft.platform)} · {t(KIND_LABELS[draft.kind])} · {t("Draft #{id}", { id: draft.id })}
           </span>
         </span>
-        <CopyButton text={postText(draft)} label="Copy post" />
+        <CopyButton text={postText(draft)} label={t("Copy post")} />
       </header>
 
       {images.length > 0 && (
@@ -158,7 +161,7 @@ function DraftCard({ draft }: { draft: ContentDraftView }) {
         <p className="whitespace-pre-wrap break-words">{draft.body}</p>
         {draft.cta && <p className="whitespace-pre-wrap text-muted-foreground">{draft.cta}</p>}
         {draft.hashtags.length > 0 && <p className="break-words text-primary">{draft.hashtags.join(" ")}</p>}
-        {draft.notes && <p className="text-[11px] whitespace-pre-wrap text-muted-foreground">Note: {draft.notes}</p>}
+        {draft.notes && <p className="text-[11px] whitespace-pre-wrap text-muted-foreground">{t("Note: {note}", { note: draft.notes })}</p>}
         {draft.warnings.length > 0 && (
           <p className="flex gap-1.5 rounded-lg bg-amber-500/10 px-2 py-1 text-[11px] text-amber-800 dark:text-amber-200">
             <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
@@ -194,6 +197,7 @@ const METHOD_LABELS: Record<ResearchMethod, string> = { knowledge: "From knowled
 
 // The Research Agent's saved findings, each citing its numbered sources
 export function ResearchList({ research }: { research: ResearchView[] }) {
+  const t = useT();
   if (research.length === 0) return null;
   return (
     <ul className="flex flex-col gap-2">
@@ -203,8 +207,8 @@ export function ResearchList({ research }: { research: ResearchView[] }) {
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-medium">{item.topic}</span>
               <span className="block text-[11px] text-muted-foreground">
-                {METHOD_LABELS[item.method]}
-                {item.platforms.length > 0 && ` · ${item.platforms.map(platformName).join(", ")}`} · Research #{item.id}
+                {t(METHOD_LABELS[item.method])}
+                {item.platforms.length > 0 && ` · ${item.platforms.map(platformName).join(", ")}`} · {t("Research #{id}", { id: item.id })}
               </span>
             </span>
           </header>
@@ -240,9 +244,9 @@ export function ResearchList({ research }: { research: ResearchView[] }) {
                     {source.note && <span className="text-muted-foreground"> — {source.note}</span>}
                   </span>
                   {source.visited && (
-                    <span className="inline-flex shrink-0 items-center gap-0.5 text-emerald-700 dark:text-emerald-300" title="Opened in the agent's browser during this task">
+                    <span className="inline-flex shrink-0 items-center gap-0.5 text-emerald-700 dark:text-emerald-300" title={t("Opened in the agent's browser during this task")}>
                       <Globe className="size-3" aria-hidden />
-                      live
+                      <T>live</T>
                     </span>
                   )}
                 </li>

@@ -1,3 +1,4 @@
+import { makeTranslate, type Translate } from "@/lib/i18n/translate";
 import { z } from "zod";
 import type { RepeatRule, Weekday } from "@/lib/orchestration/types";
 
@@ -128,11 +129,15 @@ export function anchorRepeat(rule: RepeatRule, firstRun: Date): RepeatRule {
 }
 
 // "Every week on Mon, Thu (Asia/Kolkata)"
-export function describeRepeat(rule: RepeatRule) {
-  const unit = { daily: "day", weekly: "week", monthly: "month" }[rule.frequency];
-  let text = rule.interval === 1 ? `Every ${unit}` : `Every ${rule.interval} ${unit}s`;
-  if (rule.frequency === "weekly" && rule.weekdays?.length) text += ` on ${rule.weekdays.map((day) => WEEKDAY_NAMES[day]).join(", ")}`;
-  if (rule.count) text += `, ${rule.count} times`;
-  if (rule.until) text += `, until ${new Date(rule.until).toISOString().slice(0, 10)}`;
+export function describeRepeat(rule: RepeatRule, t: Translate = makeTranslate("en", {})) {
+  const every = {
+    daily: ["Every day", "Every {n} days"],
+    weekly: ["Every week", "Every {n} weeks"],
+    monthly: ["Every month", "Every {n} months"],
+  }[rule.frequency];
+  let text = rule.interval === 1 ? t(every[0]) : t(every[1], { n: rule.interval });
+  if (rule.frequency === "weekly" && rule.weekdays?.length) text += " " + t("on {days}", { days: rule.weekdays.map((day) => t(WEEKDAY_NAMES[day])).join(", ") });
+  if (rule.count) text += ", " + t("{n} times", { n: rule.count });
+  if (rule.until) text += ", " + t("until {date}", { date: new Date(rule.until).toISOString().slice(0, 10) });
   return `${text} (${rule.timeZone})`;
 }

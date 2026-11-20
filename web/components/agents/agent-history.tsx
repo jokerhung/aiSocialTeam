@@ -1,4 +1,6 @@
-import { formatDistanceToNow } from "date-fns";
+"use client";
+
+import { formatDistanceToNow } from "@/lib/i18n/format";
 import { History, MessageSquare } from "lucide-react";
 import { MASTER_AGENT, type WorkerRoleId } from "@/lib/agent-roles";
 import type { ActivityItem, ActivityKind } from "@/lib/overview";
@@ -9,6 +11,7 @@ import type { ChatMessage } from "@/components/agents/agent-chat";
 import type { WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { TaskStatusBadge } from "@/components/agents/master-tasks";
 
+import { T, useT } from "@/lib/i18n/client";
 // Which campaign activity belongs to which agent
 const ROLE_ACTIVITY: Record<WorkerRoleId, ActivityKind> = {
   research: "research",
@@ -34,6 +37,7 @@ export function AgentHistory({
   activity: ActivityItem[];
   tasks: TaskView[];
 }) {
+  const t = useT();
   const roleId = agent.role.id as WorkerRoleId;
   const entries: Entry[] = [
     ...activity
@@ -51,8 +55,8 @@ export function AgentHistory({
         Icon={History}
         tone="bg-linear-to-br from-violet-500 to-fuchsia-600 text-white"
         glow="shadow-violet-500/30"
-        title="No history yet"
-        description={`Tasks the Master Agent gives the ${agent.role.name}, and the questions you ask it, will show up here.`}
+        title={t("No history yet")}
+        description={t("Tasks the Master Agent gives the {name}, and the questions you ask it, will show up here.", { name: t(agent.role.name) })}
       />
     );
   }
@@ -77,7 +81,7 @@ export function AgentHistory({
               <>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm">
-                    <span className="font-medium">Master Agent assigned: </span>
+                    <span className="font-medium"><T>Master Agent assigned:</T> </span>
                     {entry.task.title}
                   </p>
                   <TaskStatusBadge status={entry.task.status} />
@@ -86,7 +90,7 @@ export function AgentHistory({
               </>
             ) : (
               <p className="text-sm">
-                {entry.type === "question" && <span className="font-medium">You asked: </span>}
+                {entry.type === "question" && <span className="font-medium"><T>You asked:</T> </span>}
                 {entry.text}
               </p>
             )}
