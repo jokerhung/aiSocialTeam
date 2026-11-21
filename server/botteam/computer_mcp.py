@@ -207,4 +207,4 @@ class ComputerMcp:
         except ComputerUnavailable as exc:
             return tool_error(str(exc))
         except Exception:
-            return tool_error("The E2B computer could not complete the action.")
+            return tool_error("The computer could not complete the action.")

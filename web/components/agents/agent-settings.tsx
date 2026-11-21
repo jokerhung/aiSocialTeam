@@ -1,10 +1,10 @@
 "use client";
 
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { AgentModelPicker } from "@/components/agents/agent-model";
 import { AgentImagePicker } from "@/components/agents/agent-image";
+import { AgentInstructions } from "@/components/agents/agent-instructions";
 import { BrowserSettingsForm } from "@/components/browser/browser-settings";
 
 import { T, useT } from "@/lib/i18n/client";
@@ -37,6 +37,8 @@ export function AgentSettingsForm({
   const t = useT();
   return (
     <div className="flex flex-col gap-2">
+      <AgentInstructions roleId={agent.role.id} roleName={t(agent.role.name)} />
+      <div className="my-2 border-t" />
       <h3 className="px-3 text-sm font-semibold"><T>Model</T></h3>
       <AgentModelPicker roleId={agent.role.id} />
       {agent.role.id === "creator" && (
@@ -58,18 +60,6 @@ export function AgentSettingsForm({
         </label>
       ))}
 
-      <div className="mt-2 space-y-2 px-3">
-        <label htmlFor="agent-instructions" className="block text-sm font-medium">
-          <T>Instructions</T>
-        </label>
-        <Textarea
-          id="agent-instructions"
-          value={settings.instructions}
-          onChange={(event) => onChange({ ...settings, instructions: event.target.value })}
-          placeholder={t("Anything the {name} should always keep in mind — tone, topics to avoid, sources to trust…", { name: t(agent.role.name) })}
-          className="min-h-28 rounded-xl"
-        />
-      </div>
     </div>
   );
 }

@@ -382,7 +382,6 @@ export function AgentWorkspace({
         body: JSON.stringify({
           agentId: roleId,
           text,
-          instructions: settings[agent.id]?.instructions,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
         signal: controller.signal,

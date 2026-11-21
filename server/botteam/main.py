@@ -35,7 +35,7 @@ from .composio import Composio, ComposioError, slug_of
 from .computer_host import ComputerHost, ComputerUnavailable
 from .computer_mcp import ComputerMcp, perform as desktop_input
 from .computer_settings import ComputerHostSettings, ComputerSettingsPatch
-from .computer_stream import ensure_viewer, relay as desktop_relay, upstream as desktop_upstream
+from .computer_stream import relay as desktop_relay
 from . import admin as adminlib
 from .channels import intake as intakelib
 from .workspaces import workspaces_root
@@ -184,10 +184,11 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         await host.refresh()
         await registry.load()
         try:
-            if e2b_settings.connection().key:
+            connection = e2b_settings.connection()
+            if connection.api_url and (connection.key or connection.source == "opensandbox"):
                 await computer_host.recover(await app.state.active_computer_bots())
         except Exception:
-            logging.getLogger(__name__).warning("Could not recover E2B computers")
+            logging.getLogger(__name__).warning("Could not recover the computers")
         await runtime.open()
         groups.decider = config.data.get("decider")
         await runtime.recover()  # a cut turn runs again at most once, and never after it acted outward
@@ -1338,7 +1339,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
 
     @app.get("/api/computer/host")
     async def get_computer_host():
-        return e2b_settings.public()
+        return {**e2b_settings.public(), "capabilities": computer_host.capabilities()}
 
     @app.put("/api/computer/host")
     async def set_computer_host(request: Request):
@@ -1347,13 +1348,13 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         except ValueError:
             raise HTTPException(422, "Invalid computer host settings") from None
         try:
-            return await computer_host.update_settings(body)
+            return {**await computer_host.update_settings(body), "capabilities": computer_host.capabilities()}
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
 
     @app.post("/api/computer/host/test")
     async def test_computer_host():
-        return await e2b_settings.test()
+        return await computer_host.test()
 
     # ---- connected apps: the catalog, and a server made from an entry of it ------------------------------------------------------
     # ---- connected apps: all of them through Composio -----------------------------------------------------------------------------
@@ -1883,7 +1884,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             except ComputerUnavailable as exc:
                 raise HTTPException(503, str(exc)) from None
             except Exception:
-                raise HTTPException(503, "The E2B computer could not start") from None
+                raise HTTPException(503, "The computer could not start") from None
         return await computer_state(bot_id)
 
     @app.post("/api/bots/{bot_id}/computer/sleep")
@@ -1892,7 +1893,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         try:
             await computer_host.pause(bot_id)
         except Exception:
-            raise HTTPException(503, "The E2B computer could not pause") from None
+            raise HTTPException(503, "The computer could not pause") from None
         return await computer_state(bot_id)
 
     @app.delete("/api/bots/{bot_id}/computer")
@@ -1901,7 +1902,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         try:
             await computer_host.destroy(bot_id)
         except Exception:
-            raise HTTPException(503, "The E2B computer could not be removed") from None
+            raise HTTPException(503, "The computer could not be removed") from None
         return await computer_state(bot_id)
 
     @app.post("/api/bots/{bot_id}/computer/control")
@@ -1912,7 +1913,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         try:
             await computer_host.set_control(bot_id, body.holder == "person")
         except Exception:
-            raise HTTPException(503, "The E2B computer could not change control") from None
+            raise HTTPException(503, "The computer could not change control") from None
         return await computer_state(bot_id)
 
     @app.post("/api/bots/{bot_id}/computer/approval")
@@ -1948,7 +1949,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             except ComputerUnavailable as exc:
                 raise HTTPException(400, str(exc)) from None
             except Exception:
-                raise HTTPException(503, "The E2B computer could not receive input") from None
+                raise HTTPException(503, "The computer could not receive input") from None
         return {"ok": True}
 
     @app.get("/api/bots/{bot_id}/computer/screen")
@@ -1961,7 +1962,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             try:
                 image = await computer_host.invoke(machine.screenshot)
             except Exception:
-                raise HTTPException(503, "The E2B computer could not provide an image") from None
+                raise HTTPException(503, "The computer could not provide an image") from None
         return Response(image, media_type="image/png", headers={"Cache-Control": "no-store"})
 
     @app.websocket("/api/bots/{bot_id}/computer/stream")
@@ -1986,8 +1987,9 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
                 if machine is None:
                     await websocket.close(code=1008)
                     return
-                metadata = desktop_upstream(machine, e2b_settings.connection())
-                await computer_host.invoke(ensure_viewer, machine)
+                provider = computer_host.provider()
+                await computer_host.invoke(provider.ensure_viewer, machine)
+                metadata = await computer_host.invoke(provider.viewer, machine)
             await desktop_relay(websocket, *metadata)
         except Exception:
             from starlette.websockets import WebSocketState

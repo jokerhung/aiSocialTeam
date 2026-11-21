@@ -89,7 +89,7 @@ async def host(tmp_path, monkeypatch):
 
 async def test_checks_connection_and_reuses_paused_machine(host):
     computer, sdk = host
-    with pytest.raises(ComputerUnavailable, match="Check the E2B connection"):
+    with pytest.raises(ComputerUnavailable, match="Check the computer host connection"):
         await computer.wake("bot")
     await computer.settings.test()
 

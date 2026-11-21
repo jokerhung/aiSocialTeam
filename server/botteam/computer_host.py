@@ -1,43 +1,35 @@
-"""Own E2B desktop sandboxes and preserve their state when they are idle."""
+"""Own the computer-use machines of the agents (E2B or OpenSandbox) and preserve their state when they are idle."""
 from __future__ import annotations
 
 import asyncio
 import logging
 import sys
+import time
 from uuid import uuid4
 
-from .computer_settings import ComputerHostSettings, ComputerSettingsPatch, Connection
+from .computer_provider import (  # noqa: F401  (the names other modules and tests import from here)
+    DEFAULT_RESOLUTION, KEEP_AWAKE, METADATA_BOT, METADATA_OWNER, PRIVATE_NETWORKS, ComputerUnavailable, Provider, call, provider_for,
+)
+from .computer_settings import ComputerHostSettings, ComputerSettingsPatch
 
 log = logging.getLogger(__name__)
-PRIVATE_NETWORKS = [
-    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16",
-    "100.64.0.0/10", "127.0.0.0/8", "::1/128", "fc00::/7", "fe80::/10",
-]
-METADATA_OWNER = "botteamInstance"
-KEEP_AWAKE = (
-    "export DISPLAY=:0; xfce4-screensaver-command --deactivate >/dev/null 2>&1; pkill -x xfce4-screensaver; "
-    "xset s off s noblank >/dev/null 2>&1; true"
-)
-METADATA_BOT = "botteam"
-DEFAULT_RESOLUTION = (1280, 800)
-
-
-class ComputerUnavailable(RuntimeError):
-    pass
+RENEW_EVERY = 300  # seconds between asking the provider to keep a used machine from expiring
 
 
 class ComputerHost:
-    def __init__(self, settings: ComputerHostSettings, bus, sdk=None) -> None:
+    def __init__(self, settings: ComputerHostSettings, bus, sdk=None, opensandbox_sdk=None) -> None:
         self.settings = settings
         self.config = settings.config
         self.bus = bus
         self._sdk = sdk
+        self._opensandbox_sdk = opensandbox_sdk
         self._lock = asyncio.Lock()
         self._live: dict[str, object] = {}
         self._idle: dict[str, asyncio.Task] = {}
         self._operations: dict[str, asyncio.Lock] = {}
         self._control: dict[str, tuple[asyncio.Event, str | None]] = {}
         self._idle_seconds: dict[str, int] = {}
+        self._renewed: dict[str, float] = {}
 
     @staticmethod
     def supports(driver) -> bool:
@@ -50,14 +42,20 @@ class ComputerHost:
     def records(self) -> dict:
         return self.config.data.setdefault("computerMachines", {})
 
-    def _backend(self):
-        if self._sdk is None:
-            try:
-                from e2b_desktop import Sandbox
-            except ImportError:
-                raise ComputerUnavailable("Computer use requires Python 3.11 or later") from None
-            self._sdk = Sandbox
-        return self._sdk
+    def provider(self, record: dict | None = None) -> Provider:
+        connection = self.settings.connection()
+        if not connection.api_url or (connection.source != "opensandbox" and not connection.key):
+            raise ComputerUnavailable("Set up the computer host in Settings")
+        provider = provider_for(connection, e2b_sdk=self._sdk, opensandbox_sdk=self._opensandbox_sdk)
+        if record and record["provider"] != provider.identity():
+            raise ComputerUnavailable("This computer belongs to a different computer host")
+        return provider
+
+    def capabilities(self) -> dict:
+        try:
+            return self.provider().capabilities()
+        except ComputerUnavailable:
+            return {}
 
     def _owner(self) -> str:
         owner = self.config.data.get("computerInstanceId")
@@ -87,24 +85,16 @@ class ComputerHost:
         self.bus.publish({"kind": "computer-control", "botId": bot_id, **self.state(bot_id)})
 
     async def invoke(self, function, *args, **kwargs):
-        task = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
+        # The SDK operation has already started when the caller is cancelled: its caller reconciles it under the lifecycle lock.
+        return await call(function, *args, **kwargs)
+
+    async def test(self) -> dict:
+        """The connection test, with a check of a real machine where the provider has one (OpenSandbox)."""
         try:
-            return await asyncio.shield(task)
-        except asyncio.CancelledError:
-            # The SDK operation has already started. Its caller will reconcile the
-            # operation under the same lifecycle lock before releasing it.
-            return await task
-
-    def _connection_for(self, record: dict | None = None) -> Connection:
-        connection = self.settings.connection()
-        if not connection.key or not connection.api_url:
-            raise ComputerUnavailable("Set up the computer host in Settings")
-        if record and record["provider"] != connection.identity():
-            raise ComputerUnavailable("This computer belongs to a different E2B server")
-        return connection
-
-    def _options(self, connection: Connection) -> dict:
-        return {**connection.sdk_options(), "request_timeout": 30, "retries": 0}
+            provider = self.provider()
+        except ComputerUnavailable:
+            return await self.settings.test()
+        return await self.settings.test(deep=provider.probe_machine)
 
     async def update_settings(self, patch: ComputerSettingsPatch) -> dict:
         async with self._lock:
@@ -116,55 +106,49 @@ class ComputerHost:
             current = self._live.get(bot_id)
             if current is not None:
                 self.touch(bot_id)
+                await self._renew(bot_id, current)
                 return current
             if self.settings.public()["status"] != "ready":
-                raise ComputerUnavailable("Check the E2B connection in Settings")
+                raise ComputerUnavailable("Check the computer host connection in Settings")
             if len(self._live) >= self.settings.public()["maxMachines"]:
                 raise ComputerUnavailable("The computer host has reached its machine limit")
             record = self.records.get(bot_id)
-            connection = self._connection_for(record)
-            sdk = self._backend()
-            options = self._options(connection)
+            provider = self.provider(record)
             timeout = 3600
             if record:
-                try:
-                    current = await self.invoke(sdk.connect, record["sandboxId"], timeout=timeout, **options)
-                except Exception as exc:
-                    from e2b.exceptions import NotFoundException
-
-                    if not isinstance(exc, NotFoundException):
-                        raise
+                current = await provider.connect(record, timeout)
+                if current is None:
                     self.records.pop(bot_id)
                     self.config.save()
-            created = current is None
             if current is None:
-                current = await self.invoke(
-                    sdk.create, template=connection.template, resolution=resolution, timeout=timeout,
-                    metadata={METADATA_OWNER: self._owner(), METADATA_BOT: bot_id}, secure=True,
-                    lifecycle={"on_timeout": "pause"},
-                    network={"allow_public_traffic": False, "deny_out": PRIVATE_NETWORKS},
-                    **options,
-                )
+                current = await provider.create(bot_id, self._owner(), resolution, timeout)
             self.records[bot_id] = {
                 "sandboxId": current.sandbox_id,
-                "provider": connection.identity(),
+                "provider": provider.identity(),
                 "status": "running",
                 "resolution": record.get("resolution", resolution) if record and record["sandboxId"] == current.sandbox_id else resolution,
             }
             self.config.save()
             self._live[bot_id] = current
+            self._renewed[bot_id] = time.monotonic()
             self.touch(bot_id)
             try:
                 # The desktop's screensaver blanks the screen after five idle minutes, and then both the agent's screenshots and the
                 # person's live view are black: switch it off whenever the machine is started or resumed.
-                await self.invoke(current.commands.run, KEEP_AWAKE, timeout=10)
+                await self.invoke(provider.keep_awake, current)
             except Exception:
-                log.warning("Could not keep the E2B computer for bot %s awake", bot_id)
-            if created:
-                # The SDK waits for Xfce processes, then the desktop still needs to paint.
-                await asyncio.sleep(2.5)
+                log.warning("Could not keep the computer for bot %s awake", bot_id)
             self._publish(bot_id)
             return current
+
+    async def _renew(self, bot_id: str, machine) -> None:
+        if time.monotonic() - self._renewed.get(bot_id, 0) < RENEW_EVERY:
+            return
+        self._renewed[bot_id] = time.monotonic()
+        try:
+            await self.provider(self.records.get(bot_id)).renew(machine, 3600)
+        except Exception:
+            log.warning("Could not renew the computer of bot %s", bot_id)
 
     def touch(self, bot_id: str) -> None:
         self._cancel_idle(bot_id)
@@ -221,13 +205,13 @@ class ComputerHost:
             await asyncio.sleep(min(self._idle_seconds[bot_id], 3540))
             await self.pause(bot_id)
         except Exception:
-            log.warning("Could not pause idle E2B computer for bot %s", bot_id)
+            log.warning("Could not pause idle computer for bot %s", bot_id)
 
     async def pause(self, bot_id: str) -> dict:
         async with self.operation(bot_id), self._lock:
             current = self._live.get(bot_id)
             if current is not None:
-                await self.invoke(current.pause, mode="full")
+                await self.provider(self.records.get(bot_id)).pause(current, self.records[bot_id])
                 self._live.pop(bot_id)
                 self.records[bot_id]["status"] = "paused"
                 self.config.save()
@@ -240,8 +224,7 @@ class ComputerHost:
         async with self.operation(bot_id), self._lock:
             record = self.records.get(bot_id)
             if record:
-                connection = self._connection_for(record)
-                await self.invoke(self._backend().kill, record["sandboxId"], **self._options(connection))
+                await self.provider(record).kill(record)
                 self.records.pop(bot_id)
                 self._live.pop(bot_id, None)
                 self._idle_seconds.pop(bot_id, None)
@@ -251,37 +234,28 @@ class ComputerHost:
             self._cancel_idle(bot_id)
 
     async def recover(self, active_bots: set[str] | None = None) -> None:
-        if not self.settings.connection().key or (await self.settings.test())["status"] != "ready":
+        connection = self.settings.connection()
+        if not connection.api_url or (connection.source != "opensandbox" and not connection.key) or (await self.test())["status"] != "ready":
             return
         owner = self.config.data.get("computerInstanceId")
         if not owner:
             return
-        connection = self._connection_for()
-        options = self._options(connection)
-
-        def entries():
-            paginator = self._backend().list(query={"metadata": {METADATA_OWNER: owner}}, **options)
-            while paginator.has_next:
-                yield from paginator.next_items()
-
+        provider = self.provider()
         async with self._lock:
-            sandboxes = await self.invoke(lambda: list(entries()))
+            machines = await provider.list_owned(owner)
             tracked = {
                 record["sandboxId"]: (bot_id, record) for bot_id, record in self.records.items()
-                if record["provider"] == connection.identity()
+                if record["provider"] == provider.identity()
             }
-            for sandbox in sandboxes:
-                metadata = sandbox.metadata or {}
-                if metadata.get(METADATA_OWNER) != owner:
-                    continue
-                entry = tracked.get(sandbox.sandbox_id)
-                if entry is None or metadata.get(METADATA_BOT) != entry[0] or active_bots is not None and entry[0] not in active_bots:
-                    await self.invoke(self._backend().kill, sandbox.sandbox_id, **options)
+            for machine in machines:
+                entry = tracked.get(machine["sandboxId"])
+                if entry is None or machine.get("bot") != entry[0] or active_bots is not None and entry[0] not in active_bots:
+                    await provider.kill({"sandboxId": machine["sandboxId"]})
                     if entry is not None:
                         self.records.pop(entry[0], None)
                 else:
-                    # A sandbox left running by a previous process is adopted lazily.
-                    entry[1]["status"] = getattr(sandbox.state, "value", sandbox.state)
+                    # A machine left running by a previous process is adopted lazily.
+                    entry[1]["status"] = machine.get("state")
             self.config.save()
 
     async def shutdown(self) -> None:
@@ -291,4 +265,4 @@ class ComputerHost:
             try:
                 await self.pause(bot_id)
             except Exception:
-                log.warning("Could not pause E2B computer for bot %s during shutdown", bot_id)
+                log.warning("Could not pause computer for bot %s during shutdown", bot_id)

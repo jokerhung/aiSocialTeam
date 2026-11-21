@@ -13,16 +13,25 @@ from pydantic import BaseModel, Field
 from .config import ConfigStore
 
 KEY = "e2b"
+OPENSANDBOX_KEY = "opensandbox"
 CLOUD_API = "https://api.e2b.dev"
+DEFAULT_IMAGE = "botteam/desktop:1"
+DEEP_CHECK_FOR = 600  # seconds a machine check of the connection test is trusted
+
+
+def secret_name(source: str) -> str:
+    """E2B Cloud and Embed share one saved key; OpenSandbox has its own, so switching never sends one server's key to another."""
+    return OPENSANDBOX_KEY if source == "opensandbox" else KEY
 
 
 class ComputerSettingsPatch(BaseModel):
-    source: Literal["cloud", "embed"] | None = None
+    source: Literal["cloud", "embed", "opensandbox"] | None = None
     apiUrl: str | None = None
     sandboxUrl: str | None = None
     domain: str | None = None
     apiKey: str | None = Field(default=None, max_length=512)
     template: str | None = Field(default=None, max_length=256)
+    image: str | None = Field(default=None, max_length=256)
     maxMachines: int | None = Field(default=None, ge=1, le=32)
     idleSeconds: int | None = Field(default=None, ge=1, le=86400)
 
@@ -73,6 +82,7 @@ class ComputerHostSettings:
         self.checked: Connection | None = None
         self.result: dict = {}
         self.revision = 0
+        self._deep: tuple[Connection, float, str] | None = None
 
     @property
     def saved(self) -> dict:
@@ -80,6 +90,17 @@ class ComputerHostSettings:
 
     def connection(self, saved: dict | None = None) -> Connection:
         saved = self.saved if saved is None else saved
+        if saved.get("source") == "opensandbox":
+            url = os.environ.get("OPENSANDBOX_URL", "").strip() or saved.get("apiUrl", "")
+            try:
+                url = address(url) if url else ""
+            except ValueError:
+                url = ""
+            return Connection(
+                "opensandbox", url, "", "",
+                os.environ.get("BOTTEAM_COMPUTER_IMAGE", "").strip() or saved.get("image") or DEFAULT_IMAGE,
+                os.environ.get("OPENSANDBOX_API_KEY", "").strip() or self.config.secret(OPENSANDBOX_KEY) or "",
+            )
         env_url = os.environ.get("E2B_API_URL", "").strip()
         source = saved.get("source", "embed" if env_url and env_url.rstrip("/") != CLOUD_API else "cloud")
         api_url = env_url or (saved.get("apiUrl", "") if source == "embed" else CLOUD_API)
@@ -109,7 +130,8 @@ class ComputerHostSettings:
             "apiUrl": connection.api_url,
             "sandboxUrl": connection.sandbox_url,
             "domain": connection.domain,
-            "template": connection.template,
+            "template": connection.template if connection.source != "opensandbox" else self.saved.get("template", "desktop"),
+            "image": connection.template if connection.source == "opensandbox" else self.saved.get("image") or DEFAULT_IMAGE,
             "keySet": bool(key),
             "keyHint": f"{key[:3]}…{key[-4:]}" if len(key) > 8 else None,
             "maxMachines": self.saved.get("maxMachines", 2),
@@ -131,41 +153,68 @@ class ComputerHostSettings:
             values["domain"] = domain
         if "template" in values:
             values["template"] = values["template"].strip() or "desktop"
+        if "image" in values:
+            image = values["image"].strip() or DEFAULT_IMAGE
+            if any(c.isspace() for c in image) or image.startswith("-"):
+                raise ValueError("Enter the desktop image name, for example botteam/desktop:1")
+            values["image"] = image
         updated = {**previous, **values}
         current = self.connection()
         candidate = self.connection(updated)
         if current.identity() != candidate.identity() and self.config.data.get("computerMachines"):
-            raise ValueError("Delete existing computers before changing the E2B server")
-        if key is None and (
-            updated.get("source", current.source) != current.source
-            or candidate.api_url != current.api_url
+            raise ValueError("Delete existing computers before changing the computer host")
+        if key is None and secret_name(candidate.source) == secret_name(current.source) and (
+            candidate.source != current.source or candidate.api_url != current.api_url
         ):
             key = ""
         self.config.data["computerHost"] = updated
         if key is None:
             self.config.save()
         else:
-            self.config.set_secret(KEY, key.strip() or None)
+            self.config.set_secret(secret_name(candidate.source), key.strip() or None)
         self.revision += 1
         if current != self.connection():
             self.checked = None
         return self.public()
 
-    async def test(self) -> dict:
+    async def test(self, deep=None) -> dict:
+        """Check the connection. `deep` is an optional async check of a real machine (OpenSandbox): its answer, such as
+        no_image, replaces a ready status; a good answer is trusted for a while so the test stays quick."""
         connection = self.connection()
         revision = self.revision
         start = time.monotonic()
-        status = "unauthorized" if not connection.key else "unreachable"
-        if connection.key and connection.api_url:
+        opensandbox = connection.source == "opensandbox"
+        status = "unauthorized" if not connection.key and not opensandbox else "unreachable"
+        if connection.api_url and (connection.key or opensandbox):
             try:
                 async with httpx.AsyncClient(timeout=8, transport=self.transport, trust_env=False) as client:
-                    status = await self._probe(client, connection)
+                    status = await (self._probe_opensandbox if opensandbox else self._probe)(client, connection)
             except (httpx.HTTPError, ValueError):
                 status = "unreachable"
+        if status == "ready" and opensandbox and deep is not None:
+            cached = self._deep
+            if cached and cached[0] == connection and time.monotonic() - cached[1] < DEEP_CHECK_FOR:
+                status = cached[2]
+            else:
+                try:
+                    status = await deep() or "ready"
+                except Exception:
+                    status = "no_image"
+                self._deep = (connection, time.monotonic(), status)
         if revision == self.revision and connection == self.connection():
             self.checked = connection
             self.result = {"status": status, "latencyMs": round((time.monotonic() - start) * 1000)}
         return self.public()
+
+    async def _probe_opensandbox(self, client: httpx.AsyncClient, connection: Connection) -> str:
+        base = address(connection.api_url)
+        if (await client.get(base + "/health")).status_code != 200:
+            return "unreachable"
+        headers = {"OPEN-SANDBOX-API-KEY": connection.key} if connection.key else {}
+        listing = await client.get(base + "/v1/sandboxes", headers=headers)
+        if listing.status_code in (401, 403):
+            return "unauthorized"
+        return "ready" if listing.status_code == 200 else "unreachable"
 
     async def _probe(self, client: httpx.AsyncClient, connection: Connection) -> str:
         base = address(connection.api_url)

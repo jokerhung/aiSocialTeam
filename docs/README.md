@@ -16,11 +16,11 @@ Kế hoạch chia **5 phase**, mỗi phase kết thúc bằng một bản chạy
 | 4 | [phase-4-teams-automations.md](phase-4-teams-automations.md) | Channel nhiều bot, bot giao việc cho nhau, lịch & webhook |
 | 5 | [phase-5-extensions-polish.md](phase-5-extensions-polish.md) | Plugins/MCP, Computer panel, memory, i18n, đóng gói |
 | 6 | [phase-6-telegram-channel.md](phase-6-telegram-channel.md) | Kênh Telegram và Zalo Bot trong Connected apps, gom lô theo thư mục, bot kiểm kê máy bán hàng (thêm ngoài bản gốc) |
-| 7 | [phase-7-antigravity-engine.md](phase-7-antigravity-engine.md) | Engine Antigravity (`agy`, giao thức ACP) hỗ trợ giống Claude Code và Codex: dò và đăng nhập, chat, duyệt quyền, công cụ đội, tiếp tục, ảnh, chạy ổn định trên Windows (kế hoạch) |
+| 7 | [phase-7-antigravity-engine.md](phase-7-antigravity-engine.md) | Engine Antigravity (`agy`, giao thức ACP) hỗ trợ giống Claude Code và Codex: dò và đăng nhập, chat, duyệt quyền, công cụ đội, tiếp tục, ảnh, chạy ổn định trên Windows (đã triển khai) |
 | 8 | [phase-8-vietnamese-ui.md](phase-8-vietnamese-ui.md) | Giao diện web (dashboard) hỗ trợ tiếng Anh và tiếng Việt, chọn ngôn ngữ ở nút Settings của sidebar (đã triển khai) |
 | 9 | [phase-9-browser-use.md](phase-9-browser-use.md) | Tab Browser cho từng agent: Edge/Chrome qua Playwright MCP, xem trực tiếp, tiếp quản và đăng bài theo kênh cấu hình |
 | 10 | [phase-10-computer-use-e2b-embed.md](phase-10-computer-use-e2b-embed.md) | Computer use bằng E2B Cloud hoặc Embed. Hướng dẫn thiết lập [tiếng Việt](e2b-setup.vi.md) và [tiếng Anh](e2b-setup.en.md). |
-| 11 | [phase-11-computer-provider-opensandbox.md](phase-11-computer-provider-opensandbox.md) | Lớp ComputerProvider: giữ E2B, thêm OpenSandbox (Docker) cho Computer use nhẹ hơn trên máy Linux; người dùng tự cài, bài thử khả thi trước (kế hoạch) |
+| 11 | [phase-11-computer-provider-opensandbox.md](phase-11-computer-provider-opensandbox.md) | Lớp ComputerProvider: giữ E2B, thêm OpenSandbox (Docker) cho Computer use nhẹ hơn trên máy Linux; người dùng tự cài, bài thử khả thi trước (đã triển khai) |
 
 ## 1. Bản gốc là gì
 

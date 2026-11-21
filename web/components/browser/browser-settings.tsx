@@ -86,8 +86,8 @@ export function BrowserSettingsForm({ campaignId, role }: { campaignId: number; 
           </label>
           {!computerAvailable && (
             <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-              {view?.computer?.status === "ready" ? t("This engine cannot use computer tool images") : t("Check the E2B connection in Settings")}
-              <Link href="/guides/e2b" className="text-primary underline underline-offset-4"><T>E2B setup guide</T></Link>
+              {view?.computer?.status === "ready" ? t("This engine cannot use computer tool images") : t("Check the computer host connection in Settings")}
+              <Link href="/dashboard/settings/computer-use" className="text-primary underline underline-offset-4"><T>Computer host settings and setup guides</T></Link>
             </p>
           )}
           {surface === "browser" && <>

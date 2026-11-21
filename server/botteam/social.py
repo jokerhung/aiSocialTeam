@@ -394,7 +394,7 @@ def register(app: FastAPI, store: Store, registry, turns, composio=None) -> None
                 raise HTTPException(409, "The campaign has ended")
             if old.surface != "computer":
                 if computer.settings.public()["status"] != "ready":
-                    raise HTTPException(409, "Check the E2B connection in Settings")
+                    raise HTTPException(409, "Check the computer host connection in Settings")
                 instance = registry.get(bot.modelSelection.instanceId) if bot else None
                 if not instance or not computer.supports(instance.driver):
                     raise HTTPException(409, "This engine cannot use computer tool images")
@@ -411,7 +411,7 @@ def register(app: FastAPI, store: Store, registry, turns, composio=None) -> None
             try:
                 await computer.pause(bot_id)
             except Exception:
-                raise HTTPException(503, "The E2B computer could not pause") from None
+                raise HTTPException(503, "The computer could not pause") from None
         base = TEAM_BASE[role]
         if bot and bot.soul.strip() == soul_for(role, base, cid, old):
             bot.soul = soul_for(role, base, cid, body)
@@ -490,7 +490,7 @@ def register(app: FastAPI, store: Store, registry, turns, composio=None) -> None
             for bot_id in campaign["bots"].values():
                 await app.state.computer_host.destroy(bot_id)
         except Exception:
-            raise HTTPException(503, "The E2B computers could not be removed") from None
+            raise HTTPException(503, "The computers could not be removed") from None
 
     # ---- pictures made by Codex CLI or Gemini CLI --------------------------------------
     one_at_a_time = asyncio.Lock()

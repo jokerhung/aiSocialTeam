@@ -2,7 +2,7 @@
 
 **Mục tiêu:** tách phần "máy tính ảo" của Computer use khỏi E2B bằng một lớp **`ComputerProvider`**, giữ nguyên E2B (Cloud và Embed) và **thêm OpenSandbox** của Alibaba chạy ở **chế độ Docker** trên một máy Linux. Lý do: E2B Embed nặng (cần KVM, khuyến nghị 12 GiB RAM, hugepages, mười hai cổng); OpenSandbox Docker chỉ cần Docker, sandbox là container, mà vẫn có API vòng đời tương tự (tạo, chạy lệnh, tệp, huỷ, tường lửa ra ngoài theo từng máy, volume). Người dùng **chọn một nhà cung cấp cho toàn bộ Computer use** trong Settings; mặc định vẫn là **Tắt** như phase 10.
 
-**Trạng thái:** kế hoạch (chưa triển khai). **Phụ thuộc phase 9 (Browser use) và phase 10 (Computer use bằng E2B, đã có mã chạy):** phase này **không đổi** hành vi của E2B; nó chỉ rút giao diện chung ra rồi thêm một nhà cung cấp.
+**Trạng thái:** đã triển khai (2026-11-21), kèm các điều chỉnh ghi ở mục 8; OpenSandbox đã cài và chạy thật trên cùng máy với E2B Embed (mục 7). **Phụ thuộc phase 9 (Browser use) và phase 10 (Computer use bằng E2B, đã có mã chạy):** phase này **không đổi** hành vi của E2B; nó chỉ rút giao diện chung ra rồi thêm một nhà cung cấp.
 
 **Phạm vi:** chỉ hai họ nhà cung cấp: **E2B** (Cloud hoặc Embed tự host) và **OpenSandbox (Docker, tự host)**. Không thêm AIO Sandbox, Cua, microsandbox, Daytona, Bytebot, AgentDesk (đã cân nhắc và loại ở các cuộc trao đổi trước: một số đã archived hoặc không còn cập nhật, số khác không phải sandbox có vòng đời đầy đủ).
 
@@ -125,18 +125,33 @@
 5. Giao diện hiện đúng khả năng của từng nhà cung cấp; hai tệp hướng dẫn (vi/en) cho OpenSandbox mở được từ liên kết trong Settings; khoá không lộ ra trình duyệt.
 6. `pytest` (kể cả bộ hợp đồng cho hai nhà cung cấp) và `pnpm test` qua; README, `.env.example`, `docs/` đã cập nhật; `install.ps1`/`install.sh` được kiểm và ghi "không đổi".
 
-## 7. Kết quả thử (điền ở bước A)
+## 7. Kết quả thử (đo ngày 2026-11-21)
+
+Máy thử: một VM Ubuntu 24.04 (nhân 7.0, 8 vCPU, 14 GiB RAM, đĩa 78 GB gần đầy), chạy E2B Embed cùng lúc, truy cập qua Tailscale. OpenSandbox server 1.x chế độ Docker, chạy bằng systemd, nghe trên địa chỉ Tailscale, có khoá API. Mạng của máy này chậm (khoảng 0,2 MB/s), nên các lần tải đầu rất lâu.
 
 | Mục | E2B Embed (hiện tại) | OpenSandbox Docker |
 |---|---|---|
-| Máy chủ (CPU, RAM, hệ điều hành, Docker) | | |
-| RAM đứng yên của dịch vụ (không có sandbox) | | |
-| RAM và CPU của một máy desktop đang chạy | | |
-| Thời gian tạo / tiếp tục một máy | | |
-| Độ trễ một hành động (bấm + chụp ảnh) | | |
-| Gõ tiếng Việt có dấu | | |
-| Tạm dừng và tiếp tục (giữ cửa sổ?) | | |
-| Đăng nhập còn sau khi rảnh (volume hoặc ảnh chụp) | | |
-| Luồng noVNC qua trung gian BotTeam | | |
-| Egress: chặn `127.0.0.1`, LAN, máy chủ OpenSandbox | | |
-| gVisor (tuỳ chọn) chạy được, đo chênh lệch | | |
+| Cài đặt | Compose nhiều dịch vụ, cần KVM | `uvx opensandbox-server` (cài lần đầu mất vài phút vì mạng chậm), một dịch vụ systemd; không cần KVM |
+| Image desktop | Mẫu `desktop` của E2B | Dựng một lần từ `docs/opensandbox-desktop`: 2,02 GB (Ubuntu 24.04, XFCE, Chrome, xdotool, scrot, xclip); dựng mất khoảng 20 phút trên mạng chậm |
+| Thời gian tạo một máy | vài giây | 6–7 giây (kể cả khởi động desktop) |
+| Kiểm tra kết nối sâu (tạo máy, kiểm công cụ, chụp, xoá) | không có | 9,5–10,6 giây |
+| Chụp ảnh màn hình | nhanh | 1,4–1,5 giây (scrot rồi đọc tệp qua proxy) |
+| Một hành động bấm/gõ | nhanh | 1,3 giây cho một cú bấm; gõ tiếng Việt 2,5 giây (qua clipboard) |
+| Gõ tiếng Việt có dấu | có | **có**: "xin chào đây là tiếng Việt" gõ đúng vào Chrome qua `xclip` + `ctrl+v` |
+| Tạm dừng và tiếp tục | ảnh chụp bộ nhớ ra đĩa | **`pause()` chạy ở chế độ Docker** (docker pause): 0,3 giây; tiếp tục 4,1–4,2 giây; **cửa sổ Chrome và nội dung đang gõ còn nguyên** sau khi tiếp tục. Container đóng băng vẫn giữ RAM |
+| Luồng noVNC | trung gian BotTeam | qua proxy của máy chủ OpenSandbox: bắt tay RFB `003.008`, kiểu bảo mật None; xem và Take over trong giao diện BotTeam hoạt động |
+| Egress | `deny_out` theo máy | **chỉ hiệu lực khi `[egress] mode = "dns+nft"`**: lúc đó máy ảo không vào được 192.168.x.x, địa chỉ máy chủ OpenSandbox, cổng Docker `172.17.0.1`, máy khác trong Tailscale (các lệnh `curl` đều lỗi) còn `https://example.com` trả 200; với chế độ mặc định `dns` thì các địa chỉ riêng đó vẫn truy cập được |
+| RAM | 12 GiB trở lên cho riêng Embed | một container desktop khoảng 1–2 GB khi chạy; dịch vụ OpenSandbox lúc không có máy chỉ vài chục MB (chưa đo chính xác trên máy này vì E2B đang chạy cùng lúc) |
+| gVisor | không áp dụng | chưa thử (không bật trong lần này) |
+| Bài thử qua BotTeam (máy chủ BotTeam tạm, trình duyệt thật) | không đổi | Settings: lưu cấu hình, "Save and test connection" báo `ready` (10,3 giây); tab Computer: Wake tạo máy, luồng hình hiện desktop, Take over mở khung lớn, click và phím gửi thành công (`200`), Hand back; xoá máy xong không còn container |
+
+## 8. Điều chỉnh so với kế hoạch ban đầu (đã làm)
+
+- **Giao diện `Machine` là đồng bộ, không phải bất đồng bộ như mục 2 viết.** SDK OpenSandbox có bản đồng bộ (`SandboxSync`, `SandboxManagerSync`, `ConnectionConfigSync`), và mọi lời gọi máy vốn đã chạy trong luồng nền (`asyncio.to_thread`), nên `perform()` và các test E2B không phải đổi. Máy E2B vẫn là chính đối tượng `Sandbox` của SDK; OpenSandbox có bộ chuyển (`OpenSandboxMachine`).
+- **Tệp mới:** `computer_provider.py` (giao diện `Provider`, `E2BProvider`, `provider_for`, hằng số dùng chung), `computer_opensandbox.py` (`OpenSandboxProvider`, `OpenSandboxMachine`), `tests/test_computer_opensandbox.py`, `docs/opensandbox-desktop/`, `docs/opensandbox-setup.{vi,en}.md`, `web/components/guides/setup-guide.tsx`, `web/app/guides/opensandbox/page.tsx`.
+- **Khoá API tách riêng theo nhà cung cấp** (`e2b` và `opensandbox`): đổi nguồn không gửi khoá của bên này sang bên kia.
+- **Kiểm tra kết nối sâu** chỉ cho OpenSandbox (tạo máy thật, kiểm `xdotool/scrot/Xvfb/x11vnc/websockify/xclip` và ảnh chụp, rồi xoá), kết quả được tin 10 phút; các trạng thái mới: `no_image`, `no_desktop_tools`, `no_egress_policy`.
+- **Luồng hình đi qua proxy của máy chủ OpenSandbox** (`use_server_proxy=True`): chỉ cần mở cổng 8080 của máy chủ; địa chỉ `eip` phải có cổng. Máy chủ OpenSandbox xếp chế độ proxy này vào diện "bảo trì" (chỉ sửa lỗi và bảo mật); nếu sau này bị gỡ, cần chuyển sang cổng trực tiếp.
+- **Volume giữ đăng nhập (mục quyết định 6) chưa làm**, vì `pause()` của Docker đã giữ nguyên cửa sổ và đăng nhập khi container còn sống; chỉ mất khi container bị xoá hoặc máy chủ khởi động lại.
+- **`xdotool mousemove --sync` bị bỏ**: nó chờ tới 15 giây cho mỗi cú bấm.
+- **`kill`/`list_owned`** dùng `SandboxManagerSync` và siêu dữ liệu `botteamInstance`/`botteam` như E2B.
