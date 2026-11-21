@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Hourglass, KeyRound, ListChecks, LoaderCircle, Monitor, Paperclip, RotateCcw, Timer } from "lucide-react";
-import { hasComputer, type AgentRole } from "@/lib/agent-roles";
-import { SANDBOX_STATUS_LABELS, type AgentStatusView } from "@/lib/orchestration/types";
+import { ArrowRight, Globe, Hourglass, KeyRound, ListChecks, LoaderCircle, Paperclip, RotateCcw, Timer } from "lucide-react";
+import type { AgentRole } from "@/lib/agent-roles";
+import type { AgentStatusView } from "@/lib/orchestration/types";
 import { AgentAvatar, AgentStatus } from "@/components/agents/agent-avatar";
 import { ArtifactGrid, formatElapsed, useNow } from "@/components/agents/task-results";
-import { useSandboxController } from "@/components/sandbox/sandbox-controller";
 import { Button } from "@/components/ui/button";
 
-import { T, useT } from "@/lib/i18n/client";
+import { T, useI18n } from "@/lib/i18n/client";
 // What an office agent is doing, shown when you hover (or focus) it. Everything here is the live
 // status from the database (/api/agents/status), polled by the workspace; nothing is assumed.
 export function AgentPreviewCard({
@@ -17,15 +16,20 @@ export function AgentPreviewCard({
   sprite,
   status,
   onOpen,
+  onOpenBrowser,
+  refresh,
+  retryTask,
 }: {
   role: AgentRole;
   sprite?: string;
   // Undefined until the first status has loaded
   status: AgentStatusView | undefined;
   onOpen: () => void;
+  onOpenBrowser: () => void;
+  refresh: () => void;
+  retryTask: (id: number) => Promise<string | null>;
 }) {
-  const t = useT();
-  const { live, openViewer, retryTask, refresh } = useSandboxController();
+  const { t, tn } = useI18n();
   // Opening the popover fetches the latest status rather than showing what the last poll saw
   useEffect(() => {
     refresh();
@@ -48,9 +52,7 @@ export function AgentPreviewCard({
         : formatElapsed(now - new Date(since).getTime())
       : null;
 
-  // Agents with a computer have their own
-  const sandbox = hasComputer(role.id) ? live?.sandboxes[role.id] : undefined;
-  const usesComputer = !!sandbox?.activeTaskId;
+  const browser = status?.browser;
 
   async function retry() {
     if (!task) return;
@@ -97,21 +99,18 @@ export function AgentPreviewCard({
                   <dd className="tabular-nums">{elapsed}</dd>
                 </div>
               )}
-              {sandbox && (
+              {browser?.busy && (
                 <div className="flex items-center gap-1">
-                  <Monitor className="size-3" aria-hidden />
-                  <dt className="sr-only"><T>Computer</T></dt>
-                  <dd>
-                    {t(SANDBOX_STATUS_LABELS[sandbox.status])}
-                    {usesComputer ? " · in use" : ""}
-                  </dd>
+                  <Globe className="size-3" aria-hidden />
+                  <dt className="sr-only"><T>Browser</T></dt>
+                  <dd><T>Browsing the web</T></dd>
                 </div>
               )}
               <div className="flex items-center gap-1">
                 <Paperclip className="size-3" aria-hidden />
                 <dt className="sr-only"><T>Results</T></dt>
                 <dd className="tabular-nums">
-                  {task.artifactCount} {task.artifactCount === 1 ? "file" : "files"}
+                  {tn(task.artifactCount, "{n} file", "{n} files")}
                 </dd>
               </div>
             </dl>
@@ -123,16 +122,10 @@ export function AgentPreviewCard({
                 {current === "waiting_for_user" ? <KeyRound className="mt-0.5 size-3.5 shrink-0" aria-hidden /> : <Hourglass className="mt-0.5 size-3.5 shrink-0" aria-hidden />}
                 <span>{task.waitingReason ?? t("It's waiting for you.")}</span>
               </p>
-              {current === "waiting_for_user" && task.interruption?.kind !== "takeover" && (
-                <Button className="mt-2 h-7 w-full rounded-lg text-xs" onClick={() => hasComputer(role.id) && openViewer({ kind: "login", agentId: role.id, taskId: task.id })}>
-                  <KeyRound data-icon="inline-start" />
-                  <T>Login now</T>
-                </Button>
-              )}
-              {current === "waiting_for_user" && task.interruption?.kind === "takeover" && (
-                <Button className="mt-2 h-7 w-full rounded-lg text-xs" onClick={() => hasComputer(role.id) && openViewer({ kind: "takeover", agentId: role.id })}>
-                  <Monitor data-icon="inline-start" />
-                  <T>Open the computer</T>
+              {current === "waiting_for_user" && (
+                <Button className="mt-2 h-7 w-full rounded-lg text-xs" onClick={onOpenBrowser}>
+                  <Globe data-icon="inline-start" />
+                  <T>Open the browser</T>
                 </Button>
               )}
               {current === "needs_input" && <p className="mt-1 text-[11px] opacity-80"><T>Answer it in the Master Agent's chat.</T></p>}
@@ -159,6 +152,12 @@ export function AgentPreviewCard({
         </>
       )}
 
+      {browser?.helpReason && (
+        <div className="space-y-1 rounded-lg bg-amber-500/10 p-2 text-xs">
+          <p>{t("Agent needs you: {reason}", { reason: browser.helpReason })}</p>
+          <Button size="sm" onClick={onOpenBrowser}><T>Open the browser</T></Button>
+        </div>
+      )}
       <Button variant="ghost" className="h-7 justify-between rounded-lg px-2 text-xs" onClick={onOpen}>
         {t("Open {name}", { name: t(role.name) })}
         <ArrowRight data-icon="inline-end" />

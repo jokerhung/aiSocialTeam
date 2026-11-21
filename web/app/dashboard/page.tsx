@@ -45,7 +45,7 @@ export default async function OverviewPage() {
 
   // Clicking an agent in the office opens its chat in place of these cards, without leaving the page
   return (
-    <AgentWorkspace office={office} officeImage={campaign.officeImage} activity={activity} userInitials={initials}>
+    <AgentWorkspace key={campaign.id} campaignId={campaign.id} office={office} officeImage={campaign.officeImage} activity={activity} userInitials={initials}>
       <div className="space-y-3 px-1 pt-1">
         <Greeting name={firstName ? t(firstName) : undefined} />
         <h2 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">

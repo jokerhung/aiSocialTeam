@@ -26,6 +26,8 @@ Theo `PluginsPanel.tsx` và `marketplace.png`:
 
 Theo `ComputerPanel.tsx` và `computer-panel.png`. Máy đám mây, Local VM và điều khiển máy thật nằm ngoài phạm vi; phase này làm "nơi chạy = trình duyệt tích hợp".
 
+Web dashboard chuyển sang tab Browser và Playwright MCP ở [Phase 9](phase-9-browser-use.md). Các đường dẫn API `/computer/*` vẫn là bí danh tương thích.
+
 - [x] Panel phải: header (bánh răng · "Computer" · ✕), nhãn "{Bot}'s screen", khung xem trước sống, nút `Open desktop` / `Sleep`, thẻ "Runs on" với nhóm chọn phân đoạn, thẻ "Routines" của bot.
 - [x] Backend: Playwright (Python) — mỗi bot một context bền; MCP server "browser" cung cấp điều hướng, bấm, gõ, chụp.
 - [x]  — frame `screen` có giới hạn tần suất (chỉ gửi khi có người xem hoặc bot vừa thao tác, bỏ qua ảnh trùng). Transcript có **một dòng** "Browsing: …" cập nhật tại chỗ cho mỗi lượt (gập, không thêm dòng mới); hình ảnh nằm ở panel Computer, không nhúng ảnh vào transcript.

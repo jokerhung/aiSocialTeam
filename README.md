@@ -52,7 +52,7 @@ The script installs Git, Node.js, Python and uv when they are missing, clones th
 - ✋ **Approval cards** — before a bot runs a command, edits a file or sends something out, you decide in the chat: Ask, Edits, Auto or Full.
 - 🔌 **Connected apps** — connect Gmail, Google Sheets, Slack, GitHub and more through Composio, or add your own MCP servers.
 - 💬 **Telegram and Zalo input** (Telegram bot, Zalo bot, or your own Zalo account through a Node.js service) — a bot answers every message, or collects photos and files and runs by itself after 30 quiet seconds (or when someone presses *Check*). How a bot receives messages is written in an `intake.md` in its working folder, which you can edit in Bot settings: progress messages while photos arrive, saving them into folders such as `<machine>/<date>/Truoc|Sau` read from the caption (identical files are not saved twice), and a short reply with or without running a bot. Each batch of photos gets its own conversation in the app that also shows everything sent to the chat, and `run.command` can run a script of the working folder afterwards (for example to download PDFs), retrying until it succeeds.
-- 🖥️ **Built-in browser (Computer)** — a bot browses in its own window; you can take control for a login or CAPTCHA and give it back.
+- 🌐 **Browser use** — each campaign agent browses in its own Edge or Chrome profile through Playwright MCP. Watch its Browser tab, take over for sign-in or CAPTCHA, then hand control back.
 - ⏰ **Automations** — schedules (routines) and webhooks start a bot without you, with a calendar page to see them.
 - 🧠 **Memory, skills and sharing** — notes that last between tasks, `SKILL.md` skills, and one-file export and import of a bot or a team.
 
@@ -111,7 +111,12 @@ flowchart LR
 - Node.js 20 or newer and pnpm
 - Git
 - At least one engine: the Claude Code CLI, the Codex CLI, the Antigravity CLI (`agy`, from antigravity.google), or an OpenAI-compatible endpoint
-- Microsoft Edge or Chrome for the built-in browser (otherwise run `playwright install chromium`)
+- Microsoft Edge or Chrome for Browser use. Without either one, run `uv run --project server playwright install chromium`.
+- Node.js 20+ and `npx` for Playwright MCP. The installers prefetch the pinned package.
+
+Browser use tries Edge, Chrome and then Playwright Chromium. Each bot's sign-ins are kept in its own profile under `<data>/browser/`. BotTeam excludes browser profiles from backup and bot export. See `.env.example` for browser selection, window visibility and idle timeout.
+
+In **AI Agent → Settings → Browser**, choose which browser to run and whether the agent publishes through Composio (the default) or its web browser. Use **Clear browser data** to remove that agent's cookies and sign-ins. Browser access to local addresses and downloads is off by default.
 - Optional, for pictures: the Codex CLI (`install.ps1 -Codex` / `install.sh --codex`, then `codex login`) or the Gemini CLI. In the Creator agent's **Settings → Image generation** choose which one makes the images (post editor's *Generate with AI* and the Creator's `POST /api/social/images`); no image API key is needed. Gemini CLI makes images only with an image extension installed. Pictures are kept in `<data folder>/social-media`.
 
 The install scripts check all of this and install what is missing. Ports (set in `.env`): web `5499`, API `9999`, webhooks `9900`. The Zalo service (`8902`) is not started by `pnpm dev`; run `pnpm dev:zalo` when you need it.

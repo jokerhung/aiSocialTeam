@@ -4,6 +4,7 @@ import json
 import socket
 import threading
 from pathlib import Path
+from zipfile import ZipFile
 
 import httpx
 import pytest
@@ -84,9 +85,14 @@ def test_run_exit_codes_say_what_happened(data, capsys):
 
 def test_backup_and_restore_from_the_command_line(data, tmp_path, capsys):
     asyncio.run(seed_echo_bot(data, "Kept"))
+    profile = data / "browser" / "agent"
+    profile.mkdir(parents=True)
+    (profile / "Cookies").write_text("browser profile only")
     z = tmp_path / "b.zip"
     code, out, _ = run(["backup", str(z)], capsys)
     assert code == 0 and "Backed up" in out and z.exists()
+    with ZipFile(z) as archive:
+        assert not any(name.startswith("browser/") for name in archive.namelist())
     code, _, err = run(["restore", str(z)], capsys)
     assert code == cli.EXIT_USAGE and "already holds data" in err
     code, out, _ = run(["restore", str(z), "--force"], capsys)

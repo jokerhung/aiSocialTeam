@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { AgentModelPicker } from "@/components/agents/agent-model";
 import { AgentImagePicker } from "@/components/agents/agent-image";
+import { BrowserSettingsForm } from "@/components/browser/browser-settings";
 
 import { T, useT } from "@/lib/i18n/client";
 export type AgentSettings = {
@@ -23,10 +24,12 @@ const TOGGLES: { key: "autonomous" | "approval" | "notify"; label: string; descr
 ];
 
 export function AgentSettingsForm({
+  campaignId,
   agent,
   settings,
   onChange,
 }: {
+  campaignId: number;
   agent: WorkspaceAgent;
   settings: AgentSettings;
   onChange: (settings: AgentSettings) => void;
@@ -42,6 +45,8 @@ export function AgentSettingsForm({
           <AgentImagePicker />
         </>
       )}
+      <div className="my-2 border-t" />
+      <BrowserSettingsForm campaignId={campaignId} role={agent.role.id} />
       <div className="my-2 border-t" />
       {TOGGLES.map(({ key, label, description }) => (
         <label key={key} className="flex cursor-pointer items-center gap-4 rounded-2xl p-3 transition-colors hover:bg-muted/60">

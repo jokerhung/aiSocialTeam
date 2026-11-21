@@ -33,5 +33,5 @@ export default async function AiAgentPage() {
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-  return <AgentWorkspace office={office} officeImage={campaign.officeImage} activity={activity} userInitials={initials} />;
+  return <AgentWorkspace key={campaign.id} campaignId={campaign.id} office={office} officeImage={campaign.officeImage} activity={activity} userInitials={initials} />;
 }

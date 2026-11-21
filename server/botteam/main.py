@@ -6,6 +6,7 @@ import re
 import secrets
 import mimetypes
 from contextlib import asynccontextmanager
+from typing import Literal
 import os
 from pathlib import Path
 
@@ -46,7 +47,8 @@ from .store import Store, data_dir, now_ms
 from .turns import Turns
 from pydantic import BaseModel
 
-from .browser import BrowserService, BrowserUnavailable
+from .browser_host import BrowserHost, BrowserUnavailable
+from .browser_mcp import BrowserMcp
 from .wire import (
     BotDefaults, ConfigPatch, CreateBot, CreateGroup, GroupMessage, NoteBody, PatchGroup, RoutineBody, CreateInstance, CreateTask, LeafBody, MoveBot, OrderBody, PatchBot,
     PatchInstance, PatchSection, PatchTask, RequestAnswer, SectionBody, SendMessage, MAUS_COLORS,
@@ -77,6 +79,11 @@ class InputBody(BaseModel):
 
 class WatchBody(BaseModel):
     on: bool
+
+
+class BrowserApprovalBody(BaseModel):
+    id: str
+    behavior: Literal["allow", "deny"]
 
 class ComputerSettings(BaseModel):
     allowLocal: bool
@@ -132,9 +139,12 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
     turns.config = config
     memory, skills = Memory(home), Skills(home)
     turns.memory, turns.skills = memory, skills
-    browser = BrowserService(home, bus, allow_local=bool((config.data.get("browser") or {}).get("allowLocal")) or os.environ.get("BOTTEAM_BROWSER_LOCAL") == "1",
+    browser = BrowserHost(home, bus, allow_local=bool((config.data.get("browser") or {}).get("allowLocal")) or os.environ.get("BOTTEAM_BROWSER_LOCAL") == "1",
                              channel=os.environ.get("BOTTEAM_BROWSER_CHANNEL") or None)
     turns.browser = browser
+    browser_mcp = BrowserMcp(browser, store, turns, broker)
+    broker.browser_call = browser_mcp.request
+    browser.on_close = browser_mcp.close
     composio = Composio(config, mcp, bus, store)
     agents.composio = composio
     turns.notify, routines.notify = notify, notify
@@ -153,6 +163,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await store.open()
+        await app.state.init_social()
         if pairing.required:
             print("\nBotTeam domain access needs browser pairing (localhost and LAN/Tailscale IPs open directly). "
                   "To pair a browser, press the phone button at the bottom of the sidebar on this computer: it shows a one-time code.\n", flush=True)
@@ -175,22 +186,24 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         await routines.after_restart()  # nothing missed while the server was off is made up
         routines.start()
         await channels.start()  # the messaging channels read their accounts' messages from here on
-        yield
-        if hook_state.get("server"):
-            hook_state["server"].should_exit = True
-            try:
-                await asyncio.wait_for(hook_state["task"], 5)
-            except Exception:
-                pass
-        await channels.stop()
-        await composio.stop()
-        await routines.stop()
-        await browser.shutdown()
-        await runtime.close()
-        await turns.stop()
-        await broker.stop()
-        await registry.stop_all()
-        await store.close()
+        try:
+            yield
+        finally:
+            if hook_state.get("server"):
+                hook_state["server"].should_exit = True
+                try:
+                    await asyncio.wait_for(hook_state["task"], 5)
+                except Exception:
+                    pass
+            await channels.stop()
+            await composio.stop()
+            await routines.stop()
+            await browser.shutdown()
+            await runtime.close()
+            await turns.stop()
+            await broker.stop()
+            await registry.stop_all()
+            await store.close()
 
     app = FastAPI(title="BotTeam", lifespan=lifespan)
     app.add_middleware(
@@ -1679,31 +1692,49 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         return {"events": [json.loads(x) for x in lines if x]}
 
     # ---- the computer panel: the bot's built-in browser ---------------------------------------------------------------
-    async def computer_state(bot_id: str) -> dict:
+    @app.get("/api/browsers")
+    async def browser_activity():
+        return {"browsers": {
+            bot_id: {"running": True, "busy": browser.is_busy(bot_id), "helpReason": instance.help_reason}
+            for bot_id, instance in browser.browsers.items()
+        }}
+
+    def browser_approvals(bot_id: str):
+        for thread_id, request in broker.all_open():
+            run = turns.runs.get(thread_id)
+            if run and run.bot_id == bot_id and request.get("tool") == "BrowserAction":
+                yield request
+
+    async def browser_state(bot_id: str) -> dict:
         await need(bot_id)
-        return {**browser.state(bot_id), **(await browser.availability())}
+        approvals = [{"id": req["id"], "summary": req["summary"]} for req in browser_approvals(bot_id)]
+        return {**browser.state(bot_id), **(await browser.availability(bot_id)), "approvals": approvals}
 
-    @app.get("/api/bots/{bot_id}/computer")
-    async def computer_get(bot_id: str):
-        return await computer_state(bot_id)
+    @app.get("/api/bots/{bot_id}/computer", include_in_schema=False)
+    @app.get("/api/bots/{bot_id}/browser")
+    async def browser_get(bot_id: str):
+        return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/wake")
-    async def computer_wake(bot_id: str):
+    @app.post("/api/bots/{bot_id}/computer/wake", include_in_schema=False)
+    @app.post("/api/bots/{bot_id}/browser/wake")
+    async def browser_wake(bot_id: str):
         await need(bot_id)
         try:
             await browser.wake(bot_id)
         except BrowserUnavailable as e:
             raise HTTPException(503, str(e))
-        return await computer_state(bot_id)
+        return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/sleep")
-    async def computer_sleep(bot_id: str):
+    @app.post("/api/bots/{bot_id}/computer/sleep", include_in_schema=False)
+    @app.post("/api/bots/{bot_id}/browser/sleep")
+    async def browser_sleep(bot_id: str):
         await need(bot_id)
         await browser.sleep(bot_id)
-        return await computer_state(bot_id)
+        return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/control")
-    async def computer_control(bot_id: str, body: ControlBody):
+    @app.post("/api/bots/{bot_id}/computer/control", include_in_schema=False)
+    @app.post("/api/bots/{bot_id}/browser/control")
+    async def browser_control(bot_id: str, body: ControlBody):
         await need(bot_id)
         if body.holder not in ("person", "bot"):
             raise HTTPException(400, "holder is person or bot")
@@ -1711,10 +1742,18 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             await browser.set_control(bot_id, body.holder)
         except BrowserUnavailable as e:
             raise HTTPException(409, str(e))
-        return await computer_state(bot_id)
+        return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/input")
-    async def computer_input(bot_id: str, body: InputBody):
+    @app.post("/api/bots/{bot_id}/browser/approval")
+    async def browser_approval(bot_id: str, body: BrowserApprovalBody):
+        await need(bot_id)
+        if not any(req["id"] == body.id for req in browser_approvals(bot_id)) or not await broker.resolve(body.id, body.behavior):
+            raise HTTPException(409, "That browser action is no longer waiting for approval")
+        return await browser_state(bot_id)
+
+    @app.post("/api/bots/{bot_id}/computer/input", include_in_schema=False)
+    @app.post("/api/bots/{bot_id}/browser/input")
+    async def browser_input(bot_id: str, body: InputBody):
         await need(bot_id)
         try:
             ok = await browser.person_input(bot_id, body.model_dump(exclude_none=True))
@@ -1724,13 +1763,39 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             raise HTTPException(409, "take control of the browser first")
         return {"ok": True}
 
-    @app.post("/api/bots/{bot_id}/computer/watch")
-    async def computer_watch(bot_id: str, body: WatchBody):
+    @app.post("/api/bots/{bot_id}/computer/watch", include_in_schema=False)
+    @app.post("/api/bots/{bot_id}/browser/watch")
+    async def browser_watch_toggle(bot_id: str, body: WatchBody):
         await need(bot_id)
         return {"ok": await browser.watch(bot_id, body.on)}
 
-    @app.get("/api/bots/{bot_id}/computer/screen")
-    async def computer_screen(bot_id: str):
+    @app.get("/api/bots/{bot_id}/browser/watch")
+    async def browser_watch(bot_id: str):
+        await need(bot_id)
+
+        async def stream():
+            instance = browser.browsers.get(bot_id)
+            if not instance:
+                return
+            await browser.watch(bot_id, True)
+            events = bus.subscribe()
+            try:
+                yield {"event": "state", "data": json.dumps(browser.state(bot_id))}
+                async for frame in events:
+                    if frame.get("botId") == bot_id and frame.get("kind") in ("screen", "browser-control"):
+                        yield {"event": "screen" if frame["kind"] == "screen" else "state", "data": json.dumps(frame)}
+                        if not frame.get("running", True):
+                            return
+            finally:
+                await events.aclose()
+                if browser.browsers.get(bot_id) is instance:
+                    await browser.watch(bot_id, False)
+
+        return EventSourceResponse(stream())
+
+    @app.get("/api/bots/{bot_id}/computer/screen", include_in_schema=False)
+    @app.get("/api/bots/{bot_id}/browser/screen")
+    async def browser_screen(bot_id: str):
         from fastapi.responses import Response
 
         await need(bot_id)
@@ -1738,7 +1803,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             data, _url, _title = await browser.screenshot(bot_id)
         except BrowserUnavailable as e:
             raise HTTPException(404, str(e))
-        return Response(data, media_type="image/jpeg")
+        return Response(data, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
     @app.put("/api/computer/settings")
     async def computer_settings(body: ComputerSettings):

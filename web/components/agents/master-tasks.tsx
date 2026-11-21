@@ -35,7 +35,6 @@ import { OverviewEmptyState } from "@/components/dashboard/overview/overview-pan
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import type { WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { ArtifactGrid, DraftList, ResearchList } from "@/components/agents/task-results";
-import { useSandboxController } from "@/components/sandbox/sandbox-controller";
 import { Button } from "@/components/ui/button";
 
 import { T, useT } from "@/lib/i18n/client";
@@ -89,11 +88,13 @@ export function MasterTasks({
   loaded,
   agents,
   onAction,
+  onOpenBrowser,
 }: {
   plans: PlanView[];
   loaded: boolean;
   agents: WorkspaceAgent[];
   onAction: (planId: number, action: PlanAction) => Promise<string | null>;
+  onOpenBrowser: (role: AgentRoleId) => void;
 }) {
   const t = useT();
   if (!loaded) {
@@ -118,7 +119,7 @@ export function MasterTasks({
     <ol className="flex flex-col gap-3">
       {plans.map((plan) => (
         <li key={plan.id}>
-          <PlanCard plan={plan} agents={agents} onAction={onAction} />
+          <PlanCard plan={plan} agents={agents} onAction={onAction} onOpenBrowser={onOpenBrowser} />
         </li>
       ))}
     </ol>
@@ -129,10 +130,12 @@ function PlanCard({
   plan,
   agents,
   onAction,
+  onOpenBrowser,
 }: {
   plan: PlanView;
   agents: WorkspaceAgent[];
   onAction: (planId: number, action: PlanAction) => Promise<string | null>;
+  onOpenBrowser: (role: AgentRoleId) => void;
 }) {
   const t = useT();
   const [busy, setBusy] = useState<PlanAction | null>(null);
@@ -175,7 +178,8 @@ function PlanCard({
       <ol className="mt-3 flex flex-col gap-1.5">
         {plan.tasks.map((task) => (
           <li key={task.id}>
-            <TaskRow task={task} agent={agentFor(agents, task.agentId)} positions={positions} communications={plan.communications.filter((m) => m.taskId === task.id)} />
+            <TaskRow task={task} agent={agentFor(agents, task.agentId)} positions={positions} communications={plan.communications.filter((m) => m.taskId === task.id)}
+              onOpenBrowser={() => onOpenBrowser(task.agentId)} />
           </li>
         ))}
       </ol>
@@ -217,11 +221,13 @@ function TaskRow({
   agent,
   positions,
   communications,
+  onOpenBrowser,
 }: {
   task: TaskView;
   agent: WorkspaceAgent;
   positions: Map<number, number>;
   communications: PlanView["communications"];
+  onOpenBrowser: () => void;
 }) {
   const t = useT();
   const after = task.dependsOn.map((id) => positions.get(id)).filter(Boolean);
@@ -258,7 +264,7 @@ function TaskRow({
         )}
         {task.status === "in_progress" && task.currentStep && <Section label={t("Right now")}>{task.currentStep}</Section>}
         {task.question && <Section label={t("Waiting for your answer")} tone="text-amber-700 dark:text-amber-300">{task.question}</Section>}
-        {task.status === "waiting_for_user" && task.interruption && <WaitingForUser task={task} />}
+        {task.status === "waiting_for_user" && task.interruption && <WaitingForUser task={task} onOpenBrowser={onOpenBrowser} />}
         {task.error && task.status !== "completed" && <Section label={t("Problem")} tone="text-destructive">{task.error}</Section>}
         {task.drafts.length > 0 && (
           <div>
@@ -308,21 +314,17 @@ function TaskRow({
   );
 }
 
-// A task waiting for the user on its agent's computer: open it to log in (or take it back)
-function WaitingForUser({ task }: { task: TaskView }) {
-  const t = useT();
-  const { openViewer } = useSandboxController();
-  const takeover = task.interruption?.kind === "takeover";
+function WaitingForUser({ task, onOpenBrowser }: { task: TaskView; onOpenBrowser: () => void }) {
   return (
     <div className="rounded-lg bg-amber-500/10 px-2.5 py-2 text-amber-800 dark:text-amber-200">
-      <p className="font-medium"><T>Waiting for you on the computer</T></p>
+      <p className="font-medium"><T>Waiting for you in the browser</T></p>
       <p className="mt-0.5">{task.interruption?.reason}</p>
       <Button
         className="mt-2 h-7 rounded-lg px-2.5 text-xs"
-        onClick={() => openViewer(takeover ? { kind: "takeover", agentId: task.agentId } : { kind: "login", agentId: task.agentId, taskId: task.id })}
+        onClick={onOpenBrowser}
       >
         <KeyRound data-icon="inline-start" />
-        {takeover ? t("Open the computer") : t("Login now")}
+        <T>Open the browser</T>
       </Button>
     </div>
   );

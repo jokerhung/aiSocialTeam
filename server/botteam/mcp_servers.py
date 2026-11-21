@@ -16,6 +16,7 @@ from typing import Any, Optional
 
 from . import mcp_client
 from .netguard import BlockedAddress, check_url
+from .mcp_proxy import SOCIAL_TOOLKITS
 from .store import new_id, now_ms
 
 MASK = "********"
@@ -189,11 +190,15 @@ class McpServers:
                 out.append(f"mcp__{self.key_of(sid, spec)}__")
         return tuple(out)
 
-    async def entries_for(self, server_ids: list[str], thread_id: str, access: Optional[dict] = None) -> dict[str, dict]:
+    async def entries_for(self, server_ids: list[str], thread_id: str, access: Optional[dict] = None, *, campaign_broker=None) -> dict[str, dict]:
         """mcpServers entries for the enabled servers among `server_ids`: each is the proxy, reading its spec from a private file."""
         entries: dict[str, dict] = {}
-        for sid in server_ids:
-            spec = await self.get(sid)
+        specs = [(sid, await self.get(sid)) for sid in server_ids]
+        if campaign_broker and not any(spec and spec.get("appId") == "composio" for _, spec in specs):
+            composio = next(((sid, spec) for sid, spec in await self.list() if spec.get("appId") == "composio"), None)
+            if composio:
+                specs.append(composio)
+        for sid, spec in specs:
             if not spec or not spec.get("enabled", True):
                 continue
             run = self.dir / "mcp-run" / re.sub(r"[^\w-]", "_", thread_id)
@@ -202,12 +207,27 @@ class McpServers:
             scope = ((access or {}).get(sid) or {}).get("scope")
             body = {**spec, "outputDir": str(self.dir / "mcp-output"), "readOnly": scope == "read", "allowTools": list(((access or {}).get(sid) or {}).get("allowTools") or []),
                     "cacheSeconds": int(((access or {}).get(sid) or {}).get("cacheMinutes") or 0) * 60, "cacheDir": str(self.dir / "mcp-cache" / sid)}
+            if campaign_broker and spec.get("appId") == "composio":
+                body["postingPolicy"] = {"port": campaign_broker.port, "token": campaign_broker.token, "thread": thread_id}
+                if sid not in server_ids:
+                    body["allowTools"] = [f"{toolkit}_*" for toolkit in SOCIAL_TOOLKITS]
             fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "w", encoding="utf8") as f:
                 json.dump(body, f)
             key = self.key_of(sid, spec)
             entries[key] = {"command": sys.executable, "args": ["-m", "botteam.mcp_proxy"], "env": {"PYTHONPATH": SERVER_DIR, "BT_MCP_SPEC_FILE": str(path)}}
         return entries
+
+    def browser_entry(self, thread_id: str, broker) -> dict:
+        run = self.dir / "mcp-run" / re.sub(r"[^\w-]", "_", thread_id)
+        run.mkdir(parents=True, exist_ok=True)
+        path = run / "playwright.json"
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf8") as file:
+            json.dump({"port": broker.port, "token": broker.token, "thread": thread_id}, file)
+        return {"command": sys.executable, "args": ["-m", "botteam.mcp_proxy"], "env": {
+            "PYTHONPATH": SERVER_DIR, "BT_BROWSER_PROXY": str(path),
+        }}
 
     def cleanup(self, thread_id: str) -> None:
         run = self.dir / "mcp-run" / re.sub(r"[^\w-]", "_", thread_id)

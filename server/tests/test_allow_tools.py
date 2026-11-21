@@ -119,7 +119,7 @@ async def test_a_bot_answering_a_customer_cannot_use_the_team_tools_except_the_l
     bot = await make_bot(c, "Front")
     app.state.turns.runs[bot["threadId"]] = ThreadRun(bot_id=bot["id"], inp=SendTurnInput(thread_id=bot["threadId"], bot_id=bot["id"], text=""), channel_batch_id="chat:q1")
     try:
-        for tool in ("list_bots", "coordinate_bots", "start_thread", "trigger", "post_to_room", "team_remember", "remember", "forget", "browser_open"):
+        for tool in ("list_bots", "coordinate_bots", "start_thread", "trigger", "post_to_room", "team_remember", "remember", "forget", "browser_request_help"):
             out = await app.state.agents.call(bot["threadId"], tool, {"message": "x", "url": "http://x"})
             assert out["ok"] is False and out["reason"] == "not_allowed" and "customer" in out["detail"], tool
         assert (await app.state.agents.call(bot["threadId"], "recall", {}))["ok"] is True

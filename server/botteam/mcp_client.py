@@ -13,6 +13,8 @@ from typing import Any, Optional
 
 import httpx
 
+from .drivers.proc import STREAM_LIMIT, kill_tree
+
 PROTOCOL = "2025-03-26"
 TIMEOUT = 30.0
 CLIENT_INFO = {"name": "botteam", "version": "0.1.0"}
@@ -88,7 +90,7 @@ class StdioConn(Conn):
         env = {**os.environ, **self.env}
         try:
             self.proc = await asyncio.create_subprocess_exec(exe, *self.args, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                                                             stderr=asyncio.subprocess.PIPE, env=env, cwd=self.cwd or None)
+                                                             stderr=asyncio.subprocess.PIPE, env=env, cwd=self.cwd or None, limit=STREAM_LIMIT)
         except (OSError, ValueError) as e:
             raise McpError(f"could not start {self.command}: {e}") from e
         self._reader = asyncio.create_task(self._read())
@@ -147,10 +149,7 @@ class StdioConn(Conn):
                     self.proc.stdin.close()
                 await asyncio.wait_for(self.proc.wait(), 2)
             except Exception:
-                try:
-                    self.proc.kill()
-                except ProcessLookupError:
-                    pass
+                await kill_tree(self.proc)
         if self._reader:
             self._reader.cancel()
 

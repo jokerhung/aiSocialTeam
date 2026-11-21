@@ -7,7 +7,7 @@ export type PlanStatus = "in_progress" | "awaiting_user" | "completed" | "failed
 // pending (waiting for its scheduled time) → queued (handed to Inngest) → in_progress → in_review →
 // completed. A repeating task goes back to pending after each run until its rule runs out.
 // awaiting_input: the worker asked a question only the user can answer (the task restarts with it).
-// waiting_for_user: the run was saved mid-way because the user has to do something in the sandbox
+// waiting_for_user: the run was saved mid-way because the user has to do something in the browser
 // (log in, take over); it continues from where it stopped, or expires if nobody resumes it.
 export type TaskStatus =
   | "pending"
@@ -20,11 +20,6 @@ export type TaskStatus =
   | "failed"
   | "cancelled"
   | "expired";
-
-// The campaign's sandbox (one E2B desktop per campaign)
-export type SandboxStatus = "none" | "starting" | "running" | "paused" | "killed";
-// "user" while the user has taken over the sandbox
-export type SandboxControl = "agent" | "user";
 
 // Why a task is waiting_for_user
 export type TaskInterruption = {
@@ -40,7 +35,7 @@ export type ArtifactType = "image" | "video" | "document" | "data" | "link";
 export type TaskResult = {
   summary: string;
   details: string;
-  artifacts: { type: ArtifactType; name: string; url: string | null; sandboxPath: string | null; metadata: Record<string, unknown> }[];
+  artifacts: { type: ArtifactType; name: string; url: string | null; workspacePath: string | null; metadata: Record<string, unknown> }[];
 };
 
 // The Research Agent's saved findings (save_research). Each insight points at its sources by their
@@ -101,7 +96,7 @@ export type ArtifactView = {
   type: ArtifactType;
   name: string;
   url: string | null;
-  sandboxPath: string | null;
+  workspacePath: string | null;
   mimeType: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
@@ -192,7 +187,6 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   cancelled: "Cancelled",
   expired: "Expired",
 };
-
 export const PLAN_STATUS_LABELS: Record<PlanStatus, string> = {
   in_progress: "In progress",
   awaiting_user: "Needs your input",
@@ -207,6 +201,7 @@ export type AgentLiveStatus = "idle" | "scheduled" | "queued" | "running" | "nee
 export type AgentStatusView = {
   agentId: AgentRoleId;
   status: AgentLiveStatus;
+  browser?: { running: boolean; busy: boolean; helpReason: string | null };
   // The task behind the status: the one needing the user, else running, queued, scheduled, or the latest finished
   task: {
     id: number;
@@ -229,20 +224,7 @@ export type AgentStatusView = {
   } | null;
 };
 
-// One agent's computer
-export type SandboxView = {
-  agentId: WorkerRoleId;
-  status: SandboxStatus;
-  control: SandboxControl;
-  // The agent's task using it right now, if any
-  activeTaskId: number | null;
-  activeAt: string | null;
-  hasPreview: boolean;
-  ended: boolean;
-};
-
-// sandboxes: one per agent that has a computer
-export type LiveStatus = { agents: AgentStatusView[]; sandboxes: Partial<Record<WorkerRoleId, SandboxView>>; serverTime: string };
+export type LiveStatus = { agents: AgentStatusView[]; serverTime: string };
 
 export const AGENT_STATUS_LABELS: Record<AgentLiveStatus, string> = {
   idle: "Idle",
@@ -254,12 +236,4 @@ export const AGENT_STATUS_LABELS: Record<AgentLiveStatus, string> = {
   done: "Done",
   failed: "Failed",
   expired: "Expired",
-};
-
-export const SANDBOX_STATUS_LABELS: Record<SandboxStatus, string> = {
-  none: "Not started",
-  starting: "Starting",
-  running: "Running",
-  paused: "Paused",
-  killed: "Shut down",
 };

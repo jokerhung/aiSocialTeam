@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { T, useT } from "@/lib/i18n/client";
 // What the agents made: image thumbnails and file/link cards, each opening its permanent URL, plus
 // the Creator Agent's drafts (with their images) and the Research Agent's findings with sources.
-// Files that only exist on an agent's computer show their path instead.
+// Files only available in the agent's workspace show their path.
 
 const TYPE_ICONS: Record<ArtifactType, LucideIcon> = {
   image: ImageIcon,
@@ -68,7 +68,7 @@ export function ArtifactGrid({ artifacts, total, compact = false, className }: {
                 {artifact.url ? (
                   <ExternalLink className="size-3 shrink-0 text-muted-foreground" aria-hidden />
                 ) : (
-                  <span className="shrink-0 truncate font-mono text-[10px] text-muted-foreground">{artifact.sandboxPath}</span>
+                  <span className="shrink-0 truncate font-mono text-[10px] text-muted-foreground">{artifact.workspacePath}</span>
                 )}
               </>
             );
@@ -80,7 +80,7 @@ export function ArtifactGrid({ artifacts, total, compact = false, className }: {
                     {body}
                   </a>
                 ) : (
-                  <div className={className} title={t("Saved on the agent's computer")}>
+                  <div className={className} title={t("Saved in the agent's workspace")}>
                     {body}
                   </div>
                 )}

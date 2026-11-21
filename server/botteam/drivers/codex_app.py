@@ -42,6 +42,7 @@ class Session:
     tasks: list[asyncio.Task] = field(default_factory=list)
     stderr_tail: list[str] = field(default_factory=list)
     tools: dict[str, dict] = field(default_factory=dict)
+    mcp: tuple[str, ...] = ()
 
 
 class CodexAppDriver(Emitter):
@@ -60,14 +61,16 @@ class CodexAppDriver(Emitter):
     async def send_turn(self, inp: SendTurnInput) -> str:
         turn_id = new_turn_id()
         cwd = inp.cwd or os.getcwd()
+        mcp = tuple(sorted(inp.custom_mcp)) + (("bt",) if inp.mount_agents else ())
         s = self.sessions.get(inp.thread_id)
-        if s and (inp.session_reset or s.proc.returncode is not None or s.mode != inp.approval_mode or s.cwd != cwd):
+        if s and (inp.session_reset or s.proc.returncode is not None or s.mode != inp.approval_mode or s.cwd != cwd or s.mcp != mcp):
             await self._close(inp.thread_id)
             s = None
         self.emit("turn.started", inp.thread_id, turn_id)
         try:
             if s is None:
                 s = await self._start(inp, cwd)
+                s.mcp = mcp
             s.turn_id, s.settled, s.explained, s.stop_requested, s.tools = turn_id, False, False, False, {}
             prompt = inp.text
             if inp.system and not inp.resume_cursor:
@@ -138,7 +141,10 @@ class CodexAppDriver(Emitter):
             server_dir = str(__import__("pathlib").Path(__file__).resolve().parents[2])
             entries["bt"] = {"command": sys.executable, "args": ["-m", "botteam.mcp_bridge"],
                              "env": {"PYTHONPATH": server_dir, "BT_AGENTS": "1", "BT_BROKER_PORT": str(self.broker.port), "BT_BROKER_TOKEN": self.broker.token, "BT_THREAD_ID": inp.thread_id}}
-        proc = await spawn([*self.cmd, "app-server", *mcp_overrides(entries)], cwd=cwd, env=self.env)
+        args = [*self.cmd, "app-server", *mcp_overrides(entries)]
+        if "playwright" in entries:
+            args += ["-c", "mcp_servers.playwright.startup_timeout_sec=30"]
+        proc = await spawn(args, cwd=cwd, env=self.env)
         s = Session(proc=proc, cwd=cwd, mode=inp.approval_mode)
         self.sessions[inp.thread_id] = s
         s.tasks = [asyncio.create_task(self._read(inp.thread_id, s)), asyncio.create_task(self._drain_stderr(s))]

@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowRight, BrainCircuit, History, ListChecks, MessageSquare, Monitor, MoreVertical, Pause, Play, RotateCcw, Settings, X } from "lucide-react";
-import { hasComputer } from "@/lib/agent-roles";
+import { ArrowRight, BrainCircuit, Globe, History, ListChecks, MessageSquare, MoreVertical, Pause, Play, RotateCcw, Settings, X } from "lucide-react";
 import type { ActivityItem } from "@/lib/overview";
+import type { AgentRoleId } from "@/lib/agent-roles";
 import { ACTIVE_PLAN_STATUSES, type AgentStatusView, type PlanView } from "@/lib/orchestration/types";
 import { cn } from "@/lib/utils";
 import { AgentAvatar, AgentStatus } from "@/components/agents/agent-avatar";
@@ -10,7 +10,7 @@ import { AgentChat } from "@/components/agents/agent-chat";
 import { AgentHistory } from "@/components/agents/agent-history";
 import { MasterTasks, type PlanAction } from "@/components/agents/master-tasks";
 import { AgentSettingsForm, DEFAULT_AGENT_SETTINGS, type AgentSettings } from "@/components/agents/agent-settings";
-import { ComputerPanel, TeamComputers } from "@/components/sandbox/computer-panel";
+import { BrowserPanel } from "@/components/browser/browser-panel";
 import type { ChatState, WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,25 +22,26 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { T, useT } from "@/lib/i18n/client";
-export type AgentTab = "chat" | "history" | "tasks" | "computer" | "settings";
+export type AgentTab = "chat" | "history" | "tasks" | "browser" | "settings";
 
 // The Master Agent's middle tab tracks the team's plans; a worker's shows its own history.
-// Agents with a computer have a Computer tab showing it; the Master Agent's shows all of them.
+// Workers see their browser; the Master Agent can see the whole team's browsers.
 const WORKER_TABS = [
   { value: "chat", label: "Chat", Icon: MessageSquare },
   { value: "history", label: "History", Icon: History },
-  { value: "computer", label: "Computer", Icon: Monitor },
+  { value: "browser", label: "Browser", Icon: Globe },
   { value: "settings", label: "Settings", Icon: Settings },
 ] as const;
 
 const MASTER_TABS = [
   { value: "chat", label: "Chat", Icon: MessageSquare },
   { value: "tasks", label: "Tasks", Icon: ListChecks },
-  { value: "computer", label: "Computers", Icon: Monitor },
+  { value: "browser", label: "Browsers", Icon: Globe },
   { value: "settings", label: "Settings", Icon: Settings },
 ] as const;
 
 export function AgentPanel({
+  campaignId,
   agent,
   tab,
   onTabChange,
@@ -57,11 +58,14 @@ export function AgentPanel({
   agents,
   onPlanAction,
   onOpenMaster,
+  onOpenBrowser,
+  browserHelp,
   settings,
   onSettingsChange,
   userInitials,
   onClose,
 }: {
+  campaignId: number;
   agent: WorkspaceAgent;
   tab: AgentTab;
   onTabChange: (tab: AgentTab) => void;
@@ -80,6 +84,8 @@ export function AgentPanel({
   agents: WorkspaceAgent[];
   onPlanAction: (planId: number, action: PlanAction) => Promise<string | null>;
   onOpenMaster: () => void;
+  onOpenBrowser: (role: AgentRoleId) => void;
+  browserHelp: AgentStatusView[];
   settings: AgentSettings;
   onSettingsChange: (settings: AgentSettings) => void;
   userInitials: string;
@@ -90,8 +96,7 @@ export function AgentPanel({
   const t = useT();
   const { role } = agent;
   const master = role.id === "master";
-  const computer = hasComputer(role.id);
-  const tabs = master ? MASTER_TABS : WORKER_TABS.filter((item) => item.value !== "computer" || computer);
+  const tabs = master ? MASTER_TABS : WORKER_TABS;
   const historyTab: AgentTab = master ? "tasks" : "history";
   const notice = master ? (
     <ActivePlans plans={plans} onOpen={() => onTabChange("tasks")} />
@@ -196,7 +201,15 @@ export function AgentPanel({
         </TabsContent>
         {master ? (
           <TabsContent value="tasks" className="min-h-0 overflow-y-auto pt-4">
-            <MasterTasks plans={plans} loaded={plansLoaded} agents={agents} onAction={onPlanAction} />
+            {browserHelp.map(({ agentId, browser }) => (
+              <div key={agentId} className="mb-2 flex flex-wrap items-center gap-2 rounded-lg bg-amber-500/10 p-2 text-xs">
+                <p className="flex-1">{t("{agent} needs you: {reason}", {
+                  agent: t(agents.find(({ role }) => role.id === agentId)?.role.name ?? agentId), reason: browser?.helpReason ?? "",
+                })}</p>
+                <Button size="sm" onClick={() => onOpenBrowser(agentId)}><T>Open the browser</T></Button>
+              </div>
+            ))}
+            <MasterTasks plans={plans} loaded={plansLoaded} agents={agents} onAction={onPlanAction} onOpenBrowser={onOpenBrowser} />
           </TabsContent>
         ) : (
           <TabsContent value="history" className="min-h-0 overflow-y-auto pt-4">
@@ -208,13 +221,13 @@ export function AgentPanel({
             />
           </TabsContent>
         )}
-        {(master || computer) && (
-          <TabsContent value="computer" className="min-h-0 overflow-y-auto pt-4">
-            {hasComputer(role.id) ? <ComputerPanel agentId={role.id} status={status} /> : <TeamComputers />}
-          </TabsContent>
-        )}
+        <TabsContent value="browser" className="min-h-0 overflow-y-auto pt-4">
+          <div className={master ? "grid gap-3 xl:grid-cols-2" : undefined}>
+            {(master ? agents : [agent]).map(({ role }) => <BrowserPanel key={role.id} campaignId={campaignId} role={role} />)}
+          </div>
+        </TabsContent>
         <TabsContent value="settings" className="min-h-0 overflow-y-auto pt-4">
-          <AgentSettingsForm agent={agent} settings={settings} onChange={onSettingsChange} />
+          <AgentSettingsForm campaignId={campaignId} agent={agent} settings={settings} onChange={onSettingsChange} />
         </TabsContent>
       </Tabs>
     </section>

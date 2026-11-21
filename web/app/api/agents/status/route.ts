@@ -1,4 +1,5 @@
 import { getActiveCampaign } from "@/lib/campaigns";
+import { api } from "@/lib/botteam";
 import { listBots } from "@/lib/agent-chats";
 import { isLive, listCampaignAssignments, taskStatusOf, titleOf, type Assignment } from "@/lib/team-work";
 import { getT } from "@/lib/i18n/server";
@@ -24,12 +25,17 @@ export async function GET() {
   const { t } = await getT();
   const campaign = await getActiveCampaign();
   if (!campaign) return Response.json({ error: t("No active campaign") }, { status: 400 });
-  const [bots, assignments] = await Promise.all([listBots().catch(() => []), listCampaignAssignments(campaign).catch(() => [] as Assignment[])]);
+  const [bots, assignments, browserStatus] = await Promise.all([
+    listBots().catch(() => []),
+    listCampaignAssignments(campaign).catch(() => [] as Assignment[]),
+    api<{ browsers: Record<string, AgentStatusView["browser"]> }>("/api/browsers").catch(() => null),
+  ]);
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
   const agents: AgentStatusView[] = ROLES.map((agentId) => {
     const botId = campaign.bots[agentId];
+    const browser = browserStatus?.browsers[botId];
     const bot = bots.find((b) => b.id === botId);
     // Jobs handed to this agent (the Master Agent's own turns are not jobs), newest last
     const jobs = assignments.filter((a) => a.botId === botId && a.parentId !== null);
@@ -42,13 +48,14 @@ export async function GET() {
       status = "done";
       job = latest;
     }
-    if (status === "idle") return { agentId, status, task: null };
+    if (status === "idle") return { agentId, status, task: null, browser };
 
     const taskStatus = status === "done" ? "completed" : status === "running" ? "in_progress" : status === "needs_input" ? "awaiting_input" : "failed";
     const title = (job && titleOf(job.brief)) || bot?.statusLine || (status === "needs_input" ? t("Waiting for your answer") : t("Working"));
     return {
       agentId,
       status,
+      browser,
       task: {
         id: job ? Number(job.createdAt) : 0,
         planId: 0,
@@ -69,6 +76,6 @@ export async function GET() {
       },
     };
   });
-  const body: LiveStatus = { agents, sandboxes: {}, serverTime: nowIso };
+  const body: LiveStatus = { agents, serverTime: nowIso };
   return Response.json(body, { headers: { "Cache-Control": "no-store" } });
 }

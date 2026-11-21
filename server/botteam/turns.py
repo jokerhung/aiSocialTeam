@@ -75,6 +75,7 @@ class Turns:
         self.memory = None  # per-bot notes and the team's
         self.skills = None  # the skill library
         self.browser = None  # the bots' built-in browser
+        self.browser_settings = None  # campaign browser settings by bot id
         self.notify = None  # the notification log
         self.delegated: dict[str, asyncio.Future] = {}  # work thread -> the runtime's wait for that turn's result
         self.attachments_dir = attachments_dir or data_dir() / "attachments"
@@ -127,6 +128,9 @@ class Turns:
             return None
         run = self.runs.get(thread_id)
         prefixes = await self.mcp.allowed_prefixes(bot) if self.mcp else ()
+        if run and "playwright" in run.inp.custom_mcp:
+            # The built-in proxy applies its own per-action broker approval and browser ownership checks.
+            prefixes += ("mcp__playwright__",)
         return Policy(mode=normalize_mode(run.level if run and run.level else bot.approvalMode), cwd=(run.inp.cwd if run else None) or bot.cwd or os.getcwd(),
                       instance=bot.modelSelection.instanceId, allow_prefixes=prefixes)
 
@@ -287,15 +291,21 @@ class Turns:
         if inst.driver.provider == "openai-compat":
             rows, _ = await self.store.page(thread_id, None, 60)
             transcript = [("user" if m.role == "user" else "assistant", m.text) for m in rows[:-1] if m.kind == "text" and m.text]
+        browser_settings = await self.browser_settings(bot.id) if self.browser_settings and not (channel_batch_id or "").startswith("chat:") else None
         inp = SendTurnInput(
             thread_id=thread_id, bot_id=bot.id, text=text, model=bot.modelSelection.model,
             effort=bot.modelSelection.effort, system=(await self._system(bot)) + extra_system, resume_cursor=None if session_reset else t.get("cursor"),
             session_reset=session_reset, cwd=cwd or bot.cwd, transcript=transcript, approval_mode=normalize_mode(level or bot.approvalMode),
             attachments=[str((self.attachments_dir / a.name).resolve()) for a in files or []],
             image_attachments=[str((self.attachments_dir / a.name).resolve()) for a in files or [] if a.image],
-            custom_mcp=await self.mcp.entries_for(bot.mcpServers, thread_id, bot.mcpAccess) if self.mcp and bot.mcpServers else {},
+            custom_mcp=await self.mcp.entries_for(
+                bot.mcpServers, thread_id, bot.mcpAccess, campaign_broker=self.broker if browser_settings else None
+            ) if self.mcp and (bot.mcpServers or browser_settings) else {},
         )
         inp.mount_agents = mount_agents
+        if browser_settings and browser_settings["enabled"] and self.mcp and self.broker:
+            inp.custom_mcp["playwright"] = self.mcp.browser_entry(thread_id, self.broker)
+            inp.mount_agents = True
         if extra_images:  # files a channel saved inside the bot's working folder: read where they are
             inp.attachments += extra_images
             inp.image_attachments += extra_images

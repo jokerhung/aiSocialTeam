@@ -148,6 +148,7 @@ if [ "$(node_major)" -lt "$MIN_NODE" ]; then
 fi
 if [ "$DRY" = 0 ] && [ "$(node_major)" -lt "$MIN_NODE" ]; then die "Node.js $MIN_NODE or newer is still not available (found: $(has node && node --version || echo none))"; fi
 has node && ok "node $(node --version)"
+if [ "$DRY" = 0 ] && ! has npx; then die "npx is required for Browser use. Install npm with Node.js and run this script again."; fi
 
 # ---- Python ------------------------------------------------------------------------------------------------------------------------------
 if ! PY="$(python_cmd)"; then
@@ -228,13 +229,16 @@ if [ "$SKIP_BUILD" = 0 ]; then
   run "pnpm build:static" pnpm build:static
 fi
 
+say "Preparing Playwright MCP for Browser use"
+run "npx -y @playwright/mcp@0.0.86 --version" npx -y @playwright/mcp@0.0.86 --version
+
 if [ "$BROWSER" = 1 ]; then
   say "Downloading Chromium for the bots' built-in browser"
   run "playwright install chromium" uv run --project server playwright install chromium
   if [ "$OS" = "Linux" ] && [ "$DRY" = 0 ]; then  # the system libraries Chromium needs; best effort
     $SUDO "$(command -v uv)" run --project server playwright install-deps chromium || warn "could not install Chromium's system libraries; install them by hand if the browser fails to start"
   fi
-elif ! has google-chrome && ! has google-chrome-stable && ! has chromium && ! has chromium-browser && [ ! -d "/Applications/Google Chrome.app" ] && [ ! -d "/Applications/Microsoft Edge.app" ]; then
+elif ! has google-chrome && ! has google-chrome-stable && ! has microsoft-edge && ! has microsoft-edge-stable && [ ! -d "/Applications/Google Chrome.app" ] && [ ! -d "/Applications/Microsoft Edge.app" ]; then
   warn "No Chrome, Chromium or Edge found: run this script again with --browser so the bots' built-in browser has one."
 fi
 

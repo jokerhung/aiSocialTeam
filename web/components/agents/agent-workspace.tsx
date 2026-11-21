@@ -9,7 +9,6 @@ import type { ActivityItem } from "@/lib/overview";
 import { ACTIVE_PLAN_STATUSES, type AgentLiveStatus, type AgentStatusView, type PlanView } from "@/lib/orchestration/types";
 import { AgentOffice } from "@/components/office/agent-office";
 import { AgentPreviewCard } from "@/components/office/agent-preview-popover";
-import { SandboxProvider } from "@/components/sandbox/sandbox-controller";
 import { useLiveStatus } from "@/components/agents/use-live-status";
 import { AgentPicker } from "@/components/agents/agent-picker";
 import { AgentPanel, type AgentTab } from "@/components/agents/agent-panel";
@@ -52,12 +51,14 @@ export type ChatState = {
 const EMPTY_CHAT: ChatState = { messages: [], loaded: false, loading: false, nextCursor: null };
 
 export function AgentWorkspace({
+  campaignId,
   office,
   officeImage,
   activity,
   userInitials,
   children,
 }: {
+  campaignId: number;
   office: OfficeScene | null;
   officeImage: string;
   activity: ActivityItem[];
@@ -292,6 +293,28 @@ export function AgentWorkspace({
     revealRef.current = reveal;
     setSelectedId(id);
   }
+
+  function openBrowser(role: RoleId) {
+    const agent = agents.find((candidate) => candidate.role.id === role);
+    if (!agent) return;
+    selectAgent(agent.id, { reveal: true });
+    setTab("browser");
+  }
+
+  async function retryTask(taskId: number) {
+    try {
+      const response = await fetch("/api/agents/tasks", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry-task", taskId }),
+      });
+      if (!response.ok) return t("Tasks are managed in the agents' chats.");
+      void refreshLive();
+      reloadPlans();
+      return null;
+    } catch {
+      return t("That didn't work. Please try again.");
+    }
+  }
   function togglePaused(id: string) {
     setPaused((current) => {
       const next = new Set(current);
@@ -387,6 +410,7 @@ export function AgentWorkspace({
   const panel = selected && (
     <AgentPanel
       key={selected.id}
+      campaignId={campaignId}
       agent={selected}
       tab={tab}
       onTabChange={setTab}
@@ -403,6 +427,8 @@ export function AgentWorkspace({
       agents={agents}
       onPlanAction={planAction}
       onOpenMaster={() => selectAgent(MASTER_ID)}
+      onOpenBrowser={openBrowser}
+      browserHelp={live?.agents.filter((item) => item.browser?.helpReason) ?? []}
       settings={settings[selected.id] ?? DEFAULT_AGENT_SETTINGS}
       onSettingsChange={(next) => setSettings((current) => ({ ...current, [selected.id]: next }))}
       userInitials={userInitials}
@@ -411,7 +437,6 @@ export function AgentWorkspace({
   );
 
   return (
-    <SandboxProvider live={live} refresh={refreshLive} onTasksChanged={reloadPlans}>
       <div className="grid gap-6 lg:grid-cols-2">
         {overview && !panel ? (
           <div ref={columnRef} className="flex min-w-0 scroll-mt-24 flex-col gap-5">
@@ -459,6 +484,12 @@ export function AgentWorkspace({
                     role={seat.role}
                     sprite={seat.frames[0]}
                     status={live ? statusByRole.get(seat.role.id) : undefined}
+                    refresh={refreshLive}
+                    retryTask={retryTask}
+                    onOpenBrowser={() => {
+                      close();
+                      openBrowser(seat.role.id);
+                    }}
                     onOpen={() => {
                       close();
                       selectAgent(seat.id, { reveal: true });
@@ -474,6 +505,5 @@ export function AgentWorkspace({
           </div>
         </div>
       </div>
-    </SandboxProvider>
   );
 }

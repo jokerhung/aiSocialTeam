@@ -13,6 +13,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -50,6 +51,34 @@ def cut(result: dict, budget: int, out_dir: Path, name: str) -> dict:
 # and every tool a MULTI_EXECUTE call names must match one of the patterns.
 COMPOSIO_SAFE_META = {"COMPOSIO_SEARCH_TOOLS", "COMPOSIO_GET_TOOL_SCHEMAS", "COMPOSIO_MULTI_EXECUTE_TOOL"}
 COMPOSIO_RUN = "COMPOSIO_MULTI_EXECUTE_TOOL"
+SOCIAL_TOOLKITS = (
+    "TWITTER", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "LINKEDIN", "TIKTOK", "THREADS", "PINTEREST", "REDDIT",
+)
+
+
+def composio_publishes(params: dict) -> bool:
+    name = str(params.get("name", "")).upper()
+    if name == COMPOSIO_RUN:
+        args = params.get("arguments") or {}
+        if not isinstance(args, dict):
+            return True
+        slugs = [str(tool.get("tool_slug", "")).upper() for tool in args.get("tools") or [] if isinstance(tool, dict)]
+    elif name in COMPOSIO_SAFE_META:
+        return False
+    elif name.startswith("COMPOSIO_"):
+        # Generic execution interfaces can dispatch an arbitrary publishing tool.
+        return True
+    else:
+        slugs = [name]
+    for slug in slugs:
+        toolkit, separator, operation = slug.partition("_")
+        if separator and toolkit in SOCIAL_TOOLKITS and re.fullmatch(
+            r"(?:POST|PUBLISH|SHARE)|(?:CREATE|CREATION|PUBLISH|SEND|UPLOAD|SUBMIT|POST|SHARE)_(?:[A-Z0-9]+_)*"
+            r"(?:POST|TWEET|MEDIA|VIDEO|REEL|STORY|PIN|THREAD|SHORT|IMAGE|PHOTO|ARTICLE|MESSAGE|COMMENT)S?(?:_[A-Z0-9]+)*",
+            operation,
+        ):
+            return True
+    return False
 
 
 def refusal(allow: list[str], params: dict) -> Optional[str]:
@@ -136,7 +165,69 @@ def send(obj: dict) -> None:
     sys.stdout.flush()
 
 
+async def browser_request(spec: dict, method: str, params: dict) -> dict:
+    reader, writer = await asyncio.open_connection("127.0.0.1", spec["port"], limit=32 * 1024 * 1024)
+    try:
+        packets = [
+            {"t": "hello", "token": spec["token"], "thread": spec["thread"]},
+            {"t": "browser", "id": "browser", "tool": method, "args": params},
+        ]
+        writer.write(b"".join(json.dumps(packet).encode() + b"\n" for packet in packets))
+        await writer.drain()
+        response = json.loads(await reader.readline())
+        return response["agent"]
+    finally:
+        writer.close()
+        await writer.wait_closed()
+
+
+async def browser_main(spec: dict) -> None:
+    loop = asyncio.get_running_loop()
+    tasks: set[asyncio.Task] = set()
+
+    async def handle(message: dict) -> None:
+        id_, method = message.get("id"), message.get("method")
+        if id_ is None:
+            return
+        params = message.get("params") or {}
+        try:
+            if method == "initialize":
+                response = {"result": {
+                    "protocolVersion": params.get("protocolVersion", "2025-03-26"), "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "playwright", "version": "1"},
+                }}
+            elif method == "ping":
+                response = {"result": {}}
+            elif method in ("tools/list", "tools/call"):
+                response = await browser_request(spec, method, params)
+                if "result" not in response and "error" not in response:
+                    response = {"error": {"code": -32000, "message": response.get("detail", "Browser service unavailable")}}
+            else:
+                response = {"error": {"code": -32601, "message": "Method not found"}}
+        except Exception:
+            response = {"error": {"code": -32000, "message": "Browser service unavailable"}}
+        send({"jsonrpc": "2.0", "id": id_, **response})
+
+    try:
+        while line := await loop.run_in_executor(None, sys.stdin.buffer.readline):
+            try:
+                message = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(message, dict):
+                task = asyncio.create_task(handle(message))
+                tasks.add(task)
+                task.add_done_callback(tasks.discard)
+    finally:
+        for task in list(tasks):
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 async def main() -> None:
+    if browser_spec := os.environ.get("BT_BROWSER_PROXY"):
+        await browser_main(json.loads(Path(browser_spec).read_text(encoding="utf8")))
+        return
     spec = json.loads(Path(os.environ["BT_MCP_SPEC_FILE"]).read_text(encoding="utf8"))
     budget = int(spec.get("outputBudget") or DEFAULT_BUDGET)
     out_dir = Path(spec.get("outputDir") or ".")
@@ -166,6 +257,16 @@ async def main() -> None:
             if id_ is None:
                 await conn.notify(method or "", msg.get("params"))
                 return
+            posting = spec.get("postingPolicy")
+            if posting and method == "tools/call" and composio_publishes(msg.get("params") or {}):
+                try:
+                    decision = await browser_request(posting, "composio/publish", {})
+                except (OSError, ValueError, KeyError):
+                    decision = {}
+                if not decision.get("allowed"):
+                    why = decision.get("detail") or "The publishing policy is unavailable."
+                    send({"jsonrpc": "2.0", "id": id_, "result": {"isError": True, "content": [{"type": "text", "text": why}]}})
+                    return
             if allow and method == "tools/call":
                 why = refusal(allow, msg.get("params") or {})
                 if why:

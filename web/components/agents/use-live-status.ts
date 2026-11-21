@@ -12,7 +12,7 @@ const IDLE_MS = 15000;
 export function isBusy(status: LiveStatus | null) {
   if (!status) return true;
   return (
-    Object.values(status.sandboxes).some((sandbox) => sandbox?.status === "running" || sandbox?.status === "starting") ||
+    status.agents.some((agent) => agent.browser?.busy || agent.browser?.helpReason) ||
     status.agents.some((agent) => ["queued", "running", "waiting_for_user", "needs_input"].includes(agent.status))
   );
 }

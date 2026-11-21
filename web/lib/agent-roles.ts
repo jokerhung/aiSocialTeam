@@ -10,15 +10,14 @@ export type AgentRole = {
   description: string;
 };
 
-// computer: the agent has its own computer (an E2B desktop) in each campaign
-export type WorkerRole = AgentRole & { id: WorkerRoleId; computer: boolean };
+export type WorkerRole = AgentRole & { id: WorkerRoleId };
 
 // Worker agents only take tasks from the Master Agent; users can still chat with them
 export const AGENT_ROLES: WorkerRole[] = [
-  { id: "research", name: "Research Agent", emoji: "🔍", description: "Finds trends and topics your audience cares about", computer: true },
-  { id: "creator", name: "Creator Agent", emoji: "🎨", description: "Writes captions and designs the posts", computer: true },
-  { id: "scheduler", name: "Scheduler Agent", emoji: "🗓️", description: "Plans the best time to post and schedules posts", computer: false },
-  { id: "analytics", name: "Analytics Agent", emoji: "📊", description: "Reports on post performance, on request or on a schedule you set", computer: false },
+  { id: "research", name: "Research Agent", emoji: "🔍", description: "Finds trends and topics your audience cares about" },
+  { id: "creator", name: "Creator Agent", emoji: "🎨", description: "Writes captions and designs the posts" },
+  { id: "scheduler", name: "Scheduler Agent", emoji: "🗓️", description: "Plans the best time to post and schedules posts" },
+  { id: "analytics", name: "Analytics Agent", emoji: "📊", description: "Reports on post performance, on request or on a schedule you set" },
 ];
 
 // The coordinator: takes the user's requests, plans them and hands the work to the team
@@ -37,11 +36,6 @@ export function agentRoleForSeat(index: number) {
 
 export function getAgentRole(id: AgentRoleId): AgentRole {
   return id === "master" ? MASTER_AGENT : (AGENT_ROLES.find((role) => role.id === id) ?? MASTER_AGENT);
-}
-
-// Whether the agent has its own computer
-export function hasComputer(id: AgentRoleId): id is WorkerRoleId {
-  return AGENT_ROLES.some((role) => role.id === id && role.computer);
 }
 
 export function isWorkerRole(id: string): id is WorkerRoleId {

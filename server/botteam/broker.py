@@ -49,6 +49,7 @@ class Broker:
         self._thread_of: dict[str, str] = {}
         self._ctx: dict[str, tuple[Optional[tuple[str, str]], str]] = {}
         self.agent_call: Optional[Callable[[str, str, dict], Awaitable[dict]]] = None  # the team tools (agents.py)
+        self.browser_call: Optional[Callable[[str, str, dict], Awaitable[dict]]] = None
         self.read_dirs: list[str] = []  # folders whose files a bot may read without asking (the attachment store)
 
     # ---- lifecycle ---------------------------------------------------------
@@ -209,8 +210,9 @@ class Broker:
 
             async def agent(msg: dict) -> None:
                 rid = str(msg.get("id") or new_id("req"))
+                handler = self.browser_call if msg.get("t") == "browser" else self.agent_call
                 try:
-                    out = await self.agent_call(thread_id, str(msg.get("tool", "")), msg.get("args") or {}) if self.agent_call else {"ok": False, "reason": "unavailable"}
+                    out = await handler(thread_id, str(msg.get("tool", "")), msg.get("args") or {}) if handler else {"ok": False, "reason": "unavailable"}
                 except Exception as e:  # a tool failure is an answer, never a crash of the bridge
                     out = {"ok": False, "reason": "internal", "detail": f"{type(e).__name__}: {e}"}
                 try:
@@ -224,7 +226,7 @@ class Broker:
                     msg = json.loads(line)
                 except ValueError:
                     continue
-                if msg.get("t") == "agent":
+                if msg.get("t") in ("agent", "browser"):
                     t = asyncio.create_task(agent(msg))
                     tasks.add(t)
                     t.add_done_callback(tasks.discard)

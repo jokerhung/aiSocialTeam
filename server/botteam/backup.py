@@ -42,7 +42,7 @@ def make_backup(data: Path, dest: Path) -> dict:
     with tempfile.TemporaryDirectory() as tmp, zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
         for path in sorted(data.rglob("*")):
             rel = path.relative_to(data)
-            if path.is_dir() or any(p in SKIP_DIRS for p in rel.parts) or path.name.endswith(SIDE_SUFFIXES) or path.name.startswith(".tmp-") or path.resolve() == dest.resolve():
+            if rel.parts[0] == "browser" or path.is_dir() or any(p in SKIP_DIRS for p in rel.parts) or path.name.endswith(SIDE_SUFFIXES) or path.name.startswith(".tmp-") or path.resolve() == dest.resolve():
                 continue
             src = path
             if path.suffix in DB_SUFFIXES:

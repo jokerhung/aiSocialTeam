@@ -319,8 +319,7 @@ function CampaignSwitcher({
           <AlertDialogHeader>
             <AlertDialogTitle><T>End this campaign?</T></AlertDialogTitle>
             <AlertDialogDescription>
-              <T>Running plans stop and no new work can be planned. The files on the campaign's computer are saved to your results, then
-              the computer is shut down for good (with any logins on it).</T>
+              <T>This campaign will be marked as ended.</T>
             </AlertDialogDescription>
           </AlertDialogHeader>
           {endError && <p className="text-sm text-destructive">{endError}</p>}

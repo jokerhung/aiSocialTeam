@@ -117,6 +117,7 @@ if ((Node-Major) -lt $MinNode) {
 }
 if (-not $DryRun -and (Node-Major) -lt $MinNode) { Fail "Node.js $MinNode or newer is still not on PATH. Open a new terminal and run this script again." }
 if (Has "node") { Ok "node $(& node --version)" }
+if (-not $DryRun -and -not (Has "npx")) { Fail "npx is required for Browser use. Install npm with Node.js and run this script again." }
 
 # ---- Python -------------------------------------------------------------------------------------------------------------------------
 $py = Python-Version
@@ -213,6 +214,9 @@ if (-not $SkipBuild) {
   Say "Building the web app (pnpm build:static)"
   Run "pnpm build:static" { pnpm build:static }
 }
+
+Say "Preparing Playwright MCP for Browser use"
+Run "npx -y @playwright/mcp@0.0.86 --version" { npx -y @playwright/mcp@0.0.86 --version }
 
 if ($Browser) {
   Say "Downloading Chromium for the bots' built-in browser"
