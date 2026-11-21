@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BrainCircuit, Globe, History, ListChecks, MessageSquare, MoreVertical, Pause, Play, RotateCcw, Settings, X } from "lucide-react";
+import { ArrowRight, BrainCircuit, Globe, History, Image as ImageIcon, ImageOff, ListChecks, MessageSquare, MoreVertical, Pause, Play, RotateCcw, Settings, X } from "lucide-react";
 import type { ActivityItem } from "@/lib/overview";
 import type { AgentRoleId } from "@/lib/agent-roles";
 import { ACTIVE_PLAN_STATUSES, type AgentStatusView, type PlanView } from "@/lib/orchestration/types";
@@ -63,6 +63,7 @@ export function AgentPanel({
   settings,
   onSettingsChange,
   userInitials,
+  officePanel,
   onClose,
 }: {
   campaignId: number;
@@ -89,11 +90,13 @@ export function AgentPanel({
   settings: AgentSettings;
   onSettingsChange: (settings: AgentSettings) => void;
   userInitials: string;
+  officePanel?: { id: string; visible: boolean; toggle: () => void };
   // Compact mode for when the panel opens in place of other content (Overview): just the agent's
   // avatar and name plus a close button, no description or agent actions
   onClose?: () => void;
 }) {
   const t = useT();
+  const officePanelLabel = officePanel?.visible ? t("Hide workspace panel") : t("Show workspace panel");
   const { role } = agent;
   const master = role.id === "master";
   const tabs = master ? MASTER_TABS : WORKER_TABS;
@@ -146,6 +149,13 @@ export function AgentPanel({
             <Settings data-icon="inline-start" />
             <T>Settings</T>
           </Button>
+          {officePanel && (
+            <Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground"
+              onClick={officePanel.toggle} aria-controls={officePanel.id} aria-expanded={officePanel.visible}
+              aria-label={officePanelLabel} title={officePanelLabel}>
+              {officePanel.visible ? <ImageIcon aria-hidden /> : <ImageOff aria-hidden />}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground" aria-label={t("More actions")} />}

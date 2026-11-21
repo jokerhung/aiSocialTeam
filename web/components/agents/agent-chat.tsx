@@ -204,12 +204,18 @@ export function AgentChat({
 
 // Image links (bare, or as markdown images) in a message, like the ones posted when an agent
 // makes an image. Requires the file extension, so a half-streamed URL isn't matched.
-const IMAGE_URL = /!\[[^\]]*\]\((https?:\/\/[^\s)]+?\.(?:png|jpe?g|webp|gif|avif)(?:\?[^\s)]*)?)\)|https?:\/\/[^\s)\]]+?\.(?:png|jpe?g|webp|gif|avif)(?:\?[^\s)\]]*)?(?=[\s)\].,]|$)/gi;
+const IMAGE_URL = /(?<!!)!?\[[^\]\n]*\]\(((?:https?:\/\/[^\s)]+?|\/api\/media\/file\/[\w-]+)\.(?:png|jpe?g|webp|gif|avif)(?:\?[^\s)]*)?)\)|(?:https?:\/\/[^\s)\]]+?|(?<![\w/:])\/api\/media\/file\/[\w-]+)\.(?:png|jpe?g|webp|gif|avif)(?:\?[^\s)\]]*)?(?=[\s)\].,`]|$)/gi;
+
+// Older replies turn the media path into a URL on the host machine.
+function chatImageUrl(url: string) {
+  const local = url.match(/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(\/api\/media\/file\/[\w.-]+(?:\?[^\s]*)?)$/i);
+  return local?.[1] ?? url;
+}
 
 // The message text with its image links shown as small previews underneath
 function MessageBody({ text }: { text: string }) {
   const t = useT();
-  const images = [...new Set([...text.matchAll(IMAGE_URL)].map((match) => match[1] ?? match[0]))];
+  const images = [...new Set([...text.matchAll(IMAGE_URL)].map((match) => chatImageUrl(match[1] ?? match[0])))];
   if (images.length === 0) return text;
   const rest = text
     .replace(IMAGE_URL, "")

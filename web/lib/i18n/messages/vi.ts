@@ -114,6 +114,8 @@ export const vi: Record<string, string> = {
   "Resume": "Tiếp tục",
   "Pause": "Tạm dừng",
   "More actions": "Thêm thao tác",
+  "Hide workspace panel": "Ẩn khung không gian làm việc",
+  "Show workspace panel": "Hiện khung không gian làm việc",
   "View tasks": "Xem tác vụ",
   "View history": "Xem lịch sử",
   "Team is working on": "Đội đang làm",

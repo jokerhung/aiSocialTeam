@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- fallback office image */
 import { newId } from "@/lib/id";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import { AGENT_ROLES, MASTER_AGENT, type AgentRole, type AgentRoleId } from "@/lib/agent-roles";
 import type { OfficeScene } from "@/lib/office-studio";
 import type { ActivityItem } from "@/lib/overview";
@@ -28,6 +28,8 @@ export const MASTER_ID = "master";
 
 // Lets content inside the workspace (such as the overview's Master Agent card) open an agent's chat
 const WorkspaceContext = createContext<{ openAgent: (id: string) => void; activePlans: PlanView[] } | null>(null);
+
+const OFFICE_VISIBLE_KEY = "agent-workspace-office-visible";
 
 export function useAgentWorkspace() {
   return useContext(WorkspaceContext);
@@ -70,6 +72,28 @@ export function AgentWorkspace({
 }) {
   const t = useT();
   const overview = children !== undefined;
+  const officePanelId = useId();
+  // Whether the workspace panel is shown is remembered in this browser; it is read after mount so the server and the first
+  // render agree, then applied
+  const [officeVisible, setOfficeVisibleState] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(OFFICE_VISIBLE_KEY) === "0") setOfficeVisibleState(false);
+    } catch {
+      // Storage can be refused (private window): the default is fine
+    }
+  }, []);
+  function setOfficeVisible(update: (visible: boolean) => boolean) {
+    setOfficeVisibleState((visible) => {
+      const next = update(visible);
+      try {
+        localStorage.setItem(OFFICE_VISIBLE_KEY, next ? "1" : "0");
+      } catch {
+        // not remembered, still works
+      }
+      return next;
+    });
+  }
   const agents: WorkspaceAgent[] = [
     { id: MASTER_ID, role: MASTER_AGENT },
     ...(office
@@ -432,12 +456,13 @@ export function AgentWorkspace({
       settings={settings[selected.id] ?? DEFAULT_AGENT_SETTINGS}
       onSettingsChange={(next) => setSettings((current) => ({ ...current, [selected.id]: next }))}
       userInitials={userInitials}
+      officePanel={overview ? undefined : { id: officePanelId, visible: officeVisible, toggle: () => setOfficeVisible((visible) => !visible) }}
       onClose={overview ? () => setSelectedId(null) : undefined}
     />
   );
 
   return (
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className={officeVisible ? "grid gap-6 lg:grid-cols-2" : "grid grid-cols-1 gap-6"}>
         {overview && !panel ? (
           <div ref={columnRef} className="flex min-w-0 scroll-mt-24 flex-col gap-5">
             <WorkspaceContext.Provider
@@ -470,7 +495,7 @@ export function AgentWorkspace({
         )}
 
         {/* The campaign's office, with its agents at their desks — click a character to open that agent */}
-        <div className="min-w-0 lg:sticky lg:top-20 lg:h-[calc(100svh-6.5rem)] lg:min-h-[28rem] lg:self-start">
+        <div id={officePanelId} hidden={!officeVisible} className="min-w-0 lg:sticky lg:top-20 lg:h-[calc(100svh-6.5rem)] lg:min-h-[28rem] lg:self-start">
           <div className="overflow-hidden rounded-3xl shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_-16px_rgb(15_23_42/0.12)] ring-1 ring-border/60 lg:h-full">
             {office ? (
               <AgentOffice
