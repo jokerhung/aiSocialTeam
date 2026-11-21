@@ -453,6 +453,7 @@ export function AgentWorkspace({
       onOpenMaster={() => selectAgent(MASTER_ID)}
       onOpenBrowser={openBrowser}
       browserHelp={live?.agents.filter((item) => item.browser?.helpReason) ?? []}
+      surfaceByRole={Object.fromEntries((live?.agents ?? []).map(({ agentId, surface }) => [agentId, surface]))}
       settings={settings[selected.id] ?? DEFAULT_AGENT_SETTINGS}
       onSettingsChange={(next) => setSettings((current) => ({ ...current, [selected.id]: next }))}
       userInitials={userInitials}

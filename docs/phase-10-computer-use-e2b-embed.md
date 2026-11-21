@@ -2,7 +2,7 @@
 
 **Mục tiêu:** đưa lại **Computer use** (máy tính ảo có màn hình đầy đủ, agent nhìn ảnh màn hình rồi bấm, gõ) bằng **E2B**, theo **một trong hai cách do người dùng chọn**: **E2B Cloud** (dịch vụ của E2B, dùng khoá API lấy ở e2b.dev) hoặc **tự host E2B Embed** (bản mã nguồn mở chạy trên máy của bạn, không cần tài khoản). Chỉ hỗ trợ E2B (không hỗ trợ nhà cung cấp sandbox khác). **Người dùng tự thiết lập** (đăng ký lấy khoá hoặc tự cài Embed theo một tệp hướng dẫn `.md` có phần Cloud, Linux và Windows); BotTeam **không cài gì hộ**, và **Computer use mặc định tắt**: chỉ bật được sau khi kết nối E2B thành công. Mỗi agent được **cấu hình riêng** cách làm việc với giao diện: **Computer use** (phase này), **Browser use** (phase 9: Edge/Chrome qua Playwright MCP) hoặc **Tắt**.
 
-**Trạng thái:** kế hoạch (chưa triển khai). **Phụ thuộc phase 9** (tab Browser, `BrowserHost`, khung "xem trực tiếp và Take over", cài đặt theo agent): phase này dùng chung tab, trạng thái và cài đặt đó, nên làm phase 9 trước hoặc làm bước A của phase này (mục 4) cùng lúc.
+**Trạng thái:** Computer use đã triển khai và kiểm thử trên VMware qua Tailscale. Xem mục 7 để biết kết quả, phạm vi đã kiểm và giới hạn của bộ lọc mạng. Giao diện dùng chung luồng Tiếp quản và Trả quyền điều khiển với phase 9.
 
 ## 0. Hai cách dùng E2B: Cloud hoặc tự host (Embed)
 
@@ -11,7 +11,7 @@ Cùng một SDK (`e2b-desktop`) và cùng một API; chuyển giữa hai cách c
 | | **E2B Cloud** | **Tự host E2B Embed** |
 |---|---|---|
 | Người dùng làm gì | Đăng ký tại e2b.dev, lấy `E2B_API_KEY`, dán vào Settings | Tự cài Embed (Linux: Docker; Windows: Docker Desktop + WSL2), dựng mẫu desktop, dán địa chỉ và khoá vào Settings |
-| Mẫu máy desktop | Mẫu `desktop` chính thức có sẵn | Phải dựng trên Embed (**chưa xác nhận chạy được**, bước A) |
+| Mẫu máy desktop | Mẫu `desktop` chính thức có sẵn | Phải dựng trên Embed. Đã dựng và tạo máy thử trên VMware (mục 7). |
 | Phần cứng | Không cần gì thêm | Linux có **KVM**, 12 GiB RAM trở lên cho riêng Embed |
 | Dữ liệu | **Đi qua máy chủ của E2B**: ảnh chụp màn hình, nội dung trang, tệp trong máy ảo, đăng nhập vào các tài khoản mạng xã hội | Nằm trên máy của bạn |
 | Chi phí | Theo gói và mức dùng của E2B (có hạn mức và giới hạn thời gian phiên theo gói, xem trang giá hiện hành) | Miễn phí (chỉ tốn máy) |
@@ -71,7 +71,7 @@ Web (tab Computer)             BotTeam server                         máy chủ
 
 ### 3.1 Server — kết nối E2B (Cloud hoặc Embed), máy ảo, MCP `computer`
 
-- [ ] **Bài thử khả thi (bước A):** (Windows) bật `nestedVirtualization=true`, nâng `memory` (≥ 16GB), `wsl --shutdown`, kiểm `ls -l /dev/kvm` trong Ubuntu WSL2; dựng Embed bằng Compose trên máy Linux hoặc trong WSL2; đọc `eval "$(docker compose exec ready cat /run/e2b/sdk.env)"` để biết các biến SDK; dựng mẫu `desktop` bằng `Template.build` hoặc `build_prod.py` trỏ về Embed; tạo sandbox bằng `e2b-desktop` (`Sandbox.create(template=...)`), chụp màn hình, bấm, mở Chrome, bật luồng noVNC, đo thời gian tạo/tiếp tục, RAM thực tế, rồi thử tạm dừng và tiếp tục (đăng nhập có còn không). Ghi kết quả vào mục "Kết quả thử" của tài liệu này.
+- [x] **Bài thử khả thi (bước A):** dựng mẫu `desktop` trên E2B tự host có KVM. Tạo máy bằng `e2b-desktop`, kiểm ảnh, bấm, gõ, Chrome, noVNC và giữ phiên sau khi tạm dừng rồi khôi phục. Ghi số đo, lỗi và các lệnh chạy trên VMware vào mục 7.
 - [ ] `ComputerHost`: `Sandbox.create/connect/pause/kill` qua SDK Python `e2b-desktop` (thêm vào phụ thuộc server, bản **cố định**), chạy các lời gọi chặn của SDK trong luồng riêng (`asyncio.to_thread`) để không làm đứng vòng lặp sự kiện; tạo theo yêu cầu, tạm dừng khi rảnh quá `BOTTEAM_COMPUTER_IDLE_S`, tiếp tục khi có công cụ gọi tới, huỷ khi campaign kết thúc/xoá (móc vào `DELETE /api/social/campaigns/{id}` và `end`), dọn máy mồ côi khi server khởi động (tìm theo siêu dữ liệu `botteam=<bot id>` đặt lúc tạo).
 - [ ] MCP `computer` (mục quyết định 2): ánh xạ công cụ → SDK (`screenshot`, `left_click`, `double_click`, `right_click`, `move_mouse`, `drag`, `scroll`, `write`, `press`, `launch`, `wait`, `commands.run`, `files.read/write`). Ảnh chụp: đổi cỡ về tối đa ~1280×800, JPEG chất lượng ~70, ghi rõ kích thước ảnh trong kết quả để toạ độ khớp.
 - [ ] **Kiểm tra engine nhận được ảnh từ công cụ MCP:** Claude Code, Codex và Antigravity (ACP) xử lý kết quả công cụ dạng ảnh khác nhau; mô hình phải **có khả năng nhìn ảnh**. Bước A kiểm từng engine; engine hoặc mô hình không nhận ảnh thì chế độ `computer` bị khoá trong Settings kèm lý do.
@@ -164,13 +164,46 @@ Web (tab Computer)             BotTeam server                         máy chủ
 
 ## 7. Kết quả thử (điền ở bước A)
 
+Kiểm tra chỉ đọc trên máy Windows ngày 2026-11-21. `wsl.exe -l -q` chỉ liệt kê `docker-desktop`. Kiểm tra `/dev/kvm` trong WSL cho thấy thiết bị này chưa có. Cấu hình WSL vẫn giới hạn RAM ở 8 GB. Chưa có thông tin kết nối E2B Cloud hoặc Embed trong cấu hình dự án.
+
+Cập nhật bước A trên máy VMware. API Embed tại `http://100.79.177.78:3000` trả HTTP 200 cho `/health` và cho danh sách template sau khi xác thực. Danh sách chỉ có mẫu `base` ở trạng thái `ready`. Cổng 3002 nhận kết nối HTTP.
+
+Đã thử dựng mẫu E2B Desktop chính thức từ commit `91f23acaab7312e847596acc44e6f7763f56917f` với 2 vCPU và 2 GiB RAM. SDK dừng ở bước tải tệp vì Embed trả địa chỉ upload tại `localhost:5008` của máy VMware. Bước dựng mẫu cần chạy trên VMware hoặc qua đường hầm SSH loopback được E2B hướng dẫn. Bước A vẫn chờ xác nhận một mẫu desktop ở trạng thái `ready`.
+
+Đã xác nhận SSH bằng tài khoản `jkhung`. VMware chạy x86-64, có 8 vCPU, khoảng 14,5 GiB RAM và `/dev/kvm`. Sau khi VMware khởi động lại, API và proxy chưa chạy. Đã lưu bản sao các log trước đó và khởi động lại bằng script E2B có sẵn trên máy ảo.
+
+API đã phục hồi. Lượt dựng mẫu `desktop` chạy trực tiếp trên VMware đã vượt qua bước tải tệp và cài gói Xfce. Orchestrator báo `no space left on device` khi ghi snapshot ở bước 7/27. Phân vùng gốc `/dev/sda3` chiếm khoảng 39,5 GiB trên đĩa 80 GiB và chỉ còn khoảng 195 MiB trống sau lỗi. Kiểm thử SDK dừng khi mẫu báo lỗi, trước khi tạo máy desktop.
+
+Sau khi mở rộng đĩa, `lsblk` xác nhận `/dev/sda3` là 79,5 GiB và `df -h /` báo hệ thống tệp 78 GiB, còn 44 GiB trống trước khi dựng lại. API `/health` trả HTTP 200. Lượt dựng lại dùng lớp cache đến bước 6/27 rồi dừng ở bước 7/27. Log NBD cho thấy một số snapshot được tham chiếu trong cache đã thiếu sau lượt hết đĩa. Đã chạy lại công thức chính thức trên VMware với `Template.build(template_with_user_workdir, name="desktop", cpu_count=2, memory_mb=2048, skip_cache=True)`.
+
+Lượt bỏ toàn bộ cache dựng lại lớp Xfce rồi dừng ở bước 6/27 vì `envd` quá thời gian khi khôi phục máy dựng. Lượt phục hồi dùng cache Xfce mới và chèn `.skip_cache()` ngay trước `.pip_install("numpy")` trong bản công thức nạp vào bộ nhớ. Cách này buộc E2B dựng lại lớp NumPy từ lần khởi động mới và bỏ qua cache cũ cho các bước sau, giữ nguyên nội dung mẫu.
+
+Lượt phục hồi hoàn tất cả 27 bước, đóng gói và tối ưu mẫu trong 5 phút 23 giây. Đã giải phóng 2,5 GiB cache biên dịch Go khi phân vùng gốc gần đầy. Sau khi dựng xong còn 4,6 GiB. SDK trên Windows tìm mẫu qua `GET /v2/templates` (lấy bí danh `desktop` hoặc tên kèm namespace), tạo được máy trong khoảng 15 giây qua Tailscale và chụp ảnh 1280×800. SDK dùng `E2B_API_URL=http://100.79.177.78:3000` và `E2B_SANDBOX_URL=http://100.79.177.78:3002`.
+
+Bài thử desktop chạy bằng `e2b-desktop==2.7.2` với `Sandbox.create(template=..., resolution=(1280, 800), timeout=420, secure=True, allow_internet_access=False)`. Tạo tệp rỗng trong máy thử, gọi `launch` để mở Gedit, bấm vào vùng soạn thảo, gõ nội dung và lưu bằng Ctrl+S. Sau `pause(mode="full")` và `connect(timeout=180)`, cửa sổ Gedit và nội dung đã lưu vẫn còn. Đã huỷ từng máy thử bằng `kill()`.
+
+Bật noVNC có mật khẩu với `stream.start(port=6080, require_auth=True)`. Từ Windows qua proxy của E2B, `GET /vnc.html` trả HTTP 200 và WebSocket `/websockify` trả phiên bản giao thức RFB. Proxy dùng header `E2b-Sandbox-Id` và `E2b-Sandbox-Port`. Khung xem và điều khiển qua trung gian BotTeam thuộc bước D.
+
+Bài thử ảnh MCP độc lập dùng một công cụ stdio trả duy nhất một ảnh PNG có mã ngẫu nhiên. Codex CLI `0.166.0`, Claude Code `2.1.329` và Antigravity qua ACP đều gọi công cụ và đọc đúng mã.
+
+Bài thử phiên Chrome dùng máy ảo riêng với cấu hình mạng mặc định của SDK. Khởi động `google-chrome-stable` trong `dbus-run-session` với hồ sơ tạm, `--password-store=basic`, `--disable-gpu`, `--disable-dev-shm-usage`, `--disable-background-networking`, `--ozone-platform=x11` và cổng DevTools chỉ nghe trong máy ảo. Chrome mở trang thử tại `127.0.0.1:8765`, nhận cookie phiên, rồi đọc được cookie trong tab mới sau khi `pause(mode="full")` và `connect()`. Lượt thử này không dùng tài khoản thật. Các lượt trước với `allow_internet_access=False` và cấu hình khởi động khác mở được cửa sổ Chrome nhưng chưa tải được trang thử.
+
 | Mục | Kết quả |
 |---|---|
 | **E2B Cloud:** tạo máy từ mẫu `desktop` có sẵn, chụp/bấm/luồng hình, tạm dừng–tiếp tục, giới hạn theo gói | |
-| **Tự host:** máy chủ Embed (CPU, RAM, hệ điều hành, cách bật KVM) | |
-| Dựng được mẫu `desktop` trên Embed | |
-| Thời gian tạo / tiếp tục / tạm dừng một máy desktop | |
-| RAM mỗi máy desktop, số máy tối đa | |
-| Luồng noVNC (xem, điều khiển) qua trung gian | |
-| Engine nhận ảnh từ công cụ MCP: Claude Code / Codex / Antigravity | |
-| Đăng nhập còn sau tạm dừng–tiếp tục | |
+| **Tự host:** máy chủ Embed (CPU, RAM, hệ điều hành, cách bật KVM) | VMware, Linux Mint 22.3, kernel `7.0.0-43-generic`, 8 vCPU, khoảng 14,5 GiB RAM, có `/dev/kvm`. Runtime từ mã nguồn `2c662b9`. |
+| Dựng được mẫu `desktop` trên Embed | `ready`. Công thức chính thức ở commit `91f23ac`, chạy với E2B Python SDK `2.64.0`, 2 vCPU và 2 GiB RAM. |
+| Thời gian tạo / tiếp tục / tạm dừng một máy desktop | Tạo khoảng 10–15 giây. Tạm dừng 0,8–1,1 giây. Khôi phục và kiểm lại cửa sổ, tệp hoặc phiên Chrome trong 5,5–10,0 giây. |
+| RAM mỗi máy desktop, số máy tối đa | Mẫu cấp 2 GiB. `MemTotal` 2.039.444 KiB, `MemAvailable` 1.477.648 KiB sau khi mở Gedit và luồng noVNC. Thử một máy tại một thời điểm. |
+| Luồng noVNC (xem, điều khiển) qua trung gian | Proxy E2B qua Tailscale trả HTTP 200 và nhận kết nối WebSocket đến RFB. |
+| Engine nhận ảnh từ công cụ MCP: Claude Code / Codex / Antigravity | Đạt với ảnh PNG từ MCP stdio và mô hình mặc định của từng CLI đã cài. |
+| Đăng nhập còn sau tạm dừng–tiếp tục | Cookie phiên thử nghiệm vẫn có hiệu lực khi mở tab mới sau khi tiếp tục. |
+
+### Kết quả tích hợp vào BotTeam
+
+- API BotTeam nhận được mẫu `desktop` ở trạng thái `ready` và đo khoảng 0,3 giây cho lượt kiểm tra qua Tailscale. Lượt thử API đã tạo, tạm dừng, kết nối lại và xoá đúng một sandbox. Cấu hình E2B Embed cũng đã được lưu cho app đang chạy trên cổng 5499. Khoá chỉ ở máy chủ BotTeam.
+- Claude Code, Codex và Antigravity gọi được `computer_screenshot` qua MCP tích hợp của ứng dụng và nhận ảnh từ một máy E2B thật. Trên máy thử, XFCE có thể trả khung nền đen ngay khi trình quản lý cửa sổ mới khởi chạy. BotTeam đợi thêm 2,5 giây khi tạo máy để khung hình đầu có thời gian hiển thị.
+- Trên Edge qua IP Tailscale, đã đổi Research sang Computer, đánh thức máy, xem noVNC, Tiếp quản, Trả quyền điều khiển, tạm dừng và tiếp tục. Luồng VNC phía máy ảo chạy ở chế độ chỉ xem. Input qua API bị từ chối trước khi Tiếp quản. Proxy E2B từ chối luồng không có token. Đã mở trang cài đặt và hướng dẫn ở cả tiếng Anh và tiếng Việt.
+- Kết thúc campaign thử đã xoá máy ảo của Research. Các môi trường thử đã được dọn. Chín bài kiểm tra server cho Computer use, `pnpm test:web` và TypeScript đã đạt.
+- Máy ảo thử nghiệm với danh sách chặn CIDR báo hết thời gian khi truy cập API E2B và web BotTeam qua IP Tailscale. Runtime chấp nhận cả CIDR IPv4 và IPv6. Ở commit thử nghiệm, `denyOut` chỉ nhận địa chỉ IP và CIDR. `allowOut` ưu tiên hơn `denyOut`. BotTeam dùng chặn CIDR để giữ mạng riêng khỏi máy ảo. Bộ lọc theo tên miền vẫn chưa triển khai. [Đặc tả mạng của E2B](https://github.com/e2b-dev/runtime/blob/2c662b902d061bee7b88d408477bed5d05107934/spec/openapi.yml).
+- E2B Cloud đã kiểm bằng HTTP giả. Lượt kiểm thử thật dùng Embed trên VMware. Bản Compose ghim theo commit đã qua `docker compose config --quiet`. Việc cài từ đầu trên một máy Linux hoặc WSL2 khác vẫn cần lượt kiểm riêng.

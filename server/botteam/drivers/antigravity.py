@@ -219,7 +219,7 @@ class AntigravityDriver(Emitter):
         if inp.mount_agents and self.broker is not None and self.broker.port:  # the team tools, as the Claude driver mounts them
             server_dir = str(__import__("pathlib").Path(__file__).resolve().parents[2])
             entries["bt"] = {"command": sys.executable, "args": ["-m", "botteam.mcp_bridge"],
-                             "env": {"PYTHONPATH": server_dir, "BT_AGENTS": "1", "BT_BROKER_PORT": str(self.broker.port),
+                             "env": {"PYTHONPATH": server_dir, "BT_AGENTS": "1", "BT_SURFACE": inp.surface or "", "BT_BROKER_PORT": str(self.broker.port),
                                      "BT_BROKER_TOKEN": self.broker.token, "BT_THREAD_ID": inp.thread_id}}
         return acp_mcp_servers(entries)
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import re
 import secrets
 import mimetypes
@@ -9,12 +10,13 @@ from contextlib import asynccontextmanager
 from typing import Literal
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import anyio
 import httpx
 import logging
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
@@ -30,13 +32,17 @@ from .notifications import Notifications
 from .routines import RoutineService
 from .channels import ChannelError, ChannelService
 from .composio import Composio, ComposioError, slug_of
+from .computer_host import ComputerHost, ComputerUnavailable
+from .computer_mcp import ComputerMcp, perform as desktop_input
+from .computer_settings import ComputerHostSettings, ComputerSettingsPatch
+from .computer_stream import ensure_viewer, relay as desktop_relay, upstream as desktop_upstream
 from . import admin as adminlib
 from .channels import intake as intakelib
 from .workspaces import workspaces_root
 from . import botfile
 from . import teams as teamlib
 from . import observe
-from .auth import CODE_TTL, COOKIE, OPEN_PATHS, Pairing, request_needs_pairing
+from .auth import CODE_TTL, COOKIE, OPEN_PATHS, Pairing, direct_access_host, is_loopback, request_needs_pairing
 from .backup import BackupError, make_backup
 from .memory import Memory, redact
 from .skills import SkillError, Skills
@@ -146,6 +152,10 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
     broker.browser_call = browser_mcp.request
     browser.on_close = browser_mcp.close
     composio = Composio(config, mcp, bus, store)
+    e2b_settings = ComputerHostSettings(config)
+    computer_host = ComputerHost(e2b_settings, bus)
+    turns.computer = computer_host
+    broker.computer_call = ComputerMcp(computer_host, store, turns, broker, home / "mcp-output").request
     agents.composio = composio
     turns.notify, routines.notify = notify, notify
     turns.groups, agents.groups = groups, groups
@@ -173,6 +183,11 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         await broker.start()
         await host.refresh()
         await registry.load()
+        try:
+            if e2b_settings.connection().key:
+                await computer_host.recover(await app.state.active_computer_bots())
+        except Exception:
+            logging.getLogger(__name__).warning("Could not recover E2B computers")
         await runtime.open()
         groups.decider = config.data.get("decider")
         await runtime.recover()  # a cut turn runs again at most once, and never after it acted outward
@@ -199,6 +214,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             await composio.stop()
             await routines.stop()
             await browser.shutdown()
+            await computer_host.shutdown()
             await runtime.close()
             await turns.stop()
             await broker.stop()
@@ -1320,6 +1336,25 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             raise HTTPException(404, "server not found")
         return await mcp.test(spec, sid)
 
+    @app.get("/api/computer/host")
+    async def get_computer_host():
+        return e2b_settings.public()
+
+    @app.put("/api/computer/host")
+    async def set_computer_host(request: Request):
+        try:
+            body = ComputerSettingsPatch.model_validate(await request.json())
+        except ValueError:
+            raise HTTPException(422, "Invalid computer host settings") from None
+        try:
+            return await computer_host.update_settings(body)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/computer/host/test")
+    async def test_computer_host():
+        return await e2b_settings.test()
+
     # ---- connected apps: the catalog, and a server made from an entry of it ------------------------------------------------------
     # ---- connected apps: all of them through Composio -----------------------------------------------------------------------------
     def composio_failed(e: ComposioError):
@@ -1710,12 +1745,10 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         approvals = [{"id": req["id"], "summary": req["summary"]} for req in browser_approvals(bot_id)]
         return {**browser.state(bot_id), **(await browser.availability(bot_id)), "approvals": approvals}
 
-    @app.get("/api/bots/{bot_id}/computer", include_in_schema=False)
     @app.get("/api/bots/{bot_id}/browser")
     async def browser_get(bot_id: str):
         return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/wake", include_in_schema=False)
     @app.post("/api/bots/{bot_id}/browser/wake")
     async def browser_wake(bot_id: str):
         await need(bot_id)
@@ -1725,14 +1758,12 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             raise HTTPException(503, str(e))
         return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/sleep", include_in_schema=False)
     @app.post("/api/bots/{bot_id}/browser/sleep")
     async def browser_sleep(bot_id: str):
         await need(bot_id)
         await browser.sleep(bot_id)
         return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/control", include_in_schema=False)
     @app.post("/api/bots/{bot_id}/browser/control")
     async def browser_control(bot_id: str, body: ControlBody):
         await need(bot_id)
@@ -1751,7 +1782,6 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             raise HTTPException(409, "That browser action is no longer waiting for approval")
         return await browser_state(bot_id)
 
-    @app.post("/api/bots/{bot_id}/computer/input", include_in_schema=False)
     @app.post("/api/bots/{bot_id}/browser/input")
     async def browser_input(bot_id: str, body: InputBody):
         await need(bot_id)
@@ -1763,7 +1793,6 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
             raise HTTPException(409, "take control of the browser first")
         return {"ok": True}
 
-    @app.post("/api/bots/{bot_id}/computer/watch", include_in_schema=False)
     @app.post("/api/bots/{bot_id}/browser/watch")
     async def browser_watch_toggle(bot_id: str, body: WatchBody):
         await need(bot_id)
@@ -1793,7 +1822,6 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
 
         return EventSourceResponse(stream())
 
-    @app.get("/api/bots/{bot_id}/computer/screen", include_in_schema=False)
     @app.get("/api/bots/{bot_id}/browser/screen")
     async def browser_screen(bot_id: str):
         from fastapi.responses import Response
@@ -1811,6 +1839,163 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         config.save()
         browser.allow_local = body.allowLocal
         return {"allowLocal": body.allowLocal}
+
+    async def computer_agent(bot_id: str):
+        bot = await need(bot_id)
+        settings = await turns.browser_settings(bot_id)
+        instance = registry.get(bot.modelSelection.instanceId)
+        return settings, bool(instance and computer_host.supports(instance.driver))
+
+    def computer_approvals(bot_id: str):
+        for thread_id, request in broker.all_open():
+            run = turns.runs.get(thread_id)
+            if run and run.bot_id == bot_id and request.get("tool") == "ComputerAction":
+                yield request
+
+    async def computer_state(bot_id: str) -> dict:
+        settings, supported = await computer_agent(bot_id)
+        enabled = bool(settings and settings["surface"] == "computer")
+        host_status = e2b_settings.public()["status"]
+        approvals = [{"id": req["id"], "summary": req["summary"]} for req in computer_approvals(bot_id)]
+        return {**computer_host.state(bot_id), "botId": bot_id, "enabled": enabled, "hostStatus": host_status, "engineSupported": supported,
+                "available": enabled and supported and host_status == "ready", "approvals": approvals}
+
+    async def need_computer_agent(bot_id: str) -> dict:
+        settings, supported = await computer_agent(bot_id)
+        if not settings or settings["surface"] != "computer" or not supported:
+            raise HTTPException(409, "Computer use is disabled for this agent")
+        return settings
+
+    @app.get("/api/computers")
+    async def computer_activity():
+        return {"computers": {bot_id: computer_host.state(bot_id) for bot_id in computer_host.records}}
+
+    @app.get("/api/bots/{bot_id}/computer")
+    async def get_computer(bot_id: str):
+        return await computer_state(bot_id)
+
+    @app.post("/api/bots/{bot_id}/computer/wake")
+    async def wake_computer(bot_id: str):
+        async with computer_host.operation(bot_id):
+            settings = await need_computer_agent(bot_id)
+            try:
+                await computer_host.wake(bot_id, tuple(settings["resolution"]), settings["idleSeconds"])
+            except ComputerUnavailable as exc:
+                raise HTTPException(503, str(exc)) from None
+            except Exception:
+                raise HTTPException(503, "The E2B computer could not start") from None
+        return await computer_state(bot_id)
+
+    @app.post("/api/bots/{bot_id}/computer/sleep")
+    async def pause_computer(bot_id: str):
+        await need(bot_id)
+        try:
+            await computer_host.pause(bot_id)
+        except Exception:
+            raise HTTPException(503, "The E2B computer could not pause") from None
+        return await computer_state(bot_id)
+
+    @app.delete("/api/bots/{bot_id}/computer")
+    async def destroy_computer(bot_id: str):
+        await need(bot_id)
+        try:
+            await computer_host.destroy(bot_id)
+        except Exception:
+            raise HTTPException(503, "The E2B computer could not be removed") from None
+        return await computer_state(bot_id)
+
+    @app.post("/api/bots/{bot_id}/computer/control")
+    async def computer_control(bot_id: str, body: ControlBody):
+        await need_computer_agent(bot_id)
+        if body.holder not in ("person", "bot"):
+            raise HTTPException(400, "holder is person or bot")
+        try:
+            await computer_host.set_control(bot_id, body.holder == "person")
+        except Exception:
+            raise HTTPException(503, "The E2B computer could not change control") from None
+        return await computer_state(bot_id)
+
+    @app.post("/api/bots/{bot_id}/computer/approval")
+    async def computer_approval(bot_id: str, body: BrowserApprovalBody):
+        await need_computer_agent(bot_id)
+        if not any(req["id"] == body.id for req in computer_approvals(bot_id)) or not await broker.resolve(body.id, body.behavior):
+            raise HTTPException(409, "That computer action is no longer waiting for approval")
+        return await computer_state(bot_id)
+
+    @app.post("/api/bots/{bot_id}/computer/input")
+    async def computer_input(bot_id: str, body: InputBody):
+        await need_computer_agent(bot_id)
+        async with computer_host.operation(bot_id):
+            state = computer_host.state(bot_id)
+            machine = computer_host.live(bot_id)
+            if not state["held"] or machine is None:
+                raise HTTPException(409, "Take control of the computer first")
+            width, height = state["resolution"]
+            name, args = "", {}
+            if body.type == "click" and body.x is not None and body.y is not None and 0 <= body.x < width and 0 <= body.y < height:
+                name, args = "computer_click", {"x": int(body.x), "y": int(body.y)}
+            elif body.type == "scroll" and body.dy and math.isfinite(body.dy):
+                name, args = "computer_scroll", {"direction": "down" if body.dy > 0 else "up", "amount": min(10, max(1, int(abs(body.dy) / 50)))}
+            elif body.type == "text" and body.text is not None and len(body.text) <= 2000:
+                name, args = "computer_type", {"text": body.text}
+            elif body.type == "key" and body.key and len(body.key) <= 60:
+                keys = {"Enter": "Return", "ArrowLeft": "Left", "ArrowRight": "Right", "ArrowUp": "Up", "ArrowDown": "Down"}
+                name, args = "computer_key", {"key": "+".join(keys.get(key, key) for key in body.key.split("+"))}
+            if not name:
+                raise HTTPException(400, "Invalid computer input")
+            try:
+                await computer_host.invoke(desktop_input, machine, name, args, home)
+            except ComputerUnavailable as exc:
+                raise HTTPException(400, str(exc)) from None
+            except Exception:
+                raise HTTPException(503, "The E2B computer could not receive input") from None
+        return {"ok": True}
+
+    @app.get("/api/bots/{bot_id}/computer/screen")
+    async def computer_screen(bot_id: str):
+        await need_computer_agent(bot_id)
+        async with computer_host.operation(bot_id):
+            machine = computer_host.live(bot_id)
+            if machine is None:
+                raise HTTPException(404, "The computer is not running")
+            try:
+                image = await computer_host.invoke(machine.screenshot)
+            except Exception:
+                raise HTTPException(503, "The E2B computer could not provide an image") from None
+        return Response(image, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+    @app.websocket("/api/bots/{bot_id}/computer/stream")
+    async def computer_stream(websocket: WebSocket, bot_id: str):
+        forwarded = websocket.headers.get("x-forwarded-host") if websocket.client and is_loopback(websocket.client.host) else None
+        host_header = forwarded or websocket.headers.get("host", "")
+        try:
+            origin = urlsplit(websocket.headers.get("origin", ""))
+        except ValueError:
+            await websocket.close(code=1008)
+            return
+        allowed_hosts = {name.strip().lower().rstrip(".") for name in os.environ.get("WEB_ALLOWED_HOSTS", "").split(",")}
+        host_allowed = direct_access_host(host_header) or bool(origin.hostname and origin.hostname.lower().rstrip(".") in allowed_hosts)
+        if (not host_allowed or origin.scheme not in ("http", "https") or origin.netloc.lower() != host_header.lower()
+                or request_needs_pairing(websocket, pairing.required) and not pairing.valid(websocket.cookies.get(COOKIE))):
+            await websocket.close(code=1008)
+            return
+        try:
+            await need_computer_agent(bot_id)
+            async with computer_host.operation(bot_id):
+                machine = computer_host.live(bot_id)
+                if machine is None:
+                    await websocket.close(code=1008)
+                    return
+                metadata = desktop_upstream(machine, e2b_settings.connection())
+                await computer_host.invoke(ensure_viewer, machine)
+            await desktop_relay(websocket, *metadata)
+        except Exception:
+            from starlette.websockets import WebSocketState
+
+            if websocket.application_state != WebSocketState.DISCONNECTED:
+                await websocket.close(code=1011)
+        else:
+            await websocket.close()
 
     # ---- live stream ------------------------------------------------------------------
     @app.get("/api/events")
@@ -1881,6 +2066,8 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
     app.state.pairing = pairing
     app.state.memory, app.state.skills = memory, skills
     app.state.browser = browser
+    app.state.computer_settings = e2b_settings
+    app.state.computer_host = computer_host
     app.state.composio = composio
     app.state.channels = channels
     _ = now_ms

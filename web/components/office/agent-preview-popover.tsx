@@ -102,8 +102,8 @@ export function AgentPreviewCard({
               {browser?.busy && (
                 <div className="flex items-center gap-1">
                   <Globe className="size-3" aria-hidden />
-                  <dt className="sr-only"><T>Browser</T></dt>
-                  <dd><T>Browsing the web</T></dd>
+                  <dt className="sr-only">{status.surface === "computer" ? t("Computer") : t("Browser")}</dt>
+                  <dd>{status.surface === "computer" ? t("Using the computer") : t("Browsing the web")}</dd>
                 </div>
               )}
               <div className="flex items-center gap-1">
@@ -125,7 +125,7 @@ export function AgentPreviewCard({
               {current === "waiting_for_user" && (
                 <Button className="mt-2 h-7 w-full rounded-lg text-xs" onClick={onOpenBrowser}>
                   <Globe data-icon="inline-start" />
-                  <T>Open the browser</T>
+                  {status.surface === "computer" ? t("Open the computer") : t("Open the browser")}
                 </Button>
               )}
               {current === "needs_input" && <p className="mt-1 text-[11px] opacity-80"><T>Answer it in the Master Agent's chat.</T></p>}
@@ -155,7 +155,7 @@ export function AgentPreviewCard({
       {browser?.helpReason && (
         <div className="space-y-1 rounded-lg bg-amber-500/10 p-2 text-xs">
           <p>{t("Agent needs you: {reason}", { reason: browser.helpReason })}</p>
-          <Button size="sm" onClick={onOpenBrowser}><T>Open the browser</T></Button>
+          <Button size="sm" onClick={onOpenBrowser}>{status?.surface === "computer" ? t("Open the computer") : t("Open the browser")}</Button>
         </div>
       )}
       <Button variant="ghost" className="h-7 justify-between rounded-lg px-2 text-xs" onClick={onOpen}>

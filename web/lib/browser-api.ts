@@ -14,5 +14,6 @@ export async function browserTarget(request: Request) {
   if (!campaign || campaign.id !== Number(params.get("campaignId"))) return null;
   const bot = campaign.bots[role.data];
   if (!bot) return null;
-  return { campaignId: campaign.id, role: role.data, path: `/api/bots/${encodeURIComponent(bot)}/browser` };
+  const surface = params.get("surface") === "computer" ? "computer" : "browser";
+  return { campaignId: campaign.id, role: role.data, surface, path: `/api/bots/${encodeURIComponent(bot)}/${surface}` };
 }

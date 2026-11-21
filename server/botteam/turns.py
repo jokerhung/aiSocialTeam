@@ -75,6 +75,7 @@ class Turns:
         self.memory = None  # per-bot notes and the team's
         self.skills = None  # the skill library
         self.browser = None  # the bots' built-in browser
+        self.computer = None  # E2B desktops
         self.browser_settings = None  # campaign browser settings by bot id
         self.notify = None  # the notification log
         self.delegated: dict[str, asyncio.Future] = {}  # work thread -> the runtime's wait for that turn's result
@@ -128,9 +129,9 @@ class Turns:
             return None
         run = self.runs.get(thread_id)
         prefixes = await self.mcp.allowed_prefixes(bot) if self.mcp else ()
-        if run and "playwright" in run.inp.custom_mcp:
-            # The built-in proxy applies its own per-action broker approval and browser ownership checks.
-            prefixes += ("mcp__playwright__",)
+        if run and run.inp:
+            # The built-in proxies apply their own per-action approval and ownership checks.
+            prefixes += tuple(f"mcp__{key}__" for key in ("playwright", "computer") if key in run.inp.custom_mcp)
         return Policy(mode=normalize_mode(run.level if run and run.level else bot.approvalMode), cwd=(run.inp.cwd if run else None) or bot.cwd or os.getcwd(),
                       instance=bot.modelSelection.instanceId, allow_prefixes=prefixes)
 
@@ -303,9 +304,22 @@ class Turns:
             ) if self.mcp and (bot.mcpServers or browser_settings) else {},
         )
         inp.mount_agents = mount_agents
-        if browser_settings and browser_settings["enabled"] and self.mcp and self.broker:
-            inp.custom_mcp["playwright"] = self.mcp.browser_entry(thread_id, self.broker)
-            inp.mount_agents = True
+        if browser_settings and self.mcp and self.broker:
+            surface = browser_settings.get("surface", "browser" if browser_settings["enabled"] else "off")
+            inp.surface = surface
+            if surface == "browser":
+                inp.custom_mcp.pop("computer", None)
+                inp.custom_mcp["playwright"] = self.mcp.browser_entry(thread_id, self.broker)
+                inp.mount_agents = True
+            elif surface == "computer":
+                inp.custom_mcp.pop("playwright", None)
+                inp.custom_mcp.pop("computer", None)
+                if self.computer and self.computer.supports(inst.driver):
+                    inp.custom_mcp["computer"] = self.mcp.surface_entry(thread_id, self.broker, "computer")
+                    inp.mount_agents = True
+            else:
+                inp.custom_mcp.pop("playwright", None)
+                inp.custom_mcp.pop("computer", None)
         if extra_images:  # files a channel saved inside the bot's working folder: read where they are
             inp.attachments += extra_images
             inp.image_attachments += extra_images

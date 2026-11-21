@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   try {
     return Response.json(await api(target.path), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return Response.json({ error: t("Could not reach the browser.") }, { status: error instanceof ApiError ? error.status : 502 });
+    return Response.json({ error: target.surface === "computer" ? t("Could not reach the computer.") : t("Could not reach the browser.") }, { status: error instanceof ApiError ? error.status : 502 });
   }
 }
 
@@ -42,6 +42,17 @@ export async function POST(request: Request) {
   try {
     return Response.json(await api(`${target.path}/${value.action}`, { method: "POST", json }));
   } catch (error) {
-    return Response.json({ error: t("Could not complete the browser action.") }, { status: error instanceof ApiError ? error.status : 502 });
+    return Response.json({ error: target.surface === "computer" ? t("Could not complete the computer action.") : t("Could not complete the browser action.") }, { status: error instanceof ApiError ? error.status : 502 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const { t } = await getT();
+  const target = await browserTarget(request);
+  if (!target || target.surface !== "computer") return Response.json({ error: t("Agent not found") }, { status: 404 });
+  try {
+    return Response.json(await api(target.path, { method: "DELETE" }));
+  } catch (error) {
+    return Response.json({ error: t("Could not remove the virtual machine.") }, { status: error instanceof ApiError ? error.status : 502 });
   }
 }

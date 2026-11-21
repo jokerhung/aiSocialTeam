@@ -201,6 +201,7 @@ export type AgentLiveStatus = "idle" | "scheduled" | "queued" | "running" | "nee
 export type AgentStatusView = {
   agentId: AgentRoleId;
   status: AgentLiveStatus;
+  surface?: "browser" | "computer" | "off";
   browser?: { running: boolean; busy: boolean; helpReason: string | null };
   // The task behind the status: the one needing the user, else running, queued, scheduled, or the latest finished
   task: {
@@ -224,7 +225,15 @@ export type AgentStatusView = {
   } | null;
 };
 
-export type LiveStatus = { agents: AgentStatusView[]; serverTime: string };
+export type AgentSurfaceView = {
+  agentId: AgentRoleId;
+  surface: "browser" | "computer" | "off";
+  status: "none" | "running" | "paused";
+  control: "agent" | "user";
+  url: string | null;
+  helpReason: string | null;
+};
+export type LiveStatus = { agents: AgentStatusView[]; serverTime: string; surfaces?: AgentSurfaceView[] };
 
 export const AGENT_STATUS_LABELS: Record<AgentLiveStatus, string> = {
   idle: "Idle",

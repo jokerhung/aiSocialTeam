@@ -105,9 +105,9 @@ class BrowserMcp:
         settings = await self.turns.browser_settings(run.bot_id) if bot else None
         if method == "composio/publish":
             if settings and settings["postVia"] == "web":
-                return {"allowed": False, "detail": "This agent publishes through its browser. Use Playwright or save a draft."}
+                return {"allowed": False, "detail": "This agent publishes through its selected interface. Use the enabled interface or save a draft."}
             return {"allowed": bot is not None}
-        if not settings or not settings["enabled"]:
+        if not settings or not settings["enabled"] or settings.get("surface", "browser") != "browser":
             return tool_error("The browser is disabled for this agent.")
         name = str(params.get("name", ""))
         args = params.get("arguments") or {}

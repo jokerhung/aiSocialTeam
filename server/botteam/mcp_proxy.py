@@ -170,7 +170,7 @@ async def browser_request(spec: dict, method: str, params: dict) -> dict:
     try:
         packets = [
             {"t": "hello", "token": spec["token"], "thread": spec["thread"]},
-            {"t": "browser", "id": "browser", "tool": method, "args": params},
+            {"t": spec.get("surface", "browser"), "id": "surface", "tool": method, "args": params},
         ]
         writer.write(b"".join(json.dumps(packet).encode() + b"\n" for packet in packets))
         await writer.drain()
@@ -184,6 +184,8 @@ async def browser_request(spec: dict, method: str, params: dict) -> dict:
 async def browser_main(spec: dict) -> None:
     loop = asyncio.get_running_loop()
     tasks: set[asyncio.Task] = set()
+    name = "computer" if spec.get("surface") == "computer" else "playwright"
+    unavailable = "Computer service unavailable" if name == "computer" else "Browser service unavailable"
 
     async def handle(message: dict) -> None:
         id_, method = message.get("id"), message.get("method")
@@ -194,18 +196,18 @@ async def browser_main(spec: dict) -> None:
             if method == "initialize":
                 response = {"result": {
                     "protocolVersion": params.get("protocolVersion", "2025-03-26"), "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "playwright", "version": "1"},
+                    "serverInfo": {"name": name, "version": "1"},
                 }}
             elif method == "ping":
                 response = {"result": {}}
             elif method in ("tools/list", "tools/call"):
                 response = await browser_request(spec, method, params)
                 if "result" not in response and "error" not in response:
-                    response = {"error": {"code": -32000, "message": response.get("detail", "Browser service unavailable")}}
+                    response = {"error": {"code": -32000, "message": response.get("detail", unavailable)}}
             else:
                 response = {"error": {"code": -32601, "message": "Method not found"}}
         except Exception:
-            response = {"error": {"code": -32000, "message": "Browser service unavailable"}}
+            response = {"error": {"code": -32000, "message": unavailable}}
         send({"jsonrpc": "2.0", "id": id_, **response})
 
     try:

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BrainCircuit, Globe, History, Image as ImageIcon, ImageOff, ListChecks, MessageSquare, MoreVertical, Pause, Play, RotateCcw, Settings, X } from "lucide-react";
+import { ArrowRight, BrainCircuit, Globe, History, Image as ImageIcon, ImageOff, ListChecks, MessageSquare, Monitor, MoreVertical, Pause, Play, RotateCcw, Settings, X } from "lucide-react";
 import type { ActivityItem } from "@/lib/overview";
 import type { AgentRoleId } from "@/lib/agent-roles";
 import { ACTIVE_PLAN_STATUSES, type AgentStatusView, type PlanView } from "@/lib/orchestration/types";
@@ -36,7 +36,7 @@ const WORKER_TABS = [
 const MASTER_TABS = [
   { value: "chat", label: "Chat", Icon: MessageSquare },
   { value: "tasks", label: "Tasks", Icon: ListChecks },
-  { value: "browser", label: "Browsers", Icon: Globe },
+  { value: "browser", label: "Screens", Icon: Monitor },
   { value: "settings", label: "Settings", Icon: Settings },
 ] as const;
 
@@ -60,6 +60,7 @@ export function AgentPanel({
   onOpenMaster,
   onOpenBrowser,
   browserHelp,
+  surfaceByRole,
   settings,
   onSettingsChange,
   userInitials,
@@ -87,6 +88,7 @@ export function AgentPanel({
   onOpenMaster: () => void;
   onOpenBrowser: (role: AgentRoleId) => void;
   browserHelp: AgentStatusView[];
+  surfaceByRole: Partial<Record<AgentRoleId, AgentStatusView["surface"]>>;
   settings: AgentSettings;
   onSettingsChange: (settings: AgentSettings) => void;
   userInitials: string;
@@ -99,7 +101,8 @@ export function AgentPanel({
   const officePanelLabel = officePanel?.visible ? t("Hide workspace panel") : t("Show workspace panel");
   const { role } = agent;
   const master = role.id === "master";
-  const tabs = master ? MASTER_TABS : WORKER_TABS;
+  const surface = status?.surface ?? "browser";
+  const tabs = master ? MASTER_TABS : WORKER_TABS.filter(({ value }) => value !== "browser" || surface !== "off");
   const historyTab: AgentTab = master ? "tasks" : "history";
   const notice = master ? (
     <ActivePlans plans={plans} onOpen={() => onTabChange("tasks")} />
@@ -180,7 +183,8 @@ export function AgentPanel({
         )}
       </header>
 
-      <Tabs value={tab} onValueChange={(value) => onTabChange(value as AgentTab)} className="mt-3 min-h-0 flex-1 gap-0">
+      <Tabs value={tab === "browser" && !master && surface === "off" ? "chat" : tab}
+        onValueChange={(value) => onTabChange(value as AgentTab)} className="mt-3 min-h-0 flex-1 gap-0">
         <TabsList variant="line" className="h-10! w-full justify-start gap-1 overflow-x-auto border-b border-border/70 p-0 sm:gap-2">
           {tabs.map(({ value, label, Icon }) => (
             <TabsTrigger
@@ -191,8 +195,8 @@ export function AgentPanel({
                 "after:bg-primary group-data-horizontal/tabs:after:bottom-[-1px]"
               )}
             >
-              <Icon />
-              {t(label)}
+              {value === "browser" && !master && surface === "computer" ? <Monitor /> : <Icon />}
+              {value === "browser" && !master && surface === "computer" ? t("Computer") : t(label)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -211,12 +215,12 @@ export function AgentPanel({
         </TabsContent>
         {master ? (
           <TabsContent value="tasks" className="min-h-0 overflow-y-auto pt-4">
-            {browserHelp.map(({ agentId, browser }) => (
+            {browserHelp.map(({ agentId, browser, surface }) => (
               <div key={agentId} className="mb-2 flex flex-wrap items-center gap-2 rounded-lg bg-amber-500/10 p-2 text-xs">
                 <p className="flex-1">{t("{agent} needs you: {reason}", {
                   agent: t(agents.find(({ role }) => role.id === agentId)?.role.name ?? agentId), reason: browser?.helpReason ?? "",
                 })}</p>
-                <Button size="sm" onClick={() => onOpenBrowser(agentId)}><T>Open the browser</T></Button>
+                <Button size="sm" onClick={() => onOpenBrowser(agentId)}>{surface === "computer" ? t("Open the computer") : t("Open the browser")}</Button>
               </div>
             ))}
             <MasterTasks plans={plans} loaded={plansLoaded} agents={agents} onAction={onPlanAction} onOpenBrowser={onOpenBrowser} />
@@ -233,7 +237,10 @@ export function AgentPanel({
         )}
         <TabsContent value="browser" className="min-h-0 overflow-y-auto pt-4">
           <div className={master ? "grid gap-3 xl:grid-cols-2" : undefined}>
-            {(master ? agents : [agent]).map(({ role }) => <BrowserPanel key={role.id} campaignId={campaignId} role={role} />)}
+            {(master ? agents : [agent]).map(({ role }) => {
+              const selection = surfaceByRole[role.id] ?? "browser";
+              return selection === "off" ? null : <BrowserPanel key={`${role.id}-${selection}`} campaignId={campaignId} role={role} surface={selection} />;
+            })}
           </div>
         </TabsContent>
         <TabsContent value="settings" className="min-h-0 overflow-y-auto pt-4">

@@ -125,7 +125,7 @@ class BrowserHost:
         }
         installed = {channel: path for channel, candidates in paths.items() if (path := next((candidate for candidate in candidates if candidate.is_file()), None))}
         chosen = (self.channel if choice == "auto" else choice) or next(iter(installed), None)
-        enabled = (settings or {}).get("enabled", True)
+        enabled = (settings or {}).get("surface", "browser") == "browser" and (settings or {}).get("enabled", True)
         version = self.versions.get(bot_id) if bot_id else None
         result = {"available": enabled and chosen in installed, "enabled": enabled, "installed": list(installed),
                   "reason": None if chosen in installed else "Install Microsoft Edge or Chrome, or run `playwright install chromium`.",
@@ -218,7 +218,7 @@ class BrowserHost:
     async def wake(self, bot_id: str) -> BrowserProfile:
         async with self.lock:
             settings = await self.settings(bot_id) if self.settings else None
-            if settings and not settings["enabled"]:
+            if settings and (not settings["enabled"] or settings.get("surface", "browser") != "browser"):
                 raise BrowserUnavailable("The browser is disabled for this agent")
             browser = self.browsers.get(bot_id)
             if browser and self.processes[bot_id].returncode is None:

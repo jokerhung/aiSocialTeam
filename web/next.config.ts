@@ -14,10 +14,18 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   reactStrictMode: true,
   allowedDevOrigins: [...devOrigins],
+  async rewrites() {
+    const server = process.env.BOTTEAM_API || `http://127.0.0.1:${process.env.SERVER_PORT || 8899}`;
+    return [{
+      source: "/api/bots/:botId/computer/stream",
+      destination: `${server}/api/bots/:botId/computer/stream`,
+    }];
+  },
   // Office scene bundles are read from disk at runtime (lib/office-studio.ts)
   outputFileTracingIncludes: {
     "/dashboard": ["./office-studio/**/*.json"],
     "/api/office-studio/[office]/[...asset]": ["./office-studio/**/*.json"],
+    "/guides/e2b": ["../docs/e2b-setup.*.md"],
   },
   experimental: {
     // Allow custom campaign icon uploads (validated to 2MB in the action)

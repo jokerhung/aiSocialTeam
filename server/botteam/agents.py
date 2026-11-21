@@ -150,6 +150,9 @@ class AgentTools:
         host = self.turns.browser
         if not bot or not host:
             return {"ok": False, "reason": "unavailable", "detail": "The browser is unavailable."}
+        settings = await self.turns.browser_settings(bot.id) if self.turns.browser_settings else None
+        if settings and settings.get("surface", "browser") != "browser":
+            return {"ok": False, "reason": "unavailable", "detail": "The browser is unavailable."}
         reason = str(args.get("reason") or "Please help with the browser.")
         try:
             return await host.ask_for_help(bot.id, reason)

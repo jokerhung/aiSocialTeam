@@ -116,6 +116,12 @@ flowchart LR
 
 Browser use tries Edge, Chrome and then Playwright Chromium. Each bot's sign-ins are kept in its own profile under `<data>/browser/`. BotTeam excludes browser profiles from backup and bot export. See `.env.example` for browser selection, window visibility and idle timeout.
 
+#### Computer use with E2B
+
+Computer use is optional and off by default. It requires Python 3.11 or later and a desktop template on E2B Cloud or your self-hosted E2B server. Configure it in **Settings → Computer Use**. After the connection passes, choose **Computer use**, **Browser use**, or **Off** for each campaign agent.
+
+E2B Cloud processes the virtual machine's contents and screenshots on its own infrastructure under the limits and prices of your E2B plan. With self-hosted E2B, those stay on your host and BotTeam relays the display. See the [English setup guide](docs/e2b-setup.en.md) or [Vietnamese setup guide](docs/e2b-setup.vi.md).
+
 In **AI Agent → Settings → Browser**, choose which browser to run and whether the agent publishes through Composio (the default) or its web browser. Use **Clear browser data** to remove that agent's cookies and sign-ins. Browser access to local addresses and downloads is off by default.
 - Optional, for pictures: the Codex CLI (`install.ps1 -Codex` / `install.sh --codex`, then `codex login`) or the Gemini CLI. In the Creator agent's **Settings → Image generation** choose which one makes the images (post editor's *Generate with AI* and the Creator's `POST /api/social/images`); no image API key is needed. Gemini CLI makes images only with an image extension installed. Pictures are kept in `<data folder>/social-media`.
 

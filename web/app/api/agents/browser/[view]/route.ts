@@ -9,13 +9,14 @@ export async function GET(request: Request, context: { params: Promise<{ view: s
   if (!target || (view !== "watch" && view !== "screen")) {
     return Response.json({ error: t("Could not reach the browser.") }, { status: 404 });
   }
+  const unavailable = target.surface === "computer" ? t("Could not reach the computer.") : t("Could not reach the browser.");
   try {
     const upstream = await fetch(`${BOTTEAM_API}${target.path}/${view}`, { cache: "no-store", signal: request.signal });
-    if (!upstream.ok) return Response.json({ error: t("Could not reach the browser.") }, { status: upstream.status });
+    if (!upstream.ok) return Response.json({ error: unavailable }, { status: upstream.status });
     return new Response(upstream.body, {
-      headers: { "Content-Type": view === "watch" ? "text/event-stream" : "image/jpeg", "Cache-Control": "no-store, no-transform" },
+      headers: { "Content-Type": upstream.headers.get("Content-Type") ?? (view === "watch" ? "text/event-stream" : "image/jpeg"), "Cache-Control": "no-store, no-transform" },
     });
   } catch {
-    return Response.json({ error: t("Could not reach the browser.") }, { status: 502 });
+    return Response.json({ error: unavailable }, { status: 502 });
   }
 }

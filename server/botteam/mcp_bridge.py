@@ -174,6 +174,8 @@ TEAM_TOOLS = [
     {"name": "admin_create_bot", "description": "Administrator only. Make a new bot. It starts at the Ask approval level. Returns the bot as made.", "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}, "title": {"type": "string", "description": "Short role, e.g. Researcher"}, "description": {"type": "string", "description": "What the bot is for"}, "instructions": {"type": "string", "description": "What the bot is always told about its role"}, "color": {"type": "string"}, "approvalMode": {"type": "string", "enum": ["ask", "edits", "auto"]}, "connections": {"type": "array", "items": {"type": "string"}, "description": "Names of connections (from admin_list_bots) to give the bot, read only"}}, "required": ["name"]}},
     {"name": "admin_update_bot", "description": "Administrator only. Change a bot (by id or name): only the fields you pass change. connections replaces the whole list.", "inputSchema": {"type": "object", "properties": {"bot": {"type": "string", "description": "Id or name"}, "name": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}, "instructions": {"type": "string"}, "color": {"type": "string"}, "approvalMode": {"type": "string", "enum": ["ask", "edits", "auto"]}, "connections": {"type": "array", "items": {"type": "string"}}}, "required": ["bot"]}},
 ]
+if os.environ.get("BT_SURFACE") in ("computer", "off"):
+    TEAM_TOOLS = [entry for entry in TEAM_TOOLS if entry["name"] != "browser_request_help"]
 TEAM_NAMES = {t["name"] for t in TEAM_TOOLS}
 
 

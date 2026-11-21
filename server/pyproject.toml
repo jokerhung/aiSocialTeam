@@ -16,6 +16,7 @@ dependencies = [
   "tzdata",
   "pyyaml>=6.0.3",
   "playwright>=1.65.0",
+  "e2b-desktop==2.7.2 ; python_full_version >= '3.11'",
 ]
 
 [project.scripts]
