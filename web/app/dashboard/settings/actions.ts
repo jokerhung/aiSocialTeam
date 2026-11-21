@@ -2,12 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { api, ApiError } from "@/lib/botteam";
-import { getSocialState, SOCIAL_APPS, type SocialState } from "@/lib/composio";
+import { getSocialState, isSocialApp, type SocialState } from "@/lib/composio";
 
 import { getT } from "@/lib/i18n/server";
-export type ActionResult = { error?: string };
+export type ActionResult = { error?: string; state?: SocialState };
 
-const isSocial = (slug: string) => SOCIAL_APPS.some((app) => app.slug === slug);
 const message = (error: unknown, fallback: string) => (error instanceof ApiError ? error.message : fallback);
 
 function revalidate() {
@@ -25,8 +24,10 @@ export async function saveComposioKey(key: string): Promise<ActionResult> {
   } catch (error) {
     return { error: message(error, t("The key couldn't be checked. Please try again.")) };
   }
+  // A new key is a new Composio project: load its apps and accounts now, so the list shows them as soon as the key is saved
+  await api("/api/apps/refresh", { method: "POST" }).catch(() => undefined);
   revalidate();
-  return {};
+  return { state: await getSocialState({ cached: true }).catch(() => undefined) };
 }
 
 export async function clearComposioKey(): Promise<ActionResult> {
@@ -37,14 +38,14 @@ export async function clearComposioKey(): Promise<ActionResult> {
     return { error: message(error, t("Couldn't remove the key.")) };
   }
   revalidate();
-  return {};
+  return { state: await getSocialState({ cached: true }).catch(() => undefined) };
 }
 
 // Starts a sign-in for a social app: returns the Composio page to open. alias names the account when the app
 // already has one.
 export async function connectSocialApp(slug: string, alias?: string): Promise<ActionResult & { url?: string }> {
   const { t } = await getT();
-  if (!isSocial(slug)) return { error: "Unknown app." };
+  if (!(await isSocialApp(slug))) return { error: "Unknown app." };
   try {
     const { url } = await api<{ url: string }>(`/api/apps/${slug}/connect`, { method: "POST", json: { alias: alias?.trim() || null } });
     return { url };
@@ -55,7 +56,7 @@ export async function connectSocialApp(slug: string, alias?: string): Promise<Ac
 
 export async function disconnectSocialAccount(slug: string, accountId: string): Promise<ActionResult> {
   const { t } = await getT();
-  if (!isSocial(slug)) return { error: t("Unknown app.") };
+  if (!(await isSocialApp(slug))) return { error: t("Unknown app.") };
   try {
     await api(`/api/apps/${slug}/accounts/${encodeURIComponent(accountId)}`, { method: "DELETE" });
   } catch (error) {

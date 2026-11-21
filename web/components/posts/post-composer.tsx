@@ -24,6 +24,7 @@ import {
   Upload,
   Video,
   Wand2,
+  ZoomIn,
   X,
 } from "lucide-react";
 import { savePost } from "@/app/dashboard/posts/actions";
@@ -46,10 +47,11 @@ import {
   type PostMedia,
   type PostPlatform,
 } from "@/lib/posts/shared";
-import { PLATFORM_RULES } from "@/lib/social-platforms";
+import { PLATFORM_RULES, platformName, rulesFor } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 import { ImageEditorDialog } from "@/components/posts/image-editor-dialog";
-import { PLATFORM_STYLES, PlatformIcon } from "@/components/posts/platform-icon";
+import { ImageViewerDialog } from "@/components/posts/image-viewer-dialog";
+import { platformStyle, PlatformIcon } from "@/components/posts/platform-icon";
 import { PlatformPreview } from "@/components/posts/platform-preview";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -89,8 +91,10 @@ type Props = {
   initial: ComposerInitial;
   account: string;
   initials: string;
-  // Generation and edits need ImageKit; without it only uploads work
+  // Edits need ImageKit; without it only uploads work
   imageKit: boolean;
+  // Pictures come from the Codex CLI or Gemini CLI chosen in the Creator agent's settings
+  imageTool: { ready: boolean; label: string | null };
   publishing: ComposerPublishing;
 };
 
@@ -98,6 +102,7 @@ const PLATFORM_HINTS: Record<PostPlatform, string> = {
   instagram: "Post, carousel or reel",
   tiktok: "Video or photo post",
   youtube: "Videos & Shorts only",
+  twitter: "Text, up to 4 images or a video",
 };
 
 // A sensible default slot: the next full hour, at least an hour from now
@@ -116,19 +121,22 @@ function relative(ms: number) {
   return `in ${Math.round(hours / 24)} days`;
 }
 
-export function PostComposer({ initial, account, initials, imageKit, publishing }: Props) {
+export function PostComposer({ initial, account, initials, imageKit, imageTool, publishing }: Props) {
   const { t, tn } = useI18n();
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
   const [caption, setCaption] = useState(initial.caption);
   const [hashtags, setHashtags] = useState<string[]>(initial.hashtags);
   const [tagDraft, setTagDraft] = useState("");
-  // A platform disconnected since the post was written is dropped
-  const [platforms, setPlatforms] = useState<PostPlatform[]>(() => initial.platforms.filter((platform) => publishing.platforms.includes(platform)));
+  // The post keeps its platforms even when no account is connected for them: it can be saved as a draft, but not scheduled
+  const [platforms, setPlatforms] = useState<PostPlatform[]>(() => initial.platforms);
+  const shownPlatforms = [...new Set([...publishing.platforms, ...initial.platforms, ...platforms])];
+  const unconnected = platforms.filter((platform) => !publishing.platforms.includes(platform));
   const [accountIds, setAccountIds] = useState<Partial<Record<PostPlatform, string>>>(initial.accountIds ?? {});
   const [media, setMedia] = useState<PostMedia[]>(initial.media);
   const [previewPlatform, setPreviewPlatform] = useState<PostPlatform>(platforms[0] ?? publishing.platforms[0] ?? "instagram");
   const [editing, setEditing] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<number | null>(null);
 
   const [slot] = useState(() => {
     if (!initial.schedule) return defaultSlot();
@@ -163,7 +171,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
 
   // The tightest caption limit among the chosen platforms
   const captionLimit = platforms
-    .map((platform) => PLATFORM_RULES[platform].maxChars ?? Infinity)
+    .map((platform) => rulesFor(platform).maxChars ?? Infinity)
     .reduce((min, limit) => Math.min(min, limit), Infinity);
   const captionLength = postCaption({ caption, hashtags: allTags }).length;
 
@@ -171,7 +179,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
     if (platforms.includes(platform)) {
       setPlatforms(platforms.filter((p) => p !== platform));
     } else {
-      setPlatforms(publishing.platforms.filter((p) => p === platform || platforms.includes(p)));
+      setPlatforms(shownPlatforms.filter((p) => p === platform || platforms.includes(p)));
       setPreviewPlatform(platform);
     }
   }
@@ -209,7 +217,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
     });
   }
 
-  const canSchedule = !!title.trim() && platforms.length > 0 && check.errors.length === 0 && !scheduleError;
+  const canSchedule = !!title.trim() && platforms.length > 0 && unconnected.length === 0 && check.errors.length === 0 && !scheduleError;
 
   return (
     <div className="space-y-5">
@@ -316,7 +324,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                   <Link2 className="size-4.5" />
                 </span>
                 <span className="flex-1 text-muted-foreground">
-                  <T>No Instagram, TikTok or YouTube accounts are connected yet. Connect them through Composio to schedule posts. You can still save this as a draft.</T>
+                  <T>No Instagram, TikTok, YouTube or X accounts are connected yet. Connect them through Composio to schedule posts. You can still save this as a draft.</T>
                 </span>
                 <Button size="sm" className="rounded-lg" nativeButton={false} render={<Link href="/dashboard/settings/integrations" />}>
                   <T>Connect accounts</T>
@@ -324,9 +332,9 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
               </div>
             )}
             <div role="group" aria-label={t("Platforms")} className="grid gap-3 sm:grid-cols-3">
-              {publishing.platforms.map((platform) => {
+              {shownPlatforms.map((platform) => {
                 const selected = platforms.includes(platform);
-                const style = PLATFORM_STYLES[platform];
+                const style = platformStyle(platform);
                 return (
                   <button
                     key={platform}
@@ -343,7 +351,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold">{style.name}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">{t(PLATFORM_HINTS[platform])}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{PLATFORM_HINTS[platform] ? t(PLATFORM_HINTS[platform]) : ""}</span>
                     </span>
                     <span
                       className={cn(
@@ -357,6 +365,11 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                 );
               })}
             </div>
+            {unconnected.length > 0 && publishing.platforms.length > 0 && (
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                {t("{platforms} has no connected account: you can save the post as a draft, but not schedule it.", { platforms: unconnected.map((platform) => platformName(platform)).join(", ") })}
+              </p>
+            )}
             {platforms.some((platform) => (publishing.accounts[platform]?.length ?? 0) > 1) && (
               <div className="grid gap-3 sm:grid-cols-3">
                 {platforms
@@ -364,7 +377,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                   .map((platform) => (
                     <Field key={platform}>
                       <FieldLabel htmlFor={`account-${platform}`} className="text-xs font-semibold">
-                        {t("{platform} account", { platform: PLATFORM_STYLES[platform].name })}
+                        {t("{platform} account", { platform: platformStyle(platform).name })}
                       </FieldLabel>
                       <NativeSelect
                         id={`account-${platform}`}
@@ -386,7 +399,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
           </Panel>
 
           <Panel step={3} title={t("Media")} description={t("Up to {MAX_MEDIA} images and one video. The first one is the cover; YouTube needs the video.", { MAX_MEDIA })}>
-            <MediaManager media={media} setMedia={setMedia} imageKit={imageKit} onEdit={setEditing} />
+            <MediaManager media={media} setMedia={setMedia} imageKit={imageKit} imageTool={imageTool} post={{ title, caption, hashtags: allTags }} onEdit={setEditing} onView={setViewing} />
           </Panel>
 
           <Panel step={4} title={t("Schedule")} description={t("When it goes live, in the time zone you pick")}>
@@ -483,14 +496,14 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                       role="tab"
                       aria-selected={shownPreview === platform}
                       onClick={() => setPreviewPlatform(platform)}
-                      title={PLATFORM_STYLES[platform].name}
+                      title={platformStyle(platform).name}
                       className={cn(
                         "flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                         shownPreview === platform ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       <PlatformIcon platform={platform} className="size-3.5" />
-                      <span className="hidden sm:inline">{PLATFORM_STYLES[platform].name}</span>
+                      <span className="hidden sm:inline">{platformStyle(platform).name}</span>
                     </button>
                   ))}
                 </div>
@@ -536,7 +549,7 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
         ) : (
           <p className="text-xs text-muted-foreground">
             {platforms.length
-              ? `Publishes to ${platforms.map((p) => PLATFORM_STYLES[p].name).join(", ")} from your Blotato calendar, scheduled there when you click Schedule.`
+              ? `Publishes to ${platforms.map((p) => platformStyle(p).name).join(", ")} from your Blotato calendar, scheduled there when you click Schedule.`
               : publishing.platforms.length
                 ? t("Pick at least one platform.")
                 : t("Connect your accounts in Settings → Integrations to schedule.")}
@@ -559,11 +572,20 @@ export function PostComposer({ initial, account, initials, imageKit, publishing 
                 {initial.schedule ? t("Reschedule post") : t("Schedule post")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{!title.trim() ? t("Add a title") : platforms.length === 0 ? t("Pick a platform") : (check.errors[0] ?? scheduleError)}</TooltipContent>
+            <TooltipContent>{!title.trim() ? t("Add a title") : platforms.length === 0 ? t("Pick a platform") : unconnected.length > 0 ? t("{platform} has no connected account", { platform: platformName(unconnected[0]) }) : (check.errors[0] ?? scheduleError)}</TooltipContent>
           </Tooltip>
         </div>
       </div>
 
+      <ImageViewerDialog
+        image={viewing !== null ? (media[viewing] ?? null) : null}
+        open={viewing !== null}
+        canEdit={imageTool.ready}
+        onOpenChange={(open) => !open && setViewing(null)}
+        onUse={(image) => {
+          if (viewing !== null) setMedia((current) => current.map((item, i) => (i === viewing ? image : item)));
+        }}
+      />
       <ImageEditorDialog
         image={editing !== null ? (media[editing] ?? null) : null}
         open={editing !== null}
@@ -606,12 +628,19 @@ function MediaManager({
   media,
   setMedia,
   imageKit,
+  imageTool,
+  post,
   onEdit,
+  onView,
 }: {
   media: PostMedia[];
   setMedia: React.Dispatch<React.SetStateAction<PostMedia[]>>;
   imageKit: boolean;
+  imageTool: { ready: boolean; label: string | null };
+  // The picture is made from this; the person only adds a style or other instructions
+  post: { title: string; caption: string; hashtags: string[] };
   onEdit: (index: number) => void;
+  onView: (index: number) => void;
 }) {
   const t = useT();
   const [mode, setMode] = useState<"upload" | "generate">("upload");
@@ -666,7 +695,7 @@ function MediaManager({
       const response = await fetch("/api/media/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, aspect }),
+        body: JSON.stringify({ style: prompt, post, aspect }),
       });
       const body = (await response.json().catch(() => null)) as { media?: PostMedia; error?: string } | null;
       if (!response.ok || !body?.media) throw new Error(body?.error ?? t("The image couldn't be generated."));
@@ -741,13 +770,17 @@ function MediaManager({
         </button>
       ) : (
         <div className="space-y-3 rounded-2xl bg-linear-to-br from-violet-500/5 to-fuchsia-500/5 p-4 ring-1 ring-violet-500/20">
-          {!imageKit && <p className="text-xs text-amber-700 dark:text-amber-300"><T>Add IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT to .env.local to generate images.</T></p>}
+          {!imageTool.ready && (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              <T>Pick an installed image tool (Codex CLI or Gemini CLI) in the Creator agent's Settings to generate images.</T>
+            </p>
+          )}
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
             maxLength={900}
-            placeholder={t("Describe the image: subject, style, mood, colours… e.g. a flat-lay of iced coffee on a pastel pink table, soft morning light")}
+            placeholder={t("Style or other instructions (optional) — the picture is made from your post. e.g. flat illustration, pastel colours, no people")}
             className="min-h-0 resize-none rounded-xl bg-card text-sm"
           />
           <div className="flex flex-wrap items-center gap-2">
@@ -767,14 +800,14 @@ function MediaManager({
             ))}
             <Button
               className="ml-auto h-9 rounded-xl bg-linear-to-r from-violet-600 to-fuchsia-600 px-4 text-white shadow-lg shadow-violet-500/25 hover:opacity-90"
-              disabled={!imageKit || generating || full || prompt.trim().length < 5}
+              disabled={!imageTool.ready || generating || full || !post.title.trim()}
               onClick={generate}
             >
               {generating ? <Spinner /> : <Wand2 data-icon="inline-start" />}
               {generating ? t("Generating…") : t("Generate")}
             </Button>
           </div>
-          {generating && <p className="text-xs text-muted-foreground"><T>ImageKit is painting your image. This can take up to a minute.</T></p>}
+          {generating && <p className="text-xs text-muted-foreground">{t("{tool} is painting your image. This can take a minute or two.", { tool: imageTool.label ?? "" })}</p>}
         </div>
       )}
 
@@ -827,6 +860,11 @@ function MediaManager({
                   <MediaAction label={t("Move right")} disabled={index === media.length - 1} onClick={() => move(index, 1)}>
                     <ChevronRight />
                   </MediaAction>
+                  {!isVideo(item) && (
+                    <MediaAction label={t("View full size")} onClick={() => onView(index)}>
+                      <ZoomIn />
+                    </MediaAction>
+                  )}
                   <span className="flex-1" />
                   <MediaAction label={t("Remove")} onClick={() => setMedia((current) => current.filter((_, i) => i !== index))}>
                     <X />
@@ -836,9 +874,9 @@ function MediaManager({
                   <Button
                     size="sm"
                     className="mt-1.5 w-full rounded-lg bg-white/95 text-neutral-900 hover:bg-white"
-                    disabled={!imageKit}
-                    title={imageKit ? undefined : t("Image editing needs ImageKit")}
-                    onClick={() => onEdit(index)}
+                    disabled={!imageKit && !imageTool.ready}
+                    title={imageKit || imageTool.ready ? undefined : t("Pick an installed image tool (Codex CLI or Gemini CLI) in the Creator agent's Settings to generate images.")}
+                    onClick={() => (imageKit ? onEdit(index) : onView(index))}
                   >
                     <Pencil data-icon="inline-start" />
                     <T>Edit image</T>

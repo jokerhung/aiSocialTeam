@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- previews are remote ImageKit / storage URLs of any size */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { format } from "@/lib/i18n/format";
-import { LoaderCircle, SendHorizontal } from "lucide-react";
+import { ClipboardList, LoaderCircle, SendHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { thumbnail } from "@/components/agents/task-results";
@@ -11,7 +11,7 @@ import type { ChatState, WorkspaceAgent } from "@/components/agents/agent-worksp
 
 import { T, useT } from "@/lib/i18n/client";
 // failed: an error notice or cut-off reply, shown in the chat but not sent back as context
-export type ChatMessage = { id: string; from: "user" | "agent"; text: string; createdAt: Date; failed?: boolean };
+export type ChatMessage = { id: string; from: "user" | "agent"; text: string; createdAt: Date; failed?: boolean; assignedBy?: string };
 
 export function AgentChat({
   agent,
@@ -131,11 +131,27 @@ export function AgentChat({
           </div>
         )}
 
-        {messages.map((message) => (
-          <Bubble key={message.id} from={message.from} agent={agent} userInitials={userInitials} time={message.createdAt} failed={message.failed}>
-            <MessageBody text={message.text} />
-          </Bubble>
-        ))}
+        {messages.map((message) =>
+          message.assignedBy ? (
+            // Work another agent handed over: shown as an assignment, not as something the person wrote
+            <div key={message.id} className="mx-auto w-full max-w-[92%] animate-in rounded-2xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-sm leading-relaxed duration-300 fade-in-0 slide-in-from-bottom-1">
+              <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                <ClipboardList className="size-3.5" />
+                {t("{name} assigned:", { name: t(message.assignedBy) })}
+              </p>
+              <div className="break-words whitespace-pre-wrap">
+                <MessageBody text={message.text} />
+              </div>
+              <time dateTime={message.createdAt.toISOString()} className="mt-1.5 block text-[11px] text-muted-foreground">
+                {format(message.createdAt, t("h:mm a"))}
+              </time>
+            </div>
+          ) : (
+            <Bubble key={message.id} from={message.from} agent={agent} userInitials={userInitials} time={message.createdAt} failed={message.failed}>
+              <MessageBody text={message.text} />
+            </Bubble>
+          )
+        )}
 
         {typing && (
           <div className="flex items-end gap-3" aria-live="polite">

@@ -72,7 +72,7 @@ flowchart LR
     Broker -- "approval card" --> Browser
     API --> Proxy["MCP proxy<br/>allowed tools, output limit"]
     Proxy --> Apps["Composio and<br/>custom MCP servers"]
-    API --> Data[("~/.botteam<br/>SQLite and files")]
+    API --> Data[("~/.botsocial<br/>SQLite and files")]
     Channels["Telegram / Zalo"] -- "only allowed chats" --> API
 ```
 
@@ -112,6 +112,7 @@ flowchart LR
 - Git
 - At least one engine: the Claude Code CLI, the Codex CLI, the Antigravity CLI (`agy`, from antigravity.google), or an OpenAI-compatible endpoint
 - Microsoft Edge or Chrome for the built-in browser (otherwise run `playwright install chromium`)
+- Optional, for pictures: the Codex CLI (`install.ps1 -Codex` / `install.sh --codex`, then `codex login`) or the Gemini CLI. In the Creator agent's **Settings → Image generation** choose which one makes the images (post editor's *Generate with AI* and the Creator's `POST /api/social/images`); no image API key is needed. Gemini CLI makes images only with an image extension installed. Pictures are kept in `<data folder>/social-media`.
 
 The install scripts check all of this and install what is missing. Ports (set in `.env`): web `5499`, API `9999`, webhooks `9900`. The Zalo service (`8902`) is not started by `pnpm dev`; run `pnpm dev:zalo` when you need it.
 
@@ -155,7 +156,7 @@ To use BotTeam from another computer on your LAN or Tailscale, keep `WEB_HOST=0.
 #### Open the application and configure it
 
 1. Open `http://127.0.0.1:5499` in development (the server must be running: `pnpm dev` starts both). The first visit asks you to create a campaign, which makes its five bots; the web app is started by `pnpm dev` (or `pnpm build:static` then `pnpm start:web`).
-   > The dashboard does not publish to Instagram, TikTok or YouTube: a scheduled post is marked published locally when its time passes, social accounts are connected through Composio (Settings → Integrations; the key is the server's `COMPOSIO_API_KEY` or one pasted there) but nothing posts through them yet, and post metrics are entered through `PUT /api/social/posts/{id}/metrics`.
+   > The dashboard does not publish to any social network yet: a scheduled post is marked published locally when its time passes, the platforms a post can go to are the social apps Composio lists (its "social media accounts" category: twitter, instagram, tiktok, youtube, facebook…, read from Composio, not fixed in the code) and accounts are connected through it (Settings → Integrations; the key is the server's `COMPOSIO_API_KEY` or one pasted there) but nothing posts through them yet, and post metrics are entered through `PUT /api/social/posts/{id}/metrics`.
 2. The welcome screen checks for an engine. Install and sign in (`claude`, `codex login`, `agy`) or add an OpenAI-compatible endpoint in Settings → Engines, then press **Check again**.
 3. Press **+** → **New bot**, name it and pick a color.
 4. Choose the bot's approval level, and connect apps with **Connect apps** (Composio key, custom MCP servers, Telegram and Zalo input). A bot you make without a working folder gets `workspaces/<bot id>/`; when it is given an input, an `intake.md` is made there (Bot settings → *Intake workflow* edits it).
@@ -170,7 +171,7 @@ pnpm typecheck         # TypeScript
 pnpm --filter web build  # production build of the web app, then `pnpm start:web`
 ```
 
-Your data lives in `~/.botteam` (change it with `BOTTEAM_DATA_DIR`). Back it up with Settings → Backup or `botteam backup <file>`. The plan, scope and risks are in [docs/README.md](docs/README.md).
+Your data lives in the folder set by `BOTTEAM_DATA_DIR` in `.env` (default `~/.botsocial`, that is `%USERPROFILE%\.botsocial` on Windows), apart from any other BotTeam on the same computer. The server, the web app and the Zalo service all read this one setting; change it to keep the data elsewhere (`~`, `%VAR%` and `$VAR` are expanded) and restart. Back it up with Settings → Backup or `botteam backup <file>`. The plan, scope and risks are in [docs/README.md](docs/README.md).
 
 ---
 

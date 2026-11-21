@@ -295,7 +295,7 @@ export function rankPosts(posts: AnalyticsPost[], metric: SortMetric, order: "be
 // Platform colours: fixed categorical slots (validated for colour-blind separation in light and dark;
 // app/globals.css --series-*), given out in this order to the platforms in the user's whole dataset, so a
 // filter never repaints a platform. Past six, platforms share the neutral "other" colour.
-const PLATFORM_ORDER = ["instagram", "tiktok", "youtube", "facebook", "x", "linkedin", "threads", "pinterest", "bluesky"];
+const PLATFORM_ORDER = ["instagram", "tiktok", "youtube", "facebook", "twitter", "linkedin", "threads", "pinterest", "bluesky"];
 const SERIES_SLOTS = 6;
 
 export function platformColors(platforms: string[]) {

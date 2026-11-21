@@ -37,7 +37,9 @@ export type PreviewPost = {
 export function PlatformPreview({ platform, post }: { platform: PostPlatform; post: PreviewPost }) {
   if (platform === "instagram") return <InstagramPreview post={post} />;
   if (platform === "tiktok") return <TikTokPreview post={post} />;
-  return <YouTubePreview post={post} />;
+  if (platform === "youtube") return <YouTubePreview post={post} />;
+  // X, and any other social app: a text post with its pictures
+  return <XPreview post={post} platform={platform} />;
 }
 
 function handle(account: string) {
@@ -230,6 +232,44 @@ function RailIcon({ Icon, label }: { Icon: typeof Heart; label: string }) {
       <Icon className="size-7 fill-white/95" strokeWidth={0} />
       {label}
     </span>
+  );
+}
+
+function XPreview({ post, platform }: { post: PreviewPost; platform: PostPlatform }) {
+  const t = useT();
+  const name = post.account || t("Your channel");
+  const media = mediaForPlatform(platform, post.media);
+  const hasText = post.caption.trim() || post.hashtags.length > 0;
+  return (
+    <div className="overflow-hidden rounded-[22px] bg-white p-3.5 text-neutral-900 shadow-xl ring-1 ring-black/5">
+      <div className="flex gap-3">
+        <Avatar initials={post.initials} className="size-10 text-sm" />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1 text-[15px] leading-tight">
+            <span className="truncate font-bold">{name}</span>
+            <span className="truncate text-neutral-500">@{handle(name)} · {t("Just now")}</span>
+          </p>
+          <p className="mt-1 text-[15px] leading-snug break-words whitespace-pre-line">
+            {hasText ? <RichText text={post.caption.trim()} hashtags={post.hashtags} tagClass="text-[#1d9bf0]" /> : <span className="text-neutral-400"><T>No caption</T></span>}
+          </p>
+          {media.length > 0 && (
+            <div className={cn("mt-3 grid gap-0.5 overflow-hidden rounded-2xl ring-1 ring-black/10", media.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+              {media.map((item) => (
+                <div key={item.url} className={cn("bg-neutral-100", media.length === 1 ? "aspect-video" : "aspect-square")}>
+                  <MediaItem item={item} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex max-w-xs items-center justify-between text-neutral-500">
+            <MessageCircle className="size-4.5" />
+            <Share2 className="size-4.5" />
+            <Heart className="size-4.5" />
+            <Bookmark className="size-4.5" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

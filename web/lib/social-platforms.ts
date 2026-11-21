@@ -79,8 +79,27 @@ export const PLATFORM_RULES: Record<Platform, PlatformRules> = {
   other: { name: "Other", maxChars: null, maxHashtags: null, bestHashtags: [0, 5], tips: "" },
 };
 
+// A platform in a post is the slug Composio gives the app (twitter, instagram, tiktok, youtube, facebook…), whatever the
+// app is. The table of limits above knows a few of them; any other platform is looked up as "other" (no limits).
+export function platformRulesKey(platform: string): Platform {
+  const key = platform === "twitter" ? "x" : platform;
+  return (PLATFORMS as readonly string[]).includes(key) ? (key as Platform) : "other";
+}
+
+// Whether the table above has this platform (its name and limits); the others are shown with Composio's name and no limits
+export function isKnownPlatform(platform: string) {
+  return platformRulesKey(platform) !== "other";
+}
+
+export function rulesFor(platform: string): PlatformRules {
+  return PLATFORM_RULES[platformRulesKey(platform)];
+}
+
+// "linkedin" → "LinkedIn" when the table knows it, else the slug made readable ("bluesky_app" → "Bluesky App")
 export function platformName(platform: string) {
-  return PLATFORM_RULES[platform as Platform]?.name ?? platform;
+  const key = platformRulesKey(platform);
+  if (key !== "other") return PLATFORM_RULES[key].name;
+  return platform.replace(/[_-]+/g, " ").replace(/\w/g, (c) => c.toUpperCase());
 }
 
 // "#Summer Vibes", "summervibes" → "#summervibes"; drops empties and repeats

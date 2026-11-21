@@ -5,10 +5,10 @@ import Link from "next/link";
 import { AlertTriangle, CalendarClock, CalendarX2, CheckCircle2, Clock, ExternalLink, Globe, Hash, Layers, PenLine, Sparkles, Type, X, XCircle } from "lucide-react";
 import { placePost, postMoment } from "@/lib/calendar";
 import { checkPost, formatInZone, isEditable, isVideo, mediaForPlatform, postCaption, type PostPlatform, type PostView, zonedTimeToUtc } from "@/lib/posts/shared";
-import { PLATFORM_RULES } from "@/lib/social-platforms";
+import { rulesFor } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 import { CALENDAR_STATUS } from "@/components/calendar/calendar-post";
-import { PLATFORM_STYLES, PlatformTile } from "@/components/posts/platform-icon";
+import { platformStyle, PlatformTile } from "@/components/posts/platform-icon";
 import { PlatformPreview } from "@/components/posts/platform-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,7 +108,7 @@ export function PostDetails({ post, timeZone, account, initials, pending, onClos
                   )}
                 >
                   <PlatformTile platform={id} className="size-5 rounded-md [&_svg]:size-3" />
-                  {PLATFORM_STYLES[id].name}
+                  {platformStyle(id).name}
                 </button>
               ))}
             </div>
@@ -126,7 +126,7 @@ export function PostDetails({ post, timeZone, account, initials, pending, onClos
 // What this platform gets: the format, its limits, any problems, and where it stands in Blotato
 function PlatformDetails({ post, platform }: { post: PostView; platform: PostPlatform }) {
   const t = useT();
-  const rules = PLATFORM_RULES[platform];
+  const rules = rulesFor(platform);
   const media = mediaForPlatform(platform, post.media);
   const video = media.find((item) => isVideo(item));
   const length = postCaption(post).length;

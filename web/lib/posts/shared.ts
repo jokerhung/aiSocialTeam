@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizeHashtags, PLATFORM_RULES } from "@/lib/social-platforms";
+import { normalizeHashtags, rulesFor } from "@/lib/social-platforms";
 import { makeTranslate, type Translate } from "@/lib/i18n/translate";
 
 import { intlLocale } from "@/lib/i18n/display";
@@ -7,8 +7,9 @@ import { intlLocale } from "@/lib/i18n/display";
 // server-only: nothing here touches the database or a key.
 
 // The platforms a post can be scheduled to today
-export const POST_PLATFORMS = ["instagram", "tiktok", "youtube"] as const;
-export type PostPlatform = (typeof POST_PLATFORMS)[number];
+// The slug Composio gives the social app a post goes to (twitter, instagram, tiktok, youtube, facebook…): which exist is read
+// from Composio, nothing lists them here.
+export type PostPlatform = string;
 
 export type PostStatus = "draft" | "scheduled" | "publishing" | "published" | "failed" | "cancelled";
 
@@ -65,6 +66,12 @@ export type PostView = {
 };
 
 export const MAX_MEDIA = 10;
+export const X_MAX_IMAGES = 4;
+
+// The platforms the given posts go to, each once, in the order they first appear
+export function platformsOf(posts: { platforms: string[] }[]): PostPlatform[] {
+  return [...new Set(posts.flatMap((post) => post.platforms))];
+}
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -81,11 +88,13 @@ export function mediaForPlatform<T extends { mimeType: string | null; url?: stri
   const video = media.find((item) => isVideo(item));
   if (platform === "youtube") return video ? [video] : [];
   if (platform === "tiktok") return video ? [video] : media;
+  // X takes one video, or up to four images
+  if (platform === "twitter") return video ? [video] : media.slice(0, X_MAX_IMAGES);
   return media;
 }
 
 const Media = z.object({
-  url: z.url().max(2000),
+  url: z.string().min(1).max(2000), // a full address, or /api/media/file/<name> when the team saved it
   fileId: z.string().max(200).nullable(),
   name: z.string().max(200),
   mimeType: z.string().max(100).nullable(),
@@ -99,7 +108,7 @@ export const PostInput = z.object({
   title: z.string().trim().min(1, "Give the post a title.").max(200),
   caption: z.string().max(5000),
   hashtags: z.array(z.string().max(80)).max(60),
-  platforms: z.array(z.enum(POST_PLATFORMS)).min(1, "Pick at least one platform."),
+  platforms: z.array(z.string().min(2).max(40)).min(1, "Pick at least one platform."),
   media: z.array(Media).max(MAX_MEDIA),
   draftId: z.number().int().nullable(),
   // Set when editing an existing post; null creates a new one
@@ -109,7 +118,7 @@ export const PostInput = z.object({
   time: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
   timeZone: z.string().max(64),
   // Blotato account id per platform; missing means the first connected account for it
-  accountIds: z.partialRecord(z.enum(POST_PLATFORMS), z.string().max(100)).default({}),
+  accountIds: z.record(z.string(), z.string().max(100)).default({}),
 });
 export type PostInput = z.infer<typeof PostInput>;
 
@@ -132,7 +141,7 @@ export function checkPost(
   const warnings: string[] = [];
   const length = postCaption(post).length;
   for (const platform of post.platforms) {
-    const rules = PLATFORM_RULES[platform];
+    const rules = rulesFor(platform);
     if (rules.maxChars && length > rules.maxChars) errors.push(t("{platform} captions allow {max} characters; this is {length}.", { platform: rules.name, max: rules.maxChars.toLocaleString(intlLocale()), length: length.toLocaleString(intlLocale()) }));
     if (rules.maxTitle && post.title.length > rules.maxTitle) errors.push(t("{platform} titles allow {max} characters; this is {length}.", { platform: rules.name, max: rules.maxTitle, length: post.title.length }));
     if (rules.maxHashtags !== null && post.hashtags.length > rules.maxHashtags) errors.push(t("{platform} allows {max} hashtags; this has {count}.", { platform: rules.name, max: rules.maxHashtags, count: post.hashtags.length }));
@@ -146,6 +155,10 @@ export function checkPost(
   if (post.platforms.includes("tiktok") && videos === 1 && images > 0) warnings.push(t("TikTok gets only the video; the images are left out there."));
   if (post.platforms.includes("youtube") && videos === 0) errors.push(t("YouTube only takes videos and Shorts: add a video."));
   else if (post.platforms.includes("youtube") && images > 0) warnings.push(t("YouTube gets only the video; the images are left out there."));
+  if (post.platforms.includes("twitter")) {
+    if (images > X_MAX_IMAGES) errors.push(t("X takes up to 4 images in a post."));
+    else if (videos === 1 && images > 0) warnings.push(t("X gets only the video; the images are left out there."));
+  }
   return { errors, warnings };
 }
 

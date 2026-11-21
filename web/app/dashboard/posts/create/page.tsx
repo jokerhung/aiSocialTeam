@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { getPublishingAccounts } from "@/lib/blotato/store";
 import { getActiveCampaign } from "@/lib/campaigns";
 import { getCurrentUser } from "@/lib/local-user";
-import { mediaCapabilities } from "@/lib/posts/media";
-import { isTimeZone, POST_PLATFORMS, type PostPlatform } from "@/lib/posts/shared";
+import { imageGeneration, mediaCapabilities } from "@/lib/posts/media";
+import { isTimeZone, type PostPlatform } from "@/lib/posts/shared";
 import { getDraft } from "@/lib/posts/store";
 import { PostComposer, type ComposerInitial } from "@/components/posts/post-composer";
 
@@ -44,7 +44,7 @@ export default async function CreatePostPage({ searchParams }: Props) {
         title: draft.title,
         caption: [draft.hook, draft.body, draft.cta].filter((part) => part?.trim()).join("\n\n"),
         hashtags: draft.hashtags,
-        platforms: (POST_PLATFORMS as readonly string[]).includes(draft.platform) ? [draft.platform as PostPlatform] : ["instagram"],
+        platforms: draft.platform ? [draft.platform as PostPlatform] : ["instagram"],
         media: draft.media.map((item) => ({ url: item.url, fileId: null, name: item.name, mimeType: item.mimeType, origin: "agent" as const })),
       }
     : // A new post starts on the first connected platform (the composer drops ones that aren't connected)
@@ -66,6 +66,7 @@ export default async function CreatePostPage({ searchParams }: Props) {
       account={campaign.name || name}
       initials={initials || "AI"}
       imageKit={mediaCapabilities().imageKit}
+      imageTool={await imageGeneration()}
       publishing={{ platforms: publishing.platforms, accounts: publishing.byPlatform }}
     />
   );

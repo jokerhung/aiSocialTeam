@@ -56,7 +56,7 @@ async def test_the_catalog_comes_from_composio_and_a_link_is_made_in_the_persons
     c, app = ctx
     await c.put("/api/composio/key", json={"key": GOOD_KEY})
     listed = (await c.get("/api/apps")).json()
-    assert listed["source"] == "api" and {a["slug"] for a in listed["apps"]} == {"gmail", "slack", "xero"}
+    assert listed["source"] == "api" and {a["slug"] for a in listed["apps"]} == {"gmail", "slack", "xero", "twitter", "instagram", "buffer_x"}
     link = await c.post("/api/apps/gmail/connect", json={"alias": "work"})
     assert link.status_code == 200 and link.json()["url"].startswith("https://connect.composio.dev/link/")
     assert "gmail" not in (await c.get("/api/apps")).json()["connections"]
@@ -322,3 +322,13 @@ async def test_telegram_connects_like_any_other_app_with_one_account_per_bot_tok
     assert (await c.post("/api/apps/telegram/connect", json={"alias": "support"})).status_code == 200
     state = (await c.get("/api/apps/telegram")).json()
     assert state["connected"] is True and {a["alias"] for a in state["accounts"]} == {"shop", "support"}
+
+
+async def test_the_social_apps_are_the_ones_composio_files_under_social_media_accounts(ctx, fake):
+    c, app = ctx
+    assert await app.state.composio.social_toolkits() is None  # no key: the catalog is not known
+    assert (await c.put("/api/composio/key", json={"key": GOOD_KEY})).status_code == 200
+    toolkits = await app.state.composio.social_toolkits()
+    assert [t["slug"] for t in toolkits] == ["twitter", "instagram"]  # Composio's order; "social media marketing" alone is not a network
+    assert (await c.get("/api/social/platforms")).json()["platforms"][0]["id"] == "twitter"
+

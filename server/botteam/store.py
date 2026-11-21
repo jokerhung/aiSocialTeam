@@ -14,7 +14,9 @@ from .workspaces import workspace_for
 
 
 def data_dir() -> Path:
-    p = Path(os.environ.get("BOTTEAM_DATA_DIR") or Path.home() / ".botteam")
+    """The data folder: BOTTEAM_DATA_DIR from .env ("~", %VAR% and $VAR are expanded), else ~/.botsocial."""
+    raw = (os.environ.get("BOTTEAM_DATA_DIR") or "").strip()
+    p = Path(os.path.expandvars(os.path.expanduser(raw))) if raw else Path.home() / ".botsocial"
     p.mkdir(parents=True, exist_ok=True)
     return p
 

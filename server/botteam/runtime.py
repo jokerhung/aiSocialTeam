@@ -431,7 +431,7 @@ class Runtime:
                 name = self.host.bot_name(k["assignee_bot"])
                 outcome = k["outcome"] or k["status"]
                 seen = f" (observed: {'it acted with tools' if k['evidence'].get('acted') else 'it did not use tools'})"
-                lines.append(f"- @{name} [{k['id']}] {outcome}{seen}: {escape_notes((k['result'] or k['outcome_detail'] or '').strip())[:1500]}")
+                lines.append(f"- @{name} [{k['id']}] {outcome}{seen}: {escape_notes((k['result'] or k['outcome_detail'] or '').strip())[:12000]}")
             cut = "\nYour earlier turn was cut by a restart; check what you already did.\n" if a["cut"] else "\n"
             body = ("Your teammates have reported. Check claims against what was observed; redo only what the evidence does not cover.\n"
                     + "\n".join(lines) + cut + "Now finish the work for the person who asked.")

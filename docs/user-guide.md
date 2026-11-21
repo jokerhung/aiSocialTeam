@@ -33,7 +33,7 @@ uv run --project server botteam serve
 
 Trên Windows có sẵn `start.bat`: giải phóng cổng rồi khởi động. `start.bat` chạy cả API lẫn web (`pnpm dev`), `start.bat server` chỉ chạy server API, `start.bat web` chỉ chạy web, `start.bat one` chạy một chương trình duy nhất (cần `pnpm build:static` trước).
 
-Mở http://127.0.0.1:8899. Dữ liệu nằm ở `~/.botteam` (đổi bằng `BOTTEAM_DATA_DIR`).
+Mở http://127.0.0.1:8899. Dữ liệu nằm ở thư mục đặt bằng `BOTTEAM_DATA_DIR` trong file `.env` (mặc định `~/.botsocial`, tức `%USERPROFILE%\.botsocial` trên Windows). Server, web và dịch vụ Zalo đều đọc đúng một cài đặt này; đổi sang thư mục khác rồi khởi động lại.
 Trình duyệt tích hợp (Computer) dùng Microsoft Edge hoặc Chrome có sẵn; nếu không có, chạy `playwright install chromium`.
 
 ## 2. Bot đầu tiên

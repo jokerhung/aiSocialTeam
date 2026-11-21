@@ -13,6 +13,9 @@ const hookPort = process.env.WEBHOOK_PORT || "8900";
 const zaloPort = process.env.ZALO_PORT || "8902";
 const serverHost = process.env.SERVER_HOST || process.env.BOTTEAM_HOST || "127.0.0.1";
 const webHost = process.env.WEB_HOST || "127.0.0.1";
+// The data folder lives in .env (BOTTEAM_DATA_DIR); "~", %VAR% and $VAR are expanded here so every child gets a real path
+const home = process.env.USERPROFILE || process.env.HOME || "";
+const dataDir = (process.env.BOTTEAM_DATA_DIR || "").trim().replace(/^~(?=$|[\\/])/, home).replace(/%(\w+)%|\$(\w+)/g, (m, a, b) => process.env[a ?? b] ?? m);
 const loopback = (host) => ["127.0.0.1", "localhost", "::1"].includes(host);
 const env = {
   ...process.env,
@@ -20,6 +23,7 @@ const env = {
   WEB_PORT: webPort,
   WEBHOOK_PORT: hookPort,
   ZALO_PORT: zaloPort,
+  ...(dataDir ? { BOTTEAM_DATA_DIR: dataDir } : {}),
   SERVER_HOST: serverHost,
   WEB_HOST: webHost,
   // The API is also remotely reachable through Next's same-origin proxy.

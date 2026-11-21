@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BarChart3, Table2 } from "lucide-react";
-import { POST_PLATFORMS, type PostPlatform } from "@/lib/posts/shared";
+import type { PostPlatform } from "@/lib/posts/shared";
 import { platformName } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 import { PlatformTile } from "@/components/posts/platform-icon";
@@ -132,7 +132,7 @@ export function PlatformKey({ platform, color, children }: { platform: string; c
 }
 
 export function PlatformMark({ platform, color, className }: { platform: string; color: string; className?: string }) {
-  if ((POST_PLATFORMS as readonly string[]).includes(platform)) return <PlatformTile platform={platform as PostPlatform} className={className} />;
+  if (platform) return <PlatformTile platform={platform as PostPlatform} className={className} />;
   return (
     <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] font-semibold uppercase", className)} title={platformName(platform)}>
       <span className="sr-only">{platformName(platform)}</span>

@@ -60,5 +60,8 @@ class FakeComposio:
             return httpx.Response(200, json={"items": [
                 {"slug": "gmail", "name": "Gmail", "meta": {"description": "Read and send email", "logo": "https://logos.composio.dev/gmail.png"}},
                 {"slug": "slack", "name": "Slack", "meta": {"description": "Post updates"}},
-                {"slug": "xero", "name": "Xero", "meta": {"description": "Accounting"}}], "next_cursor": None})
+                {"slug": "xero", "name": "Xero", "meta": {"description": "Accounting"}},
+                {"slug": "twitter", "name": "Twitter", "meta": {"description": "Posts", "categories": [{"name": "Social media accounts"}, {"name": "Social media marketing"}]}},
+                {"slug": "instagram", "name": "Instagram", "meta": {"categories": [{"name": "social media accounts"}]}},
+                {"slug": "buffer_x", "name": "Buffer", "meta": {"categories": [{"name": "social media marketing"}]}}], "next_cursor": None})
         return httpx.Response(404, json={"message": f"unhandled {method} {path}"})

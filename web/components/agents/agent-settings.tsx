@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceAgent } from "@/components/agents/agent-workspace";
 import { AgentModelPicker } from "@/components/agents/agent-model";
+import { AgentImagePicker } from "@/components/agents/agent-image";
 
 import { T, useT } from "@/lib/i18n/client";
 export type AgentSettings = {
@@ -35,6 +36,12 @@ export function AgentSettingsForm({
     <div className="flex flex-col gap-2">
       <h3 className="px-3 text-sm font-semibold"><T>Model</T></h3>
       <AgentModelPicker roleId={agent.role.id} />
+      {agent.role.id === "creator" && (
+        <>
+          <h3 className="mt-3 px-3 text-sm font-semibold"><T>Image generation</T></h3>
+          <AgentImagePicker />
+        </>
+      )}
       <div className="my-2 border-t" />
       {TOGGLES.map(({ key, label, description }) => (
         <label key={key} className="flex cursor-pointer items-center gap-4 rounded-2xl p-3 transition-colors hover:bg-muted/60">

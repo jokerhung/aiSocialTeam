@@ -46,12 +46,12 @@ export function ComposioSocial({ state: initial }: { state: SocialState }) {
         </div>
       </div>
 
-      {state.configured ? <Apps state={state} onState={setState} onChanged={() => router.refresh()} /> : <KeyForm onDone={() => router.refresh()} />}
+      {state.configured ? <Apps state={state} onState={setState} onChanged={() => router.refresh()} /> : <KeyForm onDone={(next) => { if (next) setState(next); router.refresh(); }} />}
     </div>
   );
 }
 
-function KeyForm({ onDone }: { onDone: () => void }) {
+function KeyForm({ onDone, onCancel }: { onDone: (state?: SocialState) => void; onCancel?: () => void }) {
   const t = useT();
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +65,7 @@ function KeyForm({ onDone }: { onDone: () => void }) {
       if (result.error) setError(result.error);
       else {
         setKey("");
-        onDone();
+        onDone(result.state);
       }
     });
   }
@@ -106,8 +106,13 @@ function KeyForm({ onDone }: { onDone: () => void }) {
       )}
       <Button type="submit" size="lg" className="h-10 rounded-xl px-4" disabled={pending || key.trim().length < 8}>
         {pending && <Spinner />}
-        {pending ? t("Checking key…") : t("Connect Composio")}
+        {pending ? t("Checking key…") : onCancel ? t("Save key") : t("Connect Composio")}
       </Button>
+      {onCancel && (
+        <Button type="button" variant="ghost" size="lg" className="ml-2 h-10 rounded-xl" disabled={pending} onClick={onCancel}>
+          <T>Cancel</T>
+        </Button>
+      )}
     </form>
   );
 }
@@ -115,6 +120,7 @@ function KeyForm({ onDone }: { onDone: () => void }) {
 function Apps({ state, onState, onChanged }: { state: SocialState; onState: (state: SocialState) => void; onChanged: () => void }) {
   const { t, tn } = useI18n();
   const [error, setError] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState(false);
   const [refreshing, startRefreshing] = useTransition();
   const [removing, startRemoving] = useTransition();
   const watching = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -162,6 +168,12 @@ function Apps({ state, onState, onChanged }: { state: SocialState; onState: (sta
           <RefreshCw data-icon="inline-start" className={cn(refreshing && "animate-spin")} />
           {refreshing ? t("Refreshing…") : t("Refresh")}
         </Button>
+        {state.source !== "environment" && (
+          <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setReplacing((value) => !value)}>
+            <KeyRound data-icon="inline-start" />
+            <T>Change key</T>
+          </Button>
+        )}
         {state.source === "saved" && (
           <Button
             variant="ghost"
@@ -181,6 +193,17 @@ function Apps({ state, onState, onChanged }: { state: SocialState; onState: (sta
           </Button>
         )}
       </div>
+      {replacing && (
+        <KeyForm
+          onCancel={() => setReplacing(false)}
+          onDone={(next) => {
+            // The list is loaded again for the new key
+            if (next) onState(next);
+            setReplacing(false);
+            onChanged();
+          }}
+        />
+      )}
       {(error || state.error) && <p className="text-xs text-destructive">{error ?? state.error}</p>}
 
       <p className="text-xs text-muted-foreground">
@@ -197,7 +220,7 @@ function Apps({ state, onState, onChanged }: { state: SocialState; onState: (sta
 
 function AppIcon({ app }: { app: SocialApp }) {
   if (app.slug in PLATFORM_STYLES) {
-    const platform = app.slug as keyof typeof PLATFORM_STYLES;
+    const platform = app.slug;
     return (
       <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl shadow-md", PLATFORM_STYLES[platform].tile)}>
         <PlatformIcon platform={platform} className="size-4.5" />

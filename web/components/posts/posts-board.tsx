@@ -8,13 +8,14 @@ import { CalendarClock, CalendarX2, Clock, ExternalLink, FileText, ImageIcon, La
 import { unschedulePost } from "@/app/dashboard/posts/actions";
 import { imageKitThumbnail } from "@/lib/imagekit/transformations";
 import type { ContentDraftView } from "@/lib/orchestration/types";
-import { formatInZone, isEditable, isVideo, POST_PLATFORMS, type PostPlatform, type PostStatus, type PostView } from "@/lib/posts/shared";
+import { platformsOf, formatInZone, isEditable, isVideo, type PostPlatform, type PostStatus, type PostView } from "@/lib/posts/shared";
 import { platformName } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 import { OverviewEmptyState, OverviewPanel } from "@/components/dashboard/overview/overview-panel";
 import { CreatePostMenu } from "@/components/posts/create-post-menu";
 import { PlatformTile } from "@/components/posts/platform-icon";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { T, useT } from "@/lib/i18n/client";
@@ -88,7 +89,7 @@ export function PostsBoard({ posts, drafts }: { posts: PostView[]; drafts: Conte
         </div>
         <div className="flex items-center gap-1.5" aria-label={t("Filter by platform")}>
           <span className="sr-only"><T>Platforms</T></span>
-          {POST_PLATFORMS.map((id) => (
+          {platformsOf(posts).map((id) => (
             <button
               key={id}
               type="button"
@@ -192,6 +193,18 @@ function PostCard({ post }: { post: PostView }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const cover = post.media[0];
   const status = STATUS[post.status];
+  const [making, setMaking] = useState(false);
+
+  // The Codex CLI or Gemini CLI paints a picture from the post's title and text; it takes a minute or two
+  async function makeImage() {
+    setMaking(true);
+    setActionError(null);
+    const response = await fetch(`/api/posts/${post.id}/image`, { method: "POST" }).catch(() => null);
+    const body = await response?.json().catch(() => null);
+    setMaking(false);
+    if (!response?.ok) return setActionError(body?.error ?? t("The image couldn't be generated."));
+    router.refresh();
+  }
 
   return (
     <article
@@ -214,6 +227,12 @@ function PostCard({ post }: { post: PostView }) {
           <div className="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted to-muted/40 text-muted-foreground">
             <ImageIcon className="size-6" />
             <span className="text-xs"><T>No image</T></span>
+            {isEditable(post.status) && (
+              <Button size="xs" variant="secondary" className="mt-1 rounded-lg" disabled={making} onClick={makeImage}>
+                {making ? <Spinner /> : <Sparkles data-icon="inline-start" />}
+                {making ? t("Generating…") : t("Generate image")}
+              </Button>
+            )}
           </div>
         )}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b from-black/35 to-transparent" />
@@ -305,7 +324,7 @@ function PostCard({ post }: { post: PostView }) {
 function DraftCard({ draft }: { draft: ContentDraftView }) {
   const t = useT();
   const image = draft.media.find((item) => !item.mimeType?.startsWith("video/"));
-  const schedulable = (POST_PLATFORMS as readonly string[]).includes(draft.platform);
+  const schedulable = !!draft.platform;
   return (
     <article className="group/draft flex h-full gap-3 rounded-2xl bg-muted/40 p-2.5 ring-1 ring-border/60 transition-colors hover:bg-muted/70">
       <div className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/60">

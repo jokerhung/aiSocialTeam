@@ -34,6 +34,11 @@ MULTI_ACCOUNT = {"enable": True, "max_accounts_per_toolkit": MAX_ACCOUNTS, "requ
 USABLE = re.compile(r"^(active|initiated|initializing|pending)$", re.I)
 NEEDS_AUTH_CONFIG = re.compile(r"does not manage auth|auth[_ ]?config", re.I)
 ALIAS_REQUIRED = "Add an account alias so the existing connection is not replaced"
+# Composio's own category for the apps that are social networks
+SOCIAL_CATEGORY = "social media accounts"
+# Apps in this category that are tools about social networks, not the networks (MCP servers, data scrapers)
+NOT_A_NETWORK = {"model context protocol", "ai web scraping"}
+
 CURATED = [
     ("telegram", "Telegram", "Send and read messages with a Telegram bot"), ("slack", "Slack", "Post updates and read channels"), ("github", "GitHub", "Issues, pull requests, and code"),
     ("gmail", "Gmail", "Read and send email"), ("googlecalendar", "Google Calendar", "Read and create events"),
@@ -360,6 +365,23 @@ class Composio:
         await self.store.save_connected_apps_cache(key, body)
         return {**self.public(), **body}
 
+    async def social_toolkits(self) -> Optional[list[dict]]:
+        """The apps Composio files under "social media accounts" (twitter, instagram, tiktok, youtube, facebook…), in its own
+        order of popularity; None when Composio's catalog is not known (no key, or it cannot be reached)."""
+        if not self.configured():
+            return None
+        saved = await self.saved_apps(initialize=False)
+        cards = saved.get("apps") or []
+        if saved.get("source") != "api" or not any("categories" in c for c in cards):
+            try:
+                saved = await self.refresh_apps()  # a catalog saved before categories were kept
+            except ComposioError:
+                return None
+            cards = saved.get("apps") or []
+        if saved.get("source") != "api":
+            return None
+        return [c for c in cards if SOCIAL_CATEGORY in (c.get("categories") or []) and not NOT_A_NETWORK & set(c.get("categories") or [])]
+
     def snapshot(self) -> dict:
         """Uninitialized local placeholder; saved account state comes only from SQLite."""
         cards = [{"slug": s, "label": n, "blurb": b, "logo": None, "noAuth": False} for s, n, b in CURATED]
@@ -390,7 +412,8 @@ class Composio:
                             seen_slugs.add(slug)
                             meta = t.get("meta") or {}
                             cards.append({"slug": slug, "label": t.get("name") or slug, "blurb": str(meta.get("description") or t.get("description") or "")[:90],
-                                          "logo": meta.get("logo") or t.get("logo"), "noAuth": t.get("no_auth") is True})
+                                          "logo": meta.get("logo") or t.get("logo"), "noAuth": t.get("no_auth") is True,
+                                          "categories": [str(c.get("name") or c.get("slug") or "").strip().lower() for c in (meta.get("categories") or []) if isinstance(c, dict)]})
                     cursor = (body.get("next_cursor") or "").strip() or None
                     if not cursor:
                         break

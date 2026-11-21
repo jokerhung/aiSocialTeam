@@ -32,7 +32,6 @@ export function accountsByPlatform(accounts: BlotatoAccount[]) {
   const grouped: Partial<Record<PostPlatform, BlotatoAccount[]>> = {};
   for (const account of accounts) {
     const platform = account.platform as PostPlatform;
-    if (platform !== "instagram" && platform !== "tiktok" && platform !== "youtube") continue;
     (grouped[platform] ??= []).push(account);
   }
   return grouped;

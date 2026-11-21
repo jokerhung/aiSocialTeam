@@ -1,7 +1,7 @@
 // BotTeam's Zalo service: node zalo-service/src/server.mjs
 //   ZALO_PORT        default 8902 (listens on 127.0.0.1 only)
 //   BOTTEAM_API      where the BotTeam server is (default http://127.0.0.1:8899); used to check that a browser is allowed in
-//   BOTTEAM_DATA_DIR where BotTeam keeps its data (default ~/.botteam); the sessions live in <it>/zalo-service
+//   BOTTEAM_DATA_DIR where BotTeam keeps its data (default ~/.botsocial); the sessions live in <it>/zalo-service
 import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -11,7 +11,13 @@ import { ZaloService } from "./service.mjs";
 
 const port = Number(process.env.ZALO_PORT || 8902);
 const api = (process.env.BOTTEAM_API || "http://127.0.0.1:8899").replace(/\/+$/, "");
-const dir = join(process.env.BOTTEAM_DATA_DIR || join(homedir(), ".botteam"), "zalo-service");
+// The data folder from .env (BOTTEAM_DATA_DIR): "~", %VAR% and $VAR are expanded; default ~/.botsocial
+function dataDir() {
+  const raw = (process.env.BOTTEAM_DATA_DIR ?? "").trim();
+  if (!raw) return join(homedir(), ".botsocial");
+  return raw.replace(/^~(?=$|[\\/])/, homedir()).replace(/%(\w+)%|\$(\w+)/g, (match, a, b) => process.env[a ?? b] ?? match);
+}
+const dir = join(dataDir(), "zalo-service");
 mkdirSync(dir, { recursive: true });
 
 // The secret the BotTeam server reads from the same file, so nothing has to be configured.

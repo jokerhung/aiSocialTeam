@@ -8,10 +8,11 @@ import { OverviewEmptyState, OverviewPanel } from "@/components/dashboard/overvi
 
 import { T } from "@/lib/i18n/client";
 import { getT } from "@/lib/i18n/server";
+import { platformName } from "@/lib/social-platforms";
 const PLATFORMS: Record<SocialPlatform, { label: string; tone: string }> = {
   instagram: { label: "Instagram", tone: "bg-pink-500/10 text-pink-700 dark:text-pink-300" },
   facebook: { label: "Facebook", tone: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
-  x: { label: "X", tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300" },
+  twitter: { label: "X", tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300" },
   linkedin: { label: "LinkedIn", tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300" },
   tiktok: { label: "TikTok", tone: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300" },
   youtube: { label: "YouTube", tone: "bg-red-500/10 text-red-700 dark:text-red-300" },
@@ -53,7 +54,7 @@ export async function UpcomingPostsCard({ posts }: { posts: UpcomingPost[] }) {
       ) : (
         <ul className="mt-3 flex flex-col gap-1">
           {posts.map((post) => {
-            const platform = PLATFORMS[post.platform];
+            const platform = PLATFORMS[post.platform] ?? { label: platformName(post.platform), tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300" };
             return (
               <li key={post.id}>
                 <Link

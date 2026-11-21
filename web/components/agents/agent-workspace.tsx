@@ -158,21 +158,21 @@ export function AgentWorkspace({
     }
   }, []);
 
-  // Adds messages the Master Agent posted in the background (questions from the team, reports).
-  // A fetched message that matches one already shown from this session's stream takes its saved id
-  // instead of being added twice.
-  const syncMasterChat = useCallback(async (lastMessageId: number) => {
-    const chat = chatsRef.current.master;
-    if (!chat?.loaded || typingRef.current.has("master") || pageRequestsRef.current.has("master")) return;
+  // Adds messages an agent got in the background: the Master Agent's questions and reports, and the jobs it hands to
+  // the others with their answers. A fetched message that matches one already shown from this session's stream takes
+  // its saved id instead of being added twice.
+  const syncChat = useCallback(async (roleId: RoleId, lastMessageId: number) => {
+    const chat = chatsRef.current[roleId];
+    if (!chat?.loaded || typingRef.current.has(roleId) || pageRequestsRef.current.has(roleId)) return;
     const known = Math.max(0, ...chat.messages.filter((m) => /^\d+$/.test(m.id)).map((m) => Number(m.id)));
     if (lastMessageId <= known) return;
 
-    const response = await fetch(`/api/agents/chat?${new URLSearchParams({ agentId: "master", after: String(known) })}`);
+    const response = await fetch(`/api/agents/chat?${new URLSearchParams({ agentId: roleId, after: String(known) })}`);
     const body = await response.json().catch(() => null);
     if (!response.ok || !body) return;
     const incoming = (body.messages as StoredChatMessage[]).map((m): ChatMessage => ({ ...m, createdAt: new Date(m.createdAt) }));
 
-    patchChat("master", ({ messages }) => {
+    patchChat(roleId, ({ messages }) => {
       const next = [...messages];
       for (const message of incoming) {
         if (next.some((m) => m.id === message.id)) continue;
@@ -200,10 +200,11 @@ export function AgentWorkspace({
       const signature = next.map((plan) => `${plan.id}:${plan.status}:${plan.tasks.map((task) => `${task.id}.${task.status}`).join(",")}`).join("|");
       if (planSignatureRef.current !== null && planSignatureRef.current !== signature) refreshLive();
       planSignatureRef.current = signature;
-      await syncMasterChat(body.lastMasterMessageId ?? 0).catch(() => undefined);
+      const lastIds = (body.lastMessageIds ?? { master: body.lastMasterMessageId ?? 0 }) as Record<string, number>;
+      await Promise.all(Object.entries(lastIds).map(([roleId, lastId]) => syncChat(roleId as RoleId, lastId).catch(() => undefined)));
       return next.some((plan) => ACTIVE_PLAN_STATUSES.includes(plan.status));
     },
-    [syncMasterChat, refreshLive]
+    [syncChat, refreshLive]
   );
 
   // Poll while the team is working, then a few more times so the final report shows up

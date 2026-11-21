@@ -235,6 +235,9 @@ export function CreateCampaignWizard({ offices, isFirst }: Props) {
                             alt={o.name}
                             fill
                             priority={i < 2}
+                            // Served as they are: the image optimizer fetches the file from the server's own bind address
+                            // (0.0.0.0), which proxy.ts refuses on purpose (see "0.0.0.0 day"), so it never gets the image
+                            unoptimized
                             sizes="(min-width: 640px) 340px, 100vw"
                             className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                           />

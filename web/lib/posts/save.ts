@@ -2,7 +2,7 @@ import "server-only";
 import { api, ApiError } from "@/lib/botteam";
 import { getT } from "@/lib/i18n/server";
 import type { Scope } from "@/lib/local-user";
-import { checkPost, POST_PLATFORMS, zonedTimeToUtc, type PostInput, type PostView } from "@/lib/posts/shared";
+import { checkPost, zonedTimeToUtc, type PostInput, type PostView } from "@/lib/posts/shared";
 
 // Saving, unscheduling and moving posts. The checks (platform rules, a time in the future) run here; the
 // server keeps the post. Nothing publishes to a real network: see server/botteam/social.py.
@@ -30,7 +30,7 @@ export async function savePostForScope(scope: Scope, input: PostInput, intent: "
     title: input.title,
     caption: input.caption,
     hashtags: input.hashtags,
-    platforms: input.platforms.filter((platform) => (POST_PLATFORMS as readonly string[]).includes(platform)),
+    platforms: input.platforms,
     media: input.media,
     draftId: input.draftId,
     source: input.draftId ? "ai" : "manual",

@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getPublishingAccounts } from "@/lib/blotato/store";
 import { getActiveCampaign } from "@/lib/campaigns";
 import { getCurrentUser } from "@/lib/local-user";
-import { mediaCapabilities } from "@/lib/posts/media";
+import { imageGeneration, mediaCapabilities } from "@/lib/posts/media";
 import { isEditable, utcToZonedParts } from "@/lib/posts/shared";
 import { getPost } from "@/lib/posts/store";
 import { PostComposer, type ComposerInitial } from "@/components/posts/post-composer";
@@ -58,6 +58,7 @@ export default async function EditPostPage({ params }: Props) {
       account={campaign.name || name}
       initials={initials || "AI"}
       imageKit={mediaCapabilities().imageKit}
+      imageTool={await imageGeneration()}
       publishing={{ platforms: publishing.platforms, accounts: publishing.byPlatform }}
     />
   );

@@ -4,7 +4,8 @@ import { countPostsByStatus, listUpcomingPosts } from "@/lib/posts/store";
 // Data for the dashboard overview. Agent activity isn't stored yet, so it returns an empty result
 // and the overview renders its empty state.
 
-export type SocialPlatform = "instagram" | "facebook" | "x" | "linkedin" | "tiktok" | "youtube";
+// The slug Composio gives the social app (twitter, instagram…)
+export type SocialPlatform = string;
 
 export type UpcomingPost = {
   id: number;

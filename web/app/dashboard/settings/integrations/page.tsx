@@ -12,7 +12,9 @@ export async function generateMetadata() {
 
 // Settings → Integrations: connect social accounts through Composio (only the social apps are listed)
 export default async function IntegrationsPage() {
-  const state = await getSocialState({ cached: true });
+  // With the server down the layout shows the outage; this page then has nothing to read
+  const state = await getSocialState({ cached: true }).catch(() => null);
+  if (!state) return null;
 
   return (
     <div className="space-y-5">

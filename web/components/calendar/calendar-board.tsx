@@ -18,7 +18,7 @@ import {
   weekDays,
   zoneOffsetLabel,
 } from "@/lib/calendar";
-import { formatInZone, isEditable, isTimeZone, listTimeZones, POST_PLATFORMS, type PostPlatform, type PostStatus, type PostView, utcToZonedParts, zonedTimeToUtc } from "@/lib/posts/shared";
+import { platformsOf, formatInZone, isEditable, isTimeZone, listTimeZones, type PostPlatform, type PostStatus, type PostView, utcToZonedParts, zonedTimeToUtc } from "@/lib/posts/shared";
 import { platformName } from "@/lib/social-platforms";
 import { cn } from "@/lib/utils";
 import { CALENDAR_STATUS } from "@/components/calendar/calendar-post";
@@ -329,7 +329,7 @@ export function CalendarBoard({ posts, account, initials }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1" aria-label={t("Filter by platform")}>
-            {POST_PLATFORMS.map((id) => (
+            {platformsOf(posts).map((id) => (
               <button
                 key={id}
                 type="button"

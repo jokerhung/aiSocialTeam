@@ -9,16 +9,33 @@ There is no real social-network publisher here: a scheduled post whose time has 
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from .store import Store, now_ms
+import shutil
+import uuid
+from pathlib import Path
 
-PLATFORMS = ["instagram", "tiktok", "youtube"]
+from . import images
+from .store import Store, data_dir, now_ms
+
+# A post's platform is the slug Composio gives the social app (twitter, instagram, tiktok, youtube, facebook…): which ones exist is
+# read from Composio's "social media accounts" category (composio.social_toolkits), nothing is listed here. These are only the
+# other names people and agents use for one of them.
+PLATFORM_ALIASES = {"x": "twitter", "x.com": "twitter", "x (twitter)": "twitter", "ig": "instagram", "yt": "youtube", "fb": "facebook"}
+PLATFORM_SHAPE = re.compile(r"^[a-z0-9_]{2,40}$")  # what a platform name must look like when Composio's list is not known
+
+
+def normalize_platform(value: str) -> str:
+    v = value.strip().lower()
+    return PLATFORM_ALIASES.get(v, v)
 METRICS = ["views", "likes", "comments", "shares", "saves", "reach", "impressions"]
 
 SCHEMA = """
@@ -32,6 +49,8 @@ CREATE TABLE IF NOT EXISTS social_posts(
   account_ids TEXT NOT NULL DEFAULT '{}', results TEXT NOT NULL DEFAULT '{}', metrics TEXT NOT NULL DEFAULT '{}', error TEXT,
   published_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS social_posts_campaign ON social_posts(campaign_id, id);
+CREATE TABLE IF NOT EXISTS social_image_settings(
+  campaign_id INTEGER PRIMARY KEY, provider TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '');
 """
 
 # The team every campaign gets: (role id, bot name, title, colour, what its soul says)
@@ -42,12 +61,69 @@ TEAM: list[tuple[str, str, str, str, str]] = [
     ("research", "Research Agent", "Finds trends and topics your audience cares about", "cyan",
      "You research trends, topics and hashtags for social-media campaigns. Give findings with their sources."),
     ("creator", "Creator Agent", "Writes captions and designs the posts", "pink",
-     "You write captions, hooks and hashtag sets for Instagram, TikTok and YouTube, matching each platform's rules."),
+     "You write captions, hooks and hashtag sets for the social platforms of the campaign (Instagram, TikTok, YouTube, X and others), matching each platform's rules."),
     ("scheduler", "Scheduler Agent", "Plans the best time to post and schedules posts", "orange",
      "You choose the best times to post and schedule posts for the campaign."),
     ("analytics", "Analytics Agent", "Reports on post performance, on request or on a schedule you set", "green",
      "You report on how posts performed: views, likes, comments, shares and saves, and what to do next."),
 ]
+
+
+TEAM_BASE = {role: soul for role, _name, _title, _color, soul in TEAM}
+
+# What each soul said before the notes below were added: a bot whose soul is still exactly this gets the new text
+OLD_SOULS = {
+    "master": ("You lead a social-media team for one campaign. Turn the person's request into small tasks and hand each one to the "
+               "right teammate (Research, Creator, Scheduler, Analytics). Report back briefly when the work is done."),
+    "creator": "You write captions, hooks and hashtag sets for Instagram, TikTok and YouTube, matching each platform's rules.",
+    "scheduler": "You choose the best times to post and schedule posts for the campaign.",
+}
+
+
+PARA = chr(10) * 2  # a blank line between paragraphs
+LINE = chr(10)
+
+
+def soul_for(role: str, base: str, campaign_id: int) -> str:
+    """The soul of a team bot: its job, and how to use the campaign's Posts page through the server's HTTP API."""
+    url = f"http://127.0.0.1:{os.environ.get('SERVER_PORT') or 8899}/api/social/posts"
+    example = '{"campaignId": %d, "title": "...", "caption": "...", "hashtags": ["#a", "#b"], "platforms": ["x"], "status": "draft"}' % campaign_id
+    if role == "master":
+        return PARA.join([
+            base,
+            "The campaign's Posts page holds its posts (drafts, scheduled, published). Ask the Creator to save the drafts there "
+            f"(platform names are Composio's social apps) and the Scheduler to schedule them; check with GET {url}?campaignId={campaign_id}.",
+        ])
+    if role == "creator":
+        return PARA.join([
+            base,
+            "Save every finished post on the campaign's Posts page so the person can review and schedule it. Send it to the server "
+            "with an HTTP request (for example curl):",
+            f"POST {url}  (Content-Type: application/json)" + LINE + example,
+            LINE.join([
+                '- platforms: one or more Composio social apps by slug, for example instagram, tiktok, youtube, twitter ("x" means twitter), facebook, linkedin. GET ' + url.replace("/posts", "/platforms") + ' lists the valid ones. One post can go to several platforms.',
+                '- status "draft" keeps it as a draft. caption is the text without the hashtags; hashtags is a list.',
+                "- An X post is at most 280 characters with its hashtags; for a thread save one post per tweet.",
+                "- Instagram needs an image or video; TikTok needs a video or images; YouTube needs a video. A draft may still lack media.",
+            ]),
+            "To make a picture for a post, send the brief to the image tool chosen in your Settings (it takes a minute or so, so wait for the reply):",
+            f"POST {url.replace('/posts', '/images')}  (Content-Type: application/json)" + LINE
+            + '{"campaignId": %d, "prompt": "what the picture shows, in detail", "aspect": "square"}' % campaign_id,
+            'aspect is square, vertical (4:5), portrait (9:16) or landscape (16:9). The reply has "url" (for example /api/media/file/abc.png): '
+            'put it in the post as media: [{"url": "<that url>", "fileId": null, "name": "<short title>", "mimeType": "image/png", "origin": "agent"}]. '
+            "Make the picture first, then save the post with it.",
+            "The reply has the post's id. Report the ids you saved. If the request fails, read the error in the reply and fix the request "
+            "instead of giving up.",
+        ])
+    if role == "scheduler":
+        return PARA.join([
+            base,
+            f"Posts live on the campaign's Posts page. List them with GET {url}?campaignId={campaign_id}. To schedule one, send PUT {url}/<id> "
+            'with the whole post as JSON (as returned by GET), change "status" to "scheduled" and set "scheduledAt" (ISO time in UTC, for '
+            'example 2026-11-24T02:00:00Z) and "timeZone". To take one off the schedule set "status" back to "draft". Report what you '
+            "scheduled and when.",
+        ])
+    return base
 
 
 def _ms(iso: Optional[str]) -> Optional[int]:
@@ -70,6 +146,24 @@ class CampaignBody(BaseModel):
 
 
 class PostBody(BaseModel):
+    @field_validator("platforms", mode="before")
+    @classmethod
+    def _platforms(cls, value):
+        """Names are lower-cased, "twitter" means x, and a platform appears once."""
+        if not isinstance(value, list):
+            return value
+        seen: list[str] = []
+        for item in value:
+            name = normalize_platform(item) if isinstance(item, str) else item
+            if name not in seen:
+                seen.append(name)
+        return seen
+
+    @field_validator("accountIds", mode="before")
+    @classmethod
+    def _account_ids(cls, value):
+        return {normalize_platform(k): v for k, v in value.items()} if isinstance(value, dict) else value
+
     campaignId: int
     title: str = Field(min_length=1, max_length=200)
     caption: str = ""
@@ -88,7 +182,7 @@ class MetricsBody(BaseModel):
     metrics: dict[str, Optional[int]]
 
 
-def register(app: FastAPI, store: Store, registry, turns) -> None:
+def register(app: FastAPI, store: Store, registry, turns, composio=None) -> None:
     ready = {"ok": False}
 
     async def db():
@@ -96,7 +190,25 @@ def register(app: FastAPI, store: Store, registry, turns) -> None:
             await store.db.executescript(SCHEMA)
             await store.db.commit()
             ready["ok"] = True
+            await refresh_souls()
         return store.db
+
+    async def refresh_souls() -> None:
+        """A team bot whose soul still starts with its original text (and has not been rewritten by the person) is given the
+        current notes on the Posts page; that also brings along a campaign made by an earlier version."""
+        rows = await (await store.db.execute("SELECT id,bots FROM social_campaigns")).fetchall()
+        for cid, bots_json in rows:
+            for role, bot_id in json.loads(bots_json).items():
+                if role not in TEAM_BASE or role in ("research", "analytics"):
+                    continue
+                bot = await store.get_bot(bot_id)
+                current = (bot.soul or "").strip() if bot else ""
+                bases = [b for b in (OLD_SOULS.get(role), TEAM_BASE[role]) if b]
+                fresh = soul_for(role, TEAM_BASE[role], cid)
+                if bot and current != fresh and any(current.startswith(b) for b in bases):
+                    bot.soul = fresh
+                    await store.save_bot(bot)
+                    await turns.publish_bot(bot)
 
     def campaign_view(r) -> dict:
         return {"id": r[0], "name": r[1], "icon": r[2], "iconUrl": r[3], "officeImage": r[4], "endedAt": _iso(r[5]), "createdAt": _iso(r[6]),
@@ -151,7 +263,7 @@ def register(app: FastAPI, store: Store, registry, turns) -> None:
         bots: dict[str, str] = {}
         for role, name, title, color, soul in TEAM:
             bot = await store.create_bot(f"{name} · {body.name.strip()}"[:60], title, title, color, registry.default_selection())
-            bot.soul = soul
+            bot.soul = soul_for(role, soul, cid)
             store.assign_workspace(bot)
             await store.save_bot(bot)
             await turns.publish_bot(bot)
@@ -191,15 +303,143 @@ def register(app: FastAPI, store: Store, registry, turns) -> None:
         await d.commit()
         return {"ok": True}
 
+    # ---- pictures made by Codex CLI or Gemini CLI --------------------------------------
+    one_at_a_time = asyncio.Lock()
+
+    async def image_settings(cid: int) -> dict:
+        d = await db()
+        r = await (await d.execute("SELECT provider,model FROM social_image_settings WHERE campaign_id=?", (cid,))).fetchone()
+        tools = await images.status()
+        if r is None:  # never chosen: the first tool that is installed
+            provider = next((t["id"] for t in tools if t["installed"]), "")
+            return {"provider": provider, "model": "", "tools": tools}
+        return {"provider": r[0], "model": r[1], "tools": tools}
+
+    @app.get("/api/social/campaigns/{cid}/image-settings")
+    async def get_image_settings(cid: int):
+        await need_campaign(cid)
+        return await image_settings(cid)
+
+    @app.put("/api/social/campaigns/{cid}/image-settings")
+    async def put_image_settings(cid: int, body: dict):
+        await need_campaign(cid)
+        provider = str(body.get("provider") or "")
+        if provider and provider not in images.PROVIDERS:
+            raise HTTPException(400, f"provider must be one of: {', '.join(images.PROVIDERS)}, or empty for none")
+        model = str(body.get("model") or "").strip()[:100]
+        d = await db()
+        await d.execute("INSERT INTO social_image_settings(campaign_id,provider,model) VALUES(?,?,?) "
+                        "ON CONFLICT(campaign_id) DO UPDATE SET provider=excluded.provider, model=excluded.model", (cid, provider, model))
+        await d.commit()
+        return await image_settings(cid)
+
+    async def make_picture(cid: int, prompt: str, aspect: str, source: Optional[Path] = None) -> tuple[str, str]:
+        """Makes one picture with the campaign's chosen tool and keeps it with the uploaded media: (its url, the tool)."""
+        settings = await image_settings(cid)
+        if not settings["provider"]:
+            raise HTTPException(409, "no image tool is chosen: pick Codex CLI or Gemini CLI in the Creator agent's Settings")
+        media_dir = data_dir() / "social-media"
+        media_dir.mkdir(parents=True, exist_ok=True)
+        async with one_at_a_time:
+            # A plain folder, not tempfile's: Python 3.13+ makes those readable by their owner only, and then the picture a
+            # sandboxed Codex writes into it cannot be read back here
+            work = data_dir() / "image-work" / uuid.uuid4().hex
+            work.mkdir(parents=True)
+            try:
+                try:
+                    extra = {"source": source} if source else {}
+                    made = await images.generate(settings["provider"], prompt, aspect, work, settings["model"] or None, **extra)
+                except images.ImageError as e:
+                    raise HTTPException(502, str(e))
+                name = f"{uuid.uuid4().hex}{made.suffix.lower()}"
+                (media_dir / name).write_bytes(made.read_bytes())
+            finally:
+                shutil.rmtree(work, ignore_errors=True)
+        return f"/api/media/file/{name}", settings["provider"]
+
+    @app.post("/api/social/images")
+    async def make_image(body: dict):
+        try:
+            cid = int(body.get("campaignId"))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "campaignId is required")
+        prompt = str(body.get("prompt") or "").strip()
+        if not prompt:
+            raise HTTPException(400, "prompt is required: describe the picture")
+        await need_campaign(cid)
+        url, provider = await make_picture(cid, prompt, str(body.get("aspect") or "square"))
+        return {"url": url, "provider": provider}
+
+    @app.post("/api/social/images/edit")
+    async def edit_image(body: dict):
+        """Changes a picture kept with the uploaded media as the person says; the original stays, the new one is returned."""
+        try:
+            cid = int(body.get("campaignId"))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "campaignId is required")
+        prompt = str(body.get("prompt") or "").strip()
+        name = str(body.get("url") or "").rsplit("/", 1)[-1]
+        if not prompt:
+            raise HTTPException(400, "prompt is required: say what to change")
+        source = data_dir() / "social-media" / Path(name).name
+        if not name or not source.is_file():
+            raise HTTPException(404, "that picture is not among the uploaded media")
+        await need_campaign(cid)
+        url, provider = await make_picture(cid, prompt, "square", source)
+        return {"url": url, "provider": provider}
+
+    @app.post("/api/social/posts/{pid}/image")
+    async def make_post_image(pid: int, body: Optional[dict] = None):
+        """A picture for a post that has none, made from its title and text, added to the post's media."""
+        d = await db()
+        r = await (await d.execute(f"SELECT {POST_COLS} FROM social_posts WHERE id=?", (pid,))).fetchone()
+        if not r:
+            raise HTTPException(404, "post not found")
+        post = post_view(r)
+        if post["status"] not in ("draft", "scheduled"):
+            raise HTTPException(409, "a post that has gone out cannot be changed")
+        prompt = str((body or {}).get("prompt") or "").strip() or (
+            f"An eye-catching picture for a social-media post. Title: {post['title']}. Text: {post['caption'][:600]}. "
+            "A clean, modern, editorial look that fits the topic; no logos of real companies and no text in the picture.")
+        url, _ = await make_picture(post["campaignId"], prompt, str((body or {}).get("aspect") or "landscape"))
+        name = url.rsplit("/", 1)[1]
+        media = post["media"] + [{"url": url, "fileId": name, "name": post["title"][:40], "mimeType": "image/png" if name.endswith(".png") else "image/jpeg", "origin": "generated", "prompt": prompt[:900]}]
+        await d.execute("UPDATE social_posts SET media=?, updated_at=? WHERE id=?", (json.dumps(media), now_ms(), pid))
+        await d.commit()
+        r = await (await d.execute(f"SELECT {POST_COLS} FROM social_posts WHERE id=?", (pid,))).fetchone()
+        return post_view(r)
+
     # ---- posts -------------------------------------------------------------------------
-    def check(body: PostBody) -> None:
+    async def known_platforms() -> Optional[dict[str, dict]]:
+        """slug -> Composio's card for every social app, or None when Composio's catalog is not known."""
+        if composio is None:
+            return None
+        try:
+            toolkits = await composio.social_toolkits()
+        except Exception:  # an unreachable Composio must not stop a post being saved
+            return None
+        return {t["slug"]: t for t in toolkits} if toolkits else None
+
+    async def check(body: PostBody) -> None:
         if body.status not in ("draft", "scheduled"):
             raise HTTPException(400, "status must be draft or scheduled")
+        known = await known_platforms()
         for pl in body.platforms:
-            if pl not in PLATFORMS:
-                raise HTTPException(400, f"unknown platform {pl}")
+            if known is not None and pl not in known:
+                raise HTTPException(400, f"unknown platform {pl!r}; the social apps in Composio are: {', '.join(sorted(known)[:25])}"
+                                         " (GET /api/social/platforms lists them)")
+            if known is None and not PLATFORM_SHAPE.match(pl):
+                raise HTTPException(400, f"{pl!r} is not a platform name (a Composio app slug such as instagram, tiktok, youtube, twitter)")
         if body.status == "scheduled" and (not body.scheduledAt or not body.platforms):
             raise HTTPException(400, "a scheduled post needs a time and a platform")
+
+    @app.get("/api/social/platforms")
+    async def list_platforms():
+        """The platforms a post can go to: Composio's social apps (in its order of popularity), with the logo and the name."""
+        known = await known_platforms()
+        if known is None:
+            return {"source": "unavailable", "platforms": []}
+        return {"source": "composio", "platforms": [{"id": slug, "label": t.get("label") or slug, "logo": t.get("logo")} for slug, t in known.items()]}
 
     @app.get("/api/social/posts")
     async def list_posts(campaignId: int, limit: int = 200):
@@ -220,7 +460,7 @@ def register(app: FastAPI, store: Store, registry, turns) -> None:
 
     @app.post("/api/social/posts", status_code=201)
     async def create_post(body: PostBody):
-        check(body)
+        await check(body)
         await need_campaign(body.campaignId)
         d = await db()
         results = {pl: {"status": "scheduled", "accountId": body.accountIds.get(pl)} for pl in body.platforms} if body.status == "scheduled" else {}
@@ -238,7 +478,7 @@ def register(app: FastAPI, store: Store, registry, turns) -> None:
         current = await get_post(pid)
         if current["status"] not in ("draft", "scheduled", "cancelled"):
             raise HTTPException(409, "a post that has gone out can't be edited")
-        check(body)
+        await check(body)
         d = await db()
         results = {pl: {"status": "scheduled", "accountId": body.accountIds.get(pl)} for pl in body.platforms} if body.status == "scheduled" else {}
         await d.execute(

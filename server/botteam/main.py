@@ -1775,7 +1775,7 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
 
     from . import social
 
-    social.register(app, store, registry, turns)  # campaigns, posts, accounts and analytics for the social-media web app
+    social.register(app, store, registry, turns, composio)  # campaigns, posts, accounts and analytics for the social-media web app
     app.state.turns, app.state.registry, app.state.store, app.state.broker = turns, registry, store, broker
     app.state.scheduler = app.state.routines = routines
     app.state.webhooks, app.state.hook_app = webhooks, make_hook_app(webhooks)
