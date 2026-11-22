@@ -8,7 +8,7 @@ import pytest
 
 from botteam.bus import Bus
 from botteam.computer_host import ComputerHost, ComputerUnavailable, METADATA_BOT, METADATA_OWNER
-from botteam.computer_opensandbox import PASTE, START, OpenSandboxMachine, OpenSandboxProvider
+from botteam.computer_opensandbox import PASTE, START, VIEWER_UP, OpenSandboxMachine, OpenSandboxProvider
 from botteam.computer_settings import ComputerHostSettings, ComputerSettingsPatch
 from botteam.config import ConfigStore
 
@@ -36,7 +36,8 @@ class FakeSandbox:
 
     def _run(self, command, opts=None):
         self.ran.append((command, opts))
-        out = "ready\n" if command == START else "/usr/bin/tool\n" if command.startswith("command -v") else ""
+        out = ("ready\n" if command == START else "/usr/bin/tool\n" if command.startswith("command -v")
+               else "up\n" if command == VIEWER_UP and getattr(self, "desktop_up", False) else "")
         return SimpleNamespace(logs=SimpleNamespace(stdout=[SimpleNamespace(text=out)] if out else [], stderr=[]), error=None)
 
     def is_healthy(self):
@@ -281,3 +282,18 @@ async def test_a_missing_image_is_reported_by_the_machine_check():
     provider = OpenSandboxProvider(SimpleNamespace(api_url="http://server:8080", key="", template="botteam/desktop:1", source="opensandbox",
                                                    identity=lambda: []), sdk=sdk)
     assert await provider.probe_machine() == "no_image"
+
+
+async def test_opening_the_stream_only_runs_the_start_script_when_something_stopped():
+    sandbox = FakeSandbox("m", {})
+    provider = OpenSandboxProvider(SimpleNamespace(api_url="http://server:8080", key="", template="botteam/desktop:1", source="opensandbox",
+                                                   identity=lambda: []), sdk=fake_sdk(FakeServer()))
+    machine = OpenSandboxMachine(sandbox, provider.sdk)
+    sandbox.desktop_up = True
+    provider.ensure_viewer(machine)  # never checked: one quick check
+    provider.ensure_viewer(machine)  # checked a moment ago: the machine is not asked at all
+    assert [command for command, _ in sandbox.ran] == [VIEWER_UP]
+    provider.forget_viewer(machine)  # a stream failed
+    sandbox.desktop_up = False
+    provider.ensure_viewer(machine)
+    assert [command for command, _ in sandbox.ran][-2:] == [VIEWER_UP, START]  # something stopped: the script puts it back

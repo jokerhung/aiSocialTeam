@@ -235,7 +235,8 @@ export function AgentPanel({
             />
           </TabsContent>
         )}
-        <TabsContent value="browser" className="min-h-0 overflow-y-auto pt-4">
+        {/* A computer's live screen stays connected while another tab is shown, so coming back to it is instant. */}
+        <TabsContent value="browser" keepMounted={(master ? agents : [agent]).some(({ role }) => surfaceByRole[role.id] === "computer")} className="min-h-0 overflow-y-auto pt-4">
           <div className={master ? "grid gap-3 xl:grid-cols-2" : undefined}>
             {(master ? agents : [agent]).map(({ role }) => {
               const selection = surfaceByRole[role.id] ?? "browser";

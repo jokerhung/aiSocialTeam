@@ -84,6 +84,9 @@ class Provider:
         """The WebSocket address of the machine's screen stream, and the headers to send to it."""
         raise NotImplementedError
 
+    def forget_viewer(self, machine) -> None:
+        """The screen stream failed: a provider that remembers a stream as running should check the machine again."""
+
     def keep_awake(self, machine) -> None:
         machine.commands.run(KEEP_AWAKE, timeout=10)
 

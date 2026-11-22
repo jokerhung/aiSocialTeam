@@ -19,6 +19,9 @@ from .computer_provider import (
 
 START = "botteam-desktop-start"
 STREAM_PORT = 6080
+VIEWER_TRUST_S = 300  # how long a checked (or just started) screen stream is trusted without asking the machine again
+# What the screen stream needs, checked in a fraction of a second. The [w] keeps pgrep from matching its own command line.
+VIEWER_UP = "pgrep -x Xvfb >/dev/null && pgrep -x xfce4-panel >/dev/null && pgrep -x x11vnc >/dev/null && pgrep -f '[w]ebsockify.*6080' >/dev/null && echo up"
 SHOT = "/tmp/botteam-shot.png"
 PASTE = "/tmp/botteam-paste.txt"
 IMAGE_HINT = "Build the desktop image on the OpenSandbox server (see the setup guide)"
@@ -82,6 +85,7 @@ class OpenSandboxMachine:
         self.commands = _Commands(sandbox, sdk)
         self.files = _Files(sandbox, sdk)
         self.traffic_access_token = None
+        self.viewer_ok = 0.0  # when the screen stream was last known to be running (time.monotonic)
 
     def _xdo(self, args: str) -> None:
         result = self.commands.run(f"export DISPLAY=:0; xdotool {args}", timeout=20)
@@ -177,6 +181,7 @@ class OpenSandboxProvider(Provider):
                 result = machine.commands.run(START, timeout=60)
                 if result.error is not None or "ready" not in result.stdout:
                     raise ComputerUnavailable("The computer's desktop did not start: " + (result.stderr or result.stdout)[:200])
+                machine.viewer_ok = time.monotonic()
                 return machine
             except BaseException:
                 try:
@@ -212,6 +217,7 @@ class OpenSandboxProvider(Provider):
             result = machine.commands.run(START, timeout=60)  # leaves what already runs alone
             if result.error is not None or "ready" not in result.stdout:
                 raise ComputerUnavailable("The computer's desktop did not start again")
+            machine.viewer_ok = time.monotonic()
             return machine
 
         return await call(attach)
@@ -265,9 +271,20 @@ class OpenSandboxProvider(Provider):
         return await call(entries)
 
     def ensure_viewer(self, machine) -> None:
-        result = machine.commands.run(START, timeout=60)
-        if result.error is not None:
-            raise ComputerUnavailable("The computer's screen stream did not start")
+        # Opening the stream is done each time the person looks at the screen, and every command costs about a second: a machine that
+        # was just started, or whose stream was checked a moment ago, is not asked again. Otherwise a quick check runs first, and the
+        # start script (with its waits) only when something it starts has stopped.
+        if time.monotonic() - machine.viewer_ok < VIEWER_TRUST_S:
+            return
+        if machine.commands.run(VIEWER_UP, timeout=10).stdout.strip() != "up":
+            result = machine.commands.run(START, timeout=60)
+            if result.error is not None:
+                raise ComputerUnavailable("The computer's screen stream did not start")
+        machine.viewer_ok = time.monotonic()
+
+    def forget_viewer(self, machine) -> None:
+        """The stream failed: the next one checks the machine again."""
+        machine.viewer_ok = 0.0
 
     def viewer(self, machine):
         endpoint = machine.sandbox.get_endpoint(STREAM_PORT)

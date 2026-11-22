@@ -1994,6 +1994,13 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         except Exception:
             from starlette.websockets import WebSocketState
 
+            try:
+                # The stream failed: the next one checks that the machine still serves its screen.
+                if (machine := computer_host.live(bot_id)) is not None:
+                    computer_host.provider().forget_viewer(machine)
+            except Exception:
+                pass
+
             if websocket.application_state != WebSocketState.DISCONNECTED:
                 await websocket.close(code=1011)
         else:

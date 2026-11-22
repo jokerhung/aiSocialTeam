@@ -880,4 +880,5 @@ export const vi: Record<string, string> = {
   "The whole text the {name} is given before every task: its role, how it saves posts and makes pictures, and what it learned from you. When you ask it to remember something, it adds that here. Edit it freely, but keep the parts that explain its tools.": "Toàn bộ văn bản {name} nhận được trước mỗi việc: vai trò, cách lưu bài đăng và tạo ảnh, và những gì nó học được từ bạn. Khi bạn nhờ nó ghi nhớ điều gì, nó sẽ thêm vào đây. Bạn sửa thoải mái, nhưng nên giữ các phần giải thích công cụ của nó.",
   "Save soul": "Lưu soul",
   "Discard changes": "Bỏ thay đổi",
+  "Connecting to the computer…": "Đang kết nối tới máy tính…",
 };
