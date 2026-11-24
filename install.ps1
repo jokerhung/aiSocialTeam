@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Installs BotTeam on a new Windows computer: Git, Node.js, Python and uv when they are missing, then the project's own dependencies.
+  Installs aiSocialTeam on a new Windows computer: Git, Node.js, Python and uv when they are missing, then the project's own dependencies.
 
 .DESCRIPTION
   Run it from a clone of the repository, or on its own (it then clones the repository first):
 
     powershell -ExecutionPolicy Bypass -File install.ps1
     # on a computer with nothing yet: download the script, then run it
-    iwr -useb https://raw.githubusercontent.com/jokerhung/aiBotTeam/master/install.ps1 -OutFile install.ps1
+    iwr -useb https://raw.githubusercontent.com/jokerhung/aiSocialTeam/master/install.ps1 -OutFile install.ps1
     powershell -ExecutionPolicy Bypass -File install.ps1
 
   What it does, skipping whatever is already there:
@@ -19,7 +19,7 @@
 
   Nothing is started at the end; the last lines say how.
 
-.PARAMETER Dir        Where to clone the repository when the script is not inside one (default: $HOME\aiBotTeam).
+.PARAMETER Dir        Where to clone the repository when the script is not inside one (default: $HOME\aiSocialTeam).
 .PARAMETER RepoUrl    The repository to clone.
 .PARAMETER Browser    Also download Playwright's Chromium (about 150 MB).
 .PARAMETER Claude     Also install the Claude Code CLI (npm package @anthropic-ai/claude-code). You still sign in yourself: run `claude` once.
@@ -30,8 +30,8 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Dir = (Join-Path $HOME "aiBotTeam"),
-  [string]$RepoUrl = "https://github.com/jokerhung/aiBotTeam",
+  [string]$Dir = (Join-Path $HOME "aiSocialTeam"),
+  [string]$RepoUrl = "https://github.com/jokerhung/aiSocialTeam",
   [switch]$Browser,
   [switch]$Claude,
   [switch]$Codex,

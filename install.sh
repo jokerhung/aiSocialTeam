@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Installs BotTeam on a new macOS or Linux computer: Git, Node.js, Python and uv when they are missing, then the project's own dependencies.
+# Installs aiSocialTeam on a new macOS or Linux computer: Git, Node.js, Python and uv when they are missing, then the project's own dependencies.
 #
 #   bash install.sh                      # from a clone of the repository
-#   curl -fsSL https://raw.githubusercontent.com/jokerhung/aiBotTeam/master/install.sh | bash    # on a computer with nothing yet
+#   curl -fsSL https://raw.githubusercontent.com/jokerhung/aiSocialTeam/master/install.sh | bash    # on a computer with nothing yet
 #
 # Options (after `bash -s --` when piped):
-#   --dir PATH        where to clone the repository when the script is not inside one (default: ~/aiBotTeam)
+#   --dir PATH        where to clone the repository when the script is not inside one (default: ~/aiSocialTeam)
 #   --repo URL        the repository to clone
 #   --claude          also install the Claude Code CLI (npm @anthropic-ai/claude-code); you sign in yourself: run `claude` once
 #   --codex           also install the Codex CLI (npm @openai/codex); you sign in yourself: run `codex login`
@@ -19,8 +19,8 @@
 # the repository; `pnpm install` (the web app and the Node.js Zalo service in zalo-service/), `uv sync`, a .env made from .env.example and the production build of web/ (`pnpm build:static`). Nothing is started at the end; the last lines say how.
 set -euo pipefail
 
-DIR="$HOME/aiBotTeam"
-REPO="https://github.com/jokerhung/aiBotTeam"
+DIR="$HOME/aiSocialTeam"
+REPO="https://github.com/jokerhung/aiSocialTeam"
 BROWSER=0
 WANT_CLAUDE=0
 WANT_CODEX=0

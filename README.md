@@ -1,6 +1,6 @@
-# **BotTeam**
+# **aiSocialTeam**
 
-BotTeam is a local chat app where every contact in the sidebar is a real AI agent: the Claude Code, Codex or Antigravity CLI (or any OpenAI-compatible endpoint) running on your computer, with its own name, instructions, model, memory and connected apps. Bots work together in channels, hand tasks to each other, run on a schedule, and answer people who write to them on Telegram or Zalo. Everything is kept on your machine.
+aiSocialTeam is a local chat app where every contact in the sidebar is a real AI agent: the Claude Code, Codex or Antigravity CLI (or any OpenAI-compatible endpoint) running on your computer, with its own name, instructions, model, memory and connected apps. Bots work together in channels, hand tasks to each other, run on a schedule, and answer people who write to them on Telegram or Zalo. Everything is kept on your machine.
 
 The web app is a social-media dashboard: you create a campaign and get an AI team of five bots (Master, Research, Creator, Scheduler, Analytics) that you brief in chat, with posts, a calendar, analytics and social accounts connected through Composio next to them. The interface is in English and Vietnamese: the Language button just above Settings at the bottom of the sidebar picks the language.
 
@@ -32,13 +32,13 @@ It is built with a Next.js web app and a Python (FastAPI) server, and is inspire
 **macOS / Linux**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jokerhung/aiBotTeam/master/install.sh -o install.sh && bash install.sh
+curl -fsSL https://raw.githubusercontent.com/jokerhung/aiSocialTeam/master/install.sh -o install.sh && bash install.sh
 ```
 
 **Windows (PowerShell)**
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/jokerhung/aiBotTeam/master/install.ps1 -OutFile install.ps1; powershell -ExecutionPolicy Bypass -File install.ps1
+iwr -useb https://raw.githubusercontent.com/jokerhung/aiSocialTeam/master/install.ps1 -OutFile install.ps1; powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
 The script installs Git, Node.js, Python and uv when they are missing, clones the repository and installs its dependencies. Add `--claude` / `-Claude`, `--codex` / `-Codex` or `--antigravity` / `-Antigravity` to install the engine CLIs too. See [docs/user-guide.md](docs/user-guide.md) for every option and for signing in to an engine.
@@ -62,7 +62,7 @@ The script installs Git, Node.js, Python and uv when they are missing, clones th
 
 ```mermaid
 flowchart LR
-    Browser["Web app<br/>(browser)"] -- "HTTP commands" --> API["BotTeam server<br/>127.0.0.1:8899"]
+    Browser["Web app<br/>(browser)"] -- "HTTP commands" --> API["aiSocialTeam server<br/>127.0.0.1:8899"]
     API -- "one SSE stream" --> Browser
     API --> Bus["Event bus"]
     API --> Broker["Permission broker<br/>(fail closed)"]
@@ -100,7 +100,7 @@ flowchart LR
 | `scripts/` | Helpers: `run.mjs`, `free-ports.ps1`, visual and reference checks |
 | `docs/` | Phase plans, [user guide](docs/user-guide.md), visual report, [examples](docs/examples/) of `intake.md` and `machines.md` |
 | `specs/` | Specs of changes, such as [intake.md](specs/intake-md.md) |
-| `workspaces/` | Working folders BotTeam makes for bots that were given none (created at run time, not in git) |
+| `workspaces/` | Working folders aiSocialTeam makes for bots that were given none (created at run time, not in git) |
 | `install.ps1`, `install.sh`, `start.bat`, `zip-project.ps1` | Install, start and pack scripts |
 
 ### Development Setup
@@ -114,13 +114,13 @@ flowchart LR
 - Microsoft Edge or Chrome for Browser use. Without either one, run `uv run --project server playwright install chromium`.
 - Node.js 20+ and `npx` for Playwright MCP. The installers prefetch the pinned package.
 
-Browser use tries Edge, Chrome and then Playwright Chromium. Each bot's sign-ins are kept in its own profile under `<data>/browser/`. BotTeam excludes browser profiles from backup and bot export. See `.env.example` for browser selection, window visibility and idle timeout.
+Browser use tries Edge, Chrome and then Playwright Chromium. Each bot's sign-ins are kept in its own profile under `<data>/browser/`. aiSocialTeam excludes browser profiles from backup and bot export. See `.env.example` for browser selection, window visibility and idle timeout.
 
 #### Computer use with E2B or OpenSandbox
 
 Computer use is optional and off by default. It requires Python 3.11 or later and a computer host that you set up yourself: **E2B Cloud**, a **self-hosted E2B** server (Linux with KVM), or an **OpenSandbox** server on any Linux machine with Docker (each computer is a container; no KVM needed). Configure it in **Settings → Computer Use**. After the connection passes, choose **Computer use**, **Browser use**, or **Off** for each campaign agent.
 
-E2B Cloud processes the virtual machine's contents and screenshots on its own infrastructure under the limits and prices of your E2B plan. With self-hosted E2B, those stay on your host and BotTeam relays the display. See the E2B setup guide ([English](docs/e2b-setup.en.md), [Vietnamese](docs/e2b-setup.vi.md)) or the OpenSandbox setup guide ([English](docs/opensandbox-setup.en.md), [Vietnamese](docs/opensandbox-setup.vi.md)); the OpenSandbox desktop image is built from [docs/opensandbox-desktop](docs/opensandbox-desktop). OpenSandbox containers are held back only by Docker unless you turn on gVisor or Kata, and an idle computer is frozen or removed instead of snapshotted, so open windows and sign-ins may not survive.
+E2B Cloud processes the virtual machine's contents and screenshots on its own infrastructure under the limits and prices of your E2B plan. With self-hosted E2B, those stay on your host and aiSocialTeam relays the display. See the E2B setup guide ([English](docs/e2b-setup.en.md), [Vietnamese](docs/e2b-setup.vi.md)) or the OpenSandbox setup guide ([English](docs/opensandbox-setup.en.md), [Vietnamese](docs/opensandbox-setup.vi.md)); the OpenSandbox desktop image is built from [docs/opensandbox-desktop](docs/opensandbox-desktop). OpenSandbox containers are held back only by Docker unless you turn on gVisor or Kata, and an idle computer is frozen or removed instead of snapshotted, so open windows and sign-ins may not survive.
 
 In **AI Agent → Settings → Browser**, choose which browser to run and whether the agent publishes through Composio (the default) or its web browser. Use **Clear browser data** to remove that agent's cookies and sign-ins. Browser access to local addresses and downloads is off by default.
 - Optional, for pictures: the Codex CLI (`install.ps1 -Codex` / `install.sh --codex`, then `codex login`) or the Gemini CLI. In the Creator agent's **Settings → Image generation** choose which one makes the images (post editor's *Generate with AI* and the Creator's `POST /api/social/images`); no image API key is needed. Gemini CLI makes images only with an image extension installed. Pictures are kept in `<data folder>/social-media`.
@@ -162,7 +162,7 @@ bash install.sh      # uses sudo when you are not root
 pnpm dev
 ```
 
-To use BotTeam from another computer on your LAN or Tailscale, keep `WEB_HOST=0.0.0.0` in `.env` (the default), keep `SERVER_HOST=127.0.0.1`, restart, and open `http://<ip>:5499`. The web app (`web/proxy.ts`) only answers on localhost, LAN and Tailscale IPs; a domain name such as a MagicDNS name must be listed in `WEB_ALLOWED_HOSTS`. There is no sign-in, so anyone on those networks can use it: set `WEB_HOST=127.0.0.1` to keep it to this computer.
+To use aiSocialTeam from another computer on your LAN or Tailscale, keep `WEB_HOST=0.0.0.0` in `.env` (the default), keep `SERVER_HOST=127.0.0.1`, restart, and open `http://<ip>:5499`. The web app (`web/proxy.ts`) only answers on localhost, LAN and Tailscale IPs; a domain name such as a MagicDNS name must be listed in `WEB_ALLOWED_HOSTS`. There is no sign-in, so anyone on those networks can use it: set `WEB_HOST=127.0.0.1` to keep it to this computer.
 
 #### Open the application and configure it
 
@@ -182,12 +182,12 @@ pnpm typecheck         # TypeScript
 pnpm --filter web build  # production build of the web app, then `pnpm start:web`
 ```
 
-Your data lives in the folder set by `BOTTEAM_DATA_DIR` in `.env` (default `~/.botsocial`, that is `%USERPROFILE%\.botsocial` on Windows), apart from any other BotTeam on the same computer. The server, the web app and the Zalo service all read this one setting; change it to keep the data elsewhere (`~`, `%VAR%` and `$VAR` are expanded) and restart. Back it up with Settings → Backup or `botteam backup <file>`. The plan, scope and risks are in [docs/README.md](docs/README.md).
+Your data lives in the folder set by `BOTTEAM_DATA_DIR` in `.env` (default `~/.botsocial`, that is `%USERPROFILE%\.botsocial` on Windows), apart from any other aiSocialTeam on the same computer. The server, the web app and the Zalo service all read this one setting; change it to keep the data elsewhere (`~`, `%VAR%` and `$VAR` are expanded) and restart. Back it up with Settings → Backup or `botteam backup <file>`. The plan, scope and risks are in [docs/README.md](docs/README.md).
 
 ---
 
 ## 📄 License
 
-BotTeam does not have its own license file yet. Third-party notices are in [NOTICE](NOTICE).
+aiSocialTeam does not have its own license file yet. Third-party notices are in [NOTICE](NOTICE).
 
-- Repository: <https://github.com/jokerhung/aiBotTeam>
+- Repository: <https://github.com/jokerhung/aiSocialTeam>

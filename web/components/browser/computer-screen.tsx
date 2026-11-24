@@ -15,6 +15,7 @@ export function ComputerScreen({ botId }: { botId: string }) {
   useEffect(() => {
     let stopped = false;
     let connection: InstanceType<typeof import("@novnc/novnc").default> | undefined;
+    let ended = false; // noVNC reports an error when a connection that has already ended is disconnected again
     setFailed(false);
     setConnected(false);
     async function connect() {
@@ -23,11 +24,22 @@ export function ComputerScreen({ botId }: { botId: string }) {
         if (!screen.current || stopped) return;
         const url = new URL(`/api/bots/${encodeURIComponent(botId)}/computer/stream`, location.href);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-        connection = new RFB(screen.current, url.href);
+        // noVNC logs "requires a secure context" as an error on plain-HTTP addresses (the LAN or Tailscale). It matters only for its
+        // encrypted VNC logins; this stream is view-only and BotTeam authorizes it. Its logger was bound when the module loaded, so the
+        // message cannot be filtered: the check it makes is answered "secure" while the connection is being made, and put back after.
+        const own = Object.getOwnPropertyDescriptor(window, "isSecureContext");
+        Object.defineProperty(window, "isSecureContext", { value: true, configurable: true });
+        try {
+          connection = new RFB(screen.current, url.href);
+        } finally {
+          if (own) Object.defineProperty(window, "isSecureContext", own);
+          else delete (window as { isSecureContext?: boolean }).isSecureContext;
+        }
         connection.viewOnly = true;
         connection.scaleViewport = true;
         connection.addEventListener("connect", () => !stopped && setConnected(true));
         connection.addEventListener("disconnect", (event: Event) => {
+          ended = true;
           if (!stopped && !(event as CustomEvent<{ clean: boolean }>).detail?.clean) setFailed(true);
         });
       } catch {
@@ -35,7 +47,7 @@ export function ComputerScreen({ botId }: { botId: string }) {
       }
     }
     void connect();
-    return () => { stopped = true; connection?.disconnect(); };
+    return () => { stopped = true; if (!ended) connection?.disconnect(); };
   }, [botId, attempt]);
 
   // The stream can drop while the tab is out of sight: connect again when the screen comes back into view.
