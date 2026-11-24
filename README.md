@@ -4,7 +4,7 @@ aiSocialTeam is a multi-agent application for creating social media content. Tur
 
 Each agent can use Claude Code, Codex or Antigravity CLI, or an OpenAI-compatible endpoint, with its own instructions, model, memory, working folder and connected apps. Agents can hand tasks to one another, run on a schedule, and receive requests through Telegram or Zalo. The dashboard brings together campaign chats, posts, a calendar, analytics and social accounts connected through Composio. Campaign data and conversations are stored on your computer. The interface supports English and Vietnamese, selectable with the Language button above Settings at the bottom of the sidebar.
 
-It is built with a Next.js web app and a Python (FastAPI) server, and is inspired by [OpenMausBot](https://github.com/milind-soni/OpenMausBot).
+It is built with a Next.js web app and a Python (FastAPI) server, and is inspired by [this video](https://www.youtube.com/watch?v=5GWTDRrwynY).
 
 **English** | [Tiếng Việt](README_VI.md)
 

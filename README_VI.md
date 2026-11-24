@@ -4,7 +4,7 @@ aiSocialTeam là ứng dụng đa tác tử để tạo nội dung mạng xã h�
 
 Mỗi agent có thể dùng Claude Code, Codex hoặc Antigravity CLI, hoặc endpoint tương thích OpenAI, với hướng dẫn, mô hình, bộ nhớ, thư mục làm việc và ứng dụng kết nối riêng. Các agent có thể giao việc cho nhau, chạy theo lịch và nhận yêu cầu qua Telegram hoặc Zalo. Dashboard tập hợp cuộc trò chuyện của chiến dịch, bài đăng, lịch, phân tích và tài khoản mạng xã hội kết nối qua Composio. Dữ liệu chiến dịch và cuộc trò chuyện được lưu trên máy tính của bạn. Giao diện hỗ trợ tiếng Anh và tiếng Việt, chọn bằng nút ngôn ngữ phía trên Cài đặt ở cuối thanh bên.
 
-Ứng dụng được xây dựng bằng Next.js và máy chủ Python (FastAPI), lấy cảm hứng từ [OpenMausBot](https://github.com/milind-soni/OpenMausBot).
+Ứng dụng được xây dựng bằng Next.js và máy chủ Python (FastAPI), lấy cảm hứng từ [video này](https://www.youtube.com/watch?v=5GWTDRrwynY).
 
 [English](README.md) | **Tiếng Việt**
 
