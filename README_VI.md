@@ -45,152 +45,187 @@ Script cài Git, Node.js, Python và uv nếu còn thiếu, sao chép repository
 
 ---
 
-## ✨ 8 tính năng nổi bật
+## Bạn có thể làm gì
 
-- 🤖 **Agent thực thụ** — mỗi bot là một phiên Claude Code, Codex hoặc Antigravity CLI, hoặc kết nối tới endpoint tương thích OpenAI, với mô hình, thư mục làm việc và mức duyệt quyền riêng.
-- 👥 **Đội nhóm và kênh** — đưa nhiều bot vào cùng kênh, gọi tên bằng `@mention` và cho phép bot giao việc cho nhau.
-- ✋ **Thẻ duyệt quyền** — trước khi bot chạy lệnh, sửa tệp hoặc gửi nội dung ra ngoài, bạn quyết định ngay trong cuộc trò chuyện theo các mức Ask, Edits, Auto hoặc Full.
-- 🔌 **Ứng dụng kết nối** — kết nối Gmail, Google Sheets, Slack, GitHub và nhiều ứng dụng khác qua Composio, hoặc thêm máy chủ MCP riêng.
-- 💬 **Nhận dữ liệu từ Telegram và Zalo** — hỗ trợ Telegram bot, Zalo bot hoặc tài khoản Zalo cá nhân qua dịch vụ Node.js. Bot có thể trả lời từng tin nhắn hoặc thu thập ảnh, tệp rồi tự chạy sau 30 giây không có dữ liệu mới, hoặc khi người dùng bấm *Check*. Quy trình nhận dữ liệu nằm trong tệp `intake.md` ở thư mục làm việc, có thể chỉnh trong cài đặt bot. Quy trình gồm thông báo tiến độ khi nhận ảnh, lưu vào thư mục như `<machine>/<date>/Truoc|Sau` theo chú thích, tránh lưu trùng tệp và trả lời ngắn có hoặc không chạy bot. Mỗi đợt ảnh có cuộc trò chuyện riêng trong ứng dụng, hiển thị cả nội dung đã gửi tới kênh chat. Sau đó, `run.command` có thể chạy script trong thư mục làm việc, chẳng hạn để tải PDF, và thử lại cho đến khi thành công.
-- 🌐 **Dùng trình duyệt** — mỗi agent của chiến dịch có hồ sơ Edge hoặc Chrome riêng, điều khiển qua Playwright MCP. Xem tab Browser, tiếp quản để đăng nhập hoặc xử lý CAPTCHA, rồi trả quyền cho agent.
-- ⏰ **Tự động hoá** — lịch chạy định kỳ và webhook khởi động bot tự động, có trang lịch để theo dõi.
-- 🧠 **Bộ nhớ, kỹ năng và chia sẻ** — ghi chú được giữ qua nhiều tác vụ, kỹ năng `SKILL.md`, xuất và nhập bot hoặc đội bằng một tệp.
+- **Làm việc theo chiến dịch.** Tạo chiến dịch với các agent Master, Research, Creator, Scheduler và Analytics riêng. Chuyển chiến dịch để làm việc với đội và tập bài đăng khác.
+- **Giao việc và theo dõi cả đội.** Trò chuyện với Master, mở chat của từng agent và theo dõi việc được phân công trong Tasks cùng lịch sử agent. Văn phòng hiển thị cả đội cạnh khung làm việc. Bạn có thể ẩn panel ảnh và trình duyệt sẽ nhớ lựa chọn này.
+- **Cấu hình từng agent.** Chọn engine, mô hình và mức suy nghĩ khả dụng trong tab Cài đặt của agent. Chỉnh sửa và lưu hướng dẫn riêng.
+- **Chuẩn bị bài đăng.** Viết chú thích, hashtag, chọn nền tảng và tài khoản đã kết nối, đính kèm media, lưu bản nháp và xem trước nội dung trong trình soạn bài.
+- **Tạo và sửa ảnh.** Chọn Codex CLI hoặc Gemini CLI đã cài trong cài đặt tạo ảnh của Creator. Dùng công cụ ảnh từ trình soạn bài hoặc yêu cầu Creator chuẩn bị ảnh.
+- **Lập lịch nội dung.** Lên lịch, chuyển thời gian và huỷ lịch bài đăng. Xem số liệu đã lưu của bài đăng trong Phân tích.
+- **Kết nối tài khoản mạng xã hội.** Nhập khoá Composio tại Cài đặt → Tích hợp, kết nối tài khoản và quản lý trong Tài khoản.
+- **Xem agent thao tác trên giao diện.** Chọn Dùng trình duyệt, Dùng máy tính hoặc Tắt cho từng agent. Xem trình duyệt hoặc desktop, tiếp quản để đăng nhập hay xác minh, rồi trả quyền điều khiển.
+- **Dùng hai ngôn ngữ.** Chọn tiếng Anh hoặc tiếng Việt từ thanh bên.
 
----
+### Đăng bài và phân tích trong phiên bản này
 
-## 🛡️ Kiến trúc bảo mật
+Quy trình Bài đăng và Lịch lưu bản nháp cùng lịch đăng trên máy chủ cục bộ. Khi đến giờ, máy chủ đánh dấu bài đã xuất bản trong dữ liệu cục bộ. Luồng này chưa gửi bài lên mạng xã hội, và trạng thái đã xuất bản chưa phải xác nhận từ nền tảng.
 
-```mermaid
-flowchart LR
-    Browser["Ứng dụng web<br/>(trình duyệt)"] -- "Lệnh HTTP" --> API["Máy chủ aiSocialTeam<br/>127.0.0.1:8899"]
-    API -- "Một luồng SSE" --> Browser
-    API --> Bus["Bus sự kiện"]
-    API --> Broker["Bộ duyệt quyền<br/>(từ chối khi chưa được duyệt)"]
-    API --> Drivers["Trình điều khiển"]
-    Drivers --> CLI["Claude / Codex / Antigravity CLI<br/>Endpoint tương thích OpenAI"]
-    CLI -- "Xin quyền" --> Broker
-    Broker -- "Thẻ duyệt quyền" --> Browser
-    API --> Proxy["Proxy MCP<br/>công cụ được phép, giới hạn đầu ra"]
-    Proxy --> Apps["Composio và<br/>máy chủ MCP riêng"]
-    API --> Data[("~/.botsocial<br/>SQLite và tệp")]
-    Channels["Telegram / Zalo"] -- "Chỉ các cuộc trò chuyện được phép" --> API
-```
+Agent có cài đặt đăng bài riêng qua Composio hoặc giao diện trình duyệt/máy tính đã chọn. Khả năng đăng của agent phụ thuộc tài khoản kết nối, công cụ khả dụng, yêu cầu của nền tảng và chỉ dẫn của bạn. Khi xác minh bài đã đăng, kiểm tra kết quả agent báo và bài trên nền tảng.
 
-- **Ưu tiên cục bộ.** Máy chủ lắng nghe tại `127.0.0.1`. Truy cập trực tiếp qua localhost, LAN và Tailscale. Tên miền hoặc địa chỉ công khai cần mã ghép nối dùng một lần, có hiệu lực 10 phút.
-- **Mặc định từ chối.** Yêu cầu quyền không được ai trả lời sẽ bị từ chối.
-- **Khoá chỉ cho phép ghi.** Ứng dụng chỉ cho biết khoá đã được cấu hình. Token Composio, Telegram và Zalo được giữ trên máy và không xuất hiện trong tệp xuất bot.
-- **Nội dung bên ngoài là dữ liệu.** Văn bản từ công cụ, trang web, tin nhắn và chú thích ảnh không được xem là chỉ dẫn.
-- **Giới hạn truy cập.** Bot chỉ mở được địa chỉ nội bộ như localhost và mạng riêng khi bạn cho phép. Mỗi kết nối có thể được giới hạn quyền đọc, ghi và danh sách công cụ. Việc gửi nội dung ra ngoài luôn cần duyệt trừ khi bạn cấu hình khác.
+Phân tích hiển thị số liệu được lưu cho các bài đăng. Máy chủ nhận số liệu qua `PUT /api/social/posts/{id}/metrics`. Luồng dữ liệu phân tích hiện tại của dashboard chưa triển khai tự thu thập số liệu từ các nền tảng.
 
----
+## Bắt đầu sử dụng
 
-## 📂 Cấu trúc dự án (monorepo)
+Sau khi chạy script cài đặt ở phần Bắt đầu nhanh, khởi động ứng dụng từ thư mục dự án.
 
-| Đường dẫn | Chức năng |
-|---|---|
-| `web/` | Bảng điều khiển mạng xã hội Next.js (App Router) theo giao diện SocialTeam, gồm tổng quan, văn phòng AI Agent và trò chuyện, bài đăng, lịch, phân tích, tài khoản. Sử dụng React và Tailwind v4. Các trang đọc máy chủ trong `server/botteam` từ phía Next.js qua `BOTTEAM_API`, mặc định `http://127.0.0.1:8899`. |
-| `web/lib/` | `botteam.ts` (kết nối máy chủ), `campaigns.ts`, `posts/`, `analytics/`, `agent-chats.ts`, tạo lớp dữ liệu cho `/api/social/*` và trò chuyện với bot. |
-| `server/botteam/social.py` | Chiến dịch, bài đăng và phân tích cho dashboard. Mỗi chiến dịch tạo năm bot Master, Research, Creator, Scheduler, Analytics. Dữ liệu nằm trong cùng tệp SQLite. |
-| `server/botteam/` | Máy chủ FastAPI gồm `main.py` (route), `turns.py`, `registry.py`, `broker.py`, `store.py`, `routines.py`, `memory.py`. |
-| `server/botteam/drivers/` | Trình điều khiển riêng cho từng engine, gồm `claude.py`, `codex.py`, `antigravity.py`, `openai_compat.py`. |
-| `server/botteam/channels/` | Nhận dữ liệu qua Telegram, Zalo bot và tài khoản Zalo cá nhân, hỗ trợ chế độ theo đợt và trò chuyện. |
-| `zalo-service/` | Dịch vụ Node.js dùng [zca-js](https://github.com/RFS-ADRENO/zca-js), đăng nhập bằng QR, nhận và gửi tin nhắn bằng tài khoản Zalo cá nhân. Truy cập qua proxy `/zalo-api` trong `web/next.config.mjs`. |
-| `server/botteam/mcp_*.py`, `composio.py` | Máy chủ MCP, proxy và kết nối Composio. |
-| `server/tests/` | Các bộ kiểm thử pytest, dùng trình điều khiển giả để phát lại sự kiện. |
-| `scripts/` | Script hỗ trợ như `run.mjs`, `free-ports.ps1`, kiểm tra giao diện và bản tham chiếu. |
-| `docs/` | Kế hoạch từng giai đoạn, [hướng dẫn sử dụng](docs/user-guide.md), báo cáo giao diện và [ví dụ](docs/examples/) về `intake.md`, `machines.md`. |
-| `specs/` | Đặc tả thay đổi, chẳng hạn [intake.md](specs/intake-md.md). |
-| `workspaces/` | Thư mục làm việc aiSocialTeam tạo cho bot chưa được chỉ định thư mục. Được tạo lúc chạy và không nằm trong git. |
-| `install.ps1`, `install.sh`, `start.bat`, `zip-project.ps1` | Script cài đặt, khởi động và đóng gói. |
-
-### Thiết lập môi trường phát triển
-
-#### Yêu cầu
-
-- Python 3.10 trở lên và [uv](https://docs.astral.sh/uv/).
-- Node.js 20 trở lên và pnpm.
-- Git.
-- Ít nhất một engine gồm Claude Code CLI, Codex CLI, Antigravity CLI (`agy`, từ antigravity.google), hoặc endpoint tương thích OpenAI.
-- Microsoft Edge hoặc Chrome để dùng trình duyệt. Nếu chưa có cả hai, chạy `uv run --project server playwright install chromium`.
-- Node.js 20+ và `npx` để chạy Playwright MCP. Script cài đặt tải trước phiên bản gói đã ghim.
-
-Chế độ dùng trình duyệt ưu tiên Edge, rồi Chrome, sau đó Playwright Chromium. Phiên đăng nhập của mỗi bot được lưu trong hồ sơ riêng tại `<data>/browser/`. aiSocialTeam loại hồ sơ trình duyệt khỏi bản sao lưu và tệp xuất bot. Xem `.env.example` để chọn trình duyệt, bật hiển thị cửa sổ và đặt thời gian chờ.
-
-#### Dùng máy tính với E2B hoặc OpenSandbox
-
-Chế độ dùng máy tính là tính năng tuỳ chọn, mặc định tắt. Tính năng cần Python 3.11 trở lên và máy chủ do bạn tự thiết lập, gồm **E2B Cloud**, **E2B tự host** trên Linux có KVM, hoặc **OpenSandbox** trên máy Linux có Docker. Với OpenSandbox, mỗi máy tính là một container và không cần KVM. Cấu hình tại **Cài đặt → Dùng máy tính**. Sau khi kết nối đạt, chọn **Dùng máy tính**, **Dùng trình duyệt** hoặc **Tắt** cho từng agent trong chiến dịch.
-
-E2B Cloud xử lý nội dung và ảnh màn hình máy ảo trên hạ tầng của E2B, theo giới hạn và giá của gói bạn đăng ký. Với E2B tự host, dữ liệu nằm trên máy chủ của bạn và aiSocialTeam chuyển tiếp màn hình. Xem hướng dẫn E2B ([tiếng Anh](docs/e2b-setup.en.md), [tiếng Việt](docs/e2b-setup.vi.md)) hoặc hướng dẫn OpenSandbox ([tiếng Anh](docs/opensandbox-setup.en.md), [tiếng Việt](docs/opensandbox-setup.vi.md)). Image desktop của OpenSandbox được dựng từ [docs/opensandbox-desktop](docs/opensandbox-desktop). Container OpenSandbox được cách ly bằng Docker, có thể bật thêm gVisor hoặc Kata. Máy tính khi rảnh được đóng băng hoặc xoá thay vì chụp snapshot, nên cửa sổ và phiên đăng nhập có thể không được giữ lại.
-
-Trong **AI Agent → Cài đặt → Trình duyệt**, chọn trình duyệt và cách agent đăng bài qua Composio (mặc định) hoặc trình duyệt web. Dùng **Xoá dữ liệu trình duyệt** để xoá cookie và phiên đăng nhập của agent. Truy cập địa chỉ nội bộ và tải tệp mặc định tắt.
-
-- Tuỳ chọn tạo ảnh bằng Codex CLI (`install.ps1 -Codex` / `install.sh --codex`, rồi `codex login`) hoặc Gemini CLI. Trong **Cài đặt → Tạo ảnh** của Creator, chọn công cụ tạo ảnh cho nút *Tạo bằng AI* ở trình soạn bài và endpoint `POST /api/social/images` của Creator. Không cần khoá API tạo ảnh. Gemini CLI cần cài tiện ích tạo ảnh. Ảnh được lưu tại `<data folder>/social-media`.
-
-Script cài đặt kiểm tra các yêu cầu này và cài phần còn thiếu. Các cổng được đặt trong `.env`, gồm web `5499`, API `9999`, webhook `9900`. Dịch vụ Zalo dùng cổng `8902` và không khởi động cùng `pnpm dev`. Chạy `pnpm dev:zalo` khi cần.
-
-#### Windows — PowerShell
-
-**Khởi động nhanh**
+**Windows**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1
 .\start.bat
 ```
 
-**Chạy từng thành phần**
-
-```powershell
-.\start.bat server   # máy chủ API, có tự tải lại khi mã nguồn thay đổi
-.\start.bat web      # ứng dụng web
-.\start.bat one      # chỉ API (botteam serve), ứng dụng web chạy trên Node.js, dùng pnpm start:web sau pnpm build:static
-```
-
-`start.bat` giải phóng các cổng trước khi khởi động. Nếu chưa tìm thấy `pnpm` hoặc `uv` ngay sau khi cài, mở cửa sổ terminal mới.
-
-#### macOS
+**macOS / Linux**
 
 ```bash
-bash install.sh
 pnpm dev
 ```
 
-`pnpm dev` khởi động máy chủ và ứng dụng web cùng lúc. Mở terminal mới nếu hệ thống chưa nhận ra `uv` hoặc `pnpm` sau khi cài.
+Mở `http://127.0.0.1:5499` khi dùng các cổng trong `.env.example`.
 
-#### Linux
+1. Cài và đăng nhập ít nhất một CLI được hỗ trợ trên máy chạy server Python. Script cài đặt hỗ trợ `-Claude`, `-Codex`, `-Antigravity` trên Windows và `--claude`, `--codex`, `--antigravity` trên macOS/Linux. Hoàn tất đăng nhập bằng chính CLI.
+2. Tạo chiến dịch. Ứng dụng tạo năm agent cho chiến dịch.
+3. Mở **AI Agent**, chọn agent rồi mở **Cài đặt** để chọn engine, mô hình, mức suy nghĩ và lưu hướng dẫn. Danh sách engine phụ thuộc kết quả phát hiện của server.
+4. Mở **Cài đặt → Tích hợp** để cấu hình Composio và kết nối tài khoản mạng xã hội nếu chiến dịch cần.
+5. Gửi Master yêu cầu có đối tượng độc giả, nền tảng, chủ đề, giọng văn và kết quả mong muốn. Ví dụ, yêu cầu ba bản nháp giới thiệu sản phẩm kèm chú thích và ý tưởng hình ảnh.
+6. Kiểm tra kết quả agent và bản nháp đã lưu trong **Bài đăng**, rồi sắp xếp thời gian trong **Lịch**.
+
+### Các trang dashboard
+
+| Trang | Chức năng |
+|---|---|
+| Tổng quan | Tóm tắt chiến dịch, hoạt động gần đây, bài sắp đăng và văn phòng của đội. |
+| AI Agent | Chat với agent, nhiệm vụ của Master, lịch sử thành viên, cài đặt mô hình và hướng dẫn, màn hình trình duyệt/máy tính cùng tab Màn hình của Master. |
+| Bài đăng | Tạo, chỉnh sửa nội dung, quản lý bản nháp và lịch đăng, đính kèm media, dùng tính năng tạo ảnh. |
+| Lịch | Xem thời gian đăng, chuyển hoặc huỷ các mục đã lên lịch. |
+| Phân tích | Xem số liệu đã lưu của bài đăng và so sánh hiệu quả. |
+| Tài khoản | Xem và quản lý tài khoản mạng xã hội kết nối qua Composio. |
+| Cài đặt → Tích hợp | Cấu hình khoá Composio và kết nối ứng dụng mạng xã hội. |
+| Cài đặt → Dùng máy tính | Cấu hình, kiểm tra máy chủ E2B hoặc OpenSandbox và mở hướng dẫn thiết lập. |
+
+### Tạo ảnh
+
+Chọn công cụ trong **AI Agent → Creator → Cài đặt → Tạo ảnh**. Codex CLI và Gemini CLI dùng tài khoản đã cấu hình cục bộ. Gemini cần tiện ích hoặc tích hợp MCP có khả năng tạo ảnh.
+
+Trình soạn bài hỗ trợ tạo ảnh và yêu cầu sửa ảnh. Giữ kết quả để đính kèm vào bài đăng. Media tạo ra được lưu tại `<BOTTEAM_DATA_DIR>/social-media`.
+
+### Truy cập trình duyệt và máy tính
+
+Trong **Cài đặt → Điều khiển giao diện** của từng agent, chọn chế độ rồi lưu.
+
+| Chế độ | Yêu cầu và cách hoạt động |
+|---|---|
+| Dùng trình duyệt | Edge, Chrome hoặc Playwright Chromium cục bộ, cùng Node.js và npx cho Playwright MCP. Mỗi agent có hồ sơ trình duyệt riêng. |
+| Dùng máy tính | Máy chủ E2B hoặc OpenSandbox đã cấu hình và kiểm tra kết nối thành công, Python 3.11+ và engine hỗ trợ ảnh từ công cụ. |
+| Tắt | Tắt các công cụ giao diện tích hợp của agent trong chiến dịch. |
+
+Chế độ trình duyệt ưu tiên Edge, rồi Chrome, sau đó Playwright Chromium. Nếu cần, cài Chromium bằng `uv run --project server playwright install chromium`. Cài đặt trình duyệt gồm hiển thị cửa sổ, truy cập địa chỉ nội bộ, tải tệp và xoá dữ liệu hồ sơ.
+
+Chế độ máy tính hỗ trợ E2B Cloud, E2B tự host có KVM và OpenSandbox có Docker. Cấu hình kết nối và khoá API đầy đủ nằm ở server Python. Dashboard hiển thị khoá đã che và chuyển tiếp luồng desktop qua ứng dụng web.
+
+- E2B Cloud xử lý nội dung desktop trên hạ tầng E2B theo giới hạn và giá của gói đăng ký.
+- E2B tự host chạy trên máy của bạn, có thể giữ bộ nhớ qua snapshot khi tạm dừng và tiếp tục.
+- OpenSandbox dùng container Docker. Tạm dừng có thể giữ phiên đang chạy trong khi container còn tồn tại. Xoá hoặc tạo lại container làm mất tệp và phiên đăng nhập.
+
+Dùng **Mở rộng → Tiếp quản** để thao tác trên giao diện đã chọn, rồi **Trả quyền điều khiển** để agent tiếp tục. Công cụ máy tính của agent tạm ngưng khi người dùng nắm quyền. Xoá máy tính từ cài đặt agent sẽ xoá trạng thái đã lưu. Kết thúc hoặc xoá chiến dịch sẽ xoá các máy tính của chiến dịch.
+
+Hướng dẫn thiết lập gồm [E2B tiếng Anh](docs/e2b-setup.en.md), [E2B tiếng Việt](docs/e2b-setup.vi.md), [OpenSandbox tiếng Anh](docs/opensandbox-setup.en.md) và [OpenSandbox tiếng Việt](docs/opensandbox-setup.vi.md). Mã dựng image desktop cho OpenSandbox nằm trong [docs/opensandbox-desktop](docs/opensandbox-desktop).
+
+## Cài đặt và chạy từ mã nguồn
+
+### Yêu cầu
+
+- Git, Node.js 20+ và pnpm. Phiên bản pnpm của dự án được khai báo trong `package.json`.
+- Python 3.10+ và [uv](https://docs.astral.sh/uv/). Dùng Python 3.11+ cho chế độ máy tính.
+- Một engine AI đã cấu hình. Server hỗ trợ Claude Code, Codex, Antigravity và endpoint tương thích OpenAI. Từng tính năng phụ thuộc khả năng của engine.
+- Edge hoặc Chrome cho chế độ trình duyệt, hoặc cài Playwright Chromium.
+- Công cụ và dịch vụ tuỳ chọn cho tính năng bạn bật, như CLI tạo ảnh, Composio hoặc máy chủ máy tính.
+
+Script cài đặt kiểm tra yêu cầu, cài thư viện dự án, tạo `.env` nếu thiếu, dựng ứng dụng web và chuẩn bị Playwright MCP. Các cờ cài engine là tuỳ chọn. Đăng nhập engine riêng sau khi cài. Máy chủ E2B và OpenSandbox được cấu hình riêng theo hướng dẫn thiết lập.
+
+Với bản mã nguồn đã có, chạy các lệnh sau từ thư mục gốc dự án.
 
 ```bash
-bash install.sh      # dùng sudo nếu bạn không chạy bằng root
+pnpm install --frozen-lockfile
+uv sync --project server
+```
+
+Sao chép `.env.example` thành `.env` nếu chưa có tệp, rồi khởi động môi trường phát triển.
+
+```bash
 pnpm dev
 ```
 
-Để dùng aiSocialTeam từ máy khác trong LAN hoặc Tailscale, giữ `WEB_HOST=0.0.0.0` trong `.env` (mặc định), giữ `SERVER_HOST=127.0.0.1`, khởi động lại và mở `http://<ip>:5499`. Ứng dụng web (`web/proxy.ts`) chỉ trả lời trên localhost, IP LAN và Tailscale. Tên miền như MagicDNS cần được thêm vào `WEB_ALLOWED_HOSTS`. Ứng dụng không có bước đăng nhập, nên mọi người trong các mạng này đều có thể dùng. Đặt `WEB_HOST=127.0.0.1` để chỉ dùng trên máy hiện tại.
+### Dịch vụ và bản dựng production
 
-#### Mở và cấu hình ứng dụng
+| Lệnh | Chức năng |
+|---|---|
+| `pnpm dev` | Khởi động API Python và server phát triển Next.js cùng lúc. |
+| `pnpm dev:server` | Khởi động API Python có tự tải lại. |
+| `pnpm dev:web` | Chỉ khởi động server phát triển Next.js. |
+| `pnpm build:static` | Dựng Next.js cho production vào `web/.next`. Tên script được giữ lại, bản dựng cần server Node.js khi chạy. |
+| `pnpm start:one` | Khởi động API Python không dùng chế độ tự tải lại khi phát triển. |
+| `pnpm start:web` | Phục vụ bản dựng web production. Chạy cùng API. |
+| `pnpm dev:zalo` | Khởi động dịch vụ tài khoản Zalo cá nhân tuỳ chọn. |
 
-1. Khi phát triển, mở `http://127.0.0.1:5499`. Máy chủ cần đang chạy, và `pnpm dev` khởi động cả máy chủ lẫn web. Lần đầu truy cập, ứng dụng yêu cầu tạo chiến dịch và tạo năm bot cho chiến dịch đó. Khởi động web bằng `pnpm dev`, hoặc `pnpm build:static` rồi `pnpm start:web`.
+Trên Windows, `start.bat` khởi động môi trường phát triển và giải phóng các cổng đã cấu hình trước. Script nhận thêm `server`, `web`, `one` và `zalo` để chạy từng dịch vụ.
 
-   > Dashboard hiện chưa đăng bài thật lên mạng xã hội. Bài đến giờ được đánh dấu đã xuất bản trong dữ liệu cục bộ. Các nền tảng có thể chọn được lấy từ danh mục “social media accounts” của Composio, như twitter, instagram, tiktok, youtube, facebook…, thay vì cố định trong mã. Tài khoản được kết nối qua Composio tại Cài đặt → Tích hợp, dùng `COMPOSIO_API_KEY` của máy chủ hoặc khoá nhập ở đó, nhưng chưa thực hiện đăng bài qua các kết nối này. Chỉ số bài đăng được nhập qua `PUT /api/social/posts/{id}/metrics`.
+### Cấu hình và truy cập mạng
 
-2. Màn hình chào kiểm tra engine. Cài và đăng nhập bằng `claude`, `codex login`, `agy`, hoặc thêm endpoint tương thích OpenAI trong Cài đặt → Engine, rồi bấm **Kiểm tra lại**.
-3. Bấm **+** → **Bot mới**, đặt tên và chọn màu.
-4. Chọn mức duyệt quyền và kết nối ứng dụng bằng **Kết nối ứng dụng**, gồm khoá Composio, máy chủ MCP riêng, Telegram và Zalo. Bot chưa có thư mục làm việc sẽ được cấp `workspaces/<bot id>/`. Khi cấu hình đầu vào, tệp `intake.md` được tạo tại đó. Sửa tệp trong Cài đặt bot → *Quy trình nhận dữ liệu*.
+Script khởi động đọc `.env` ở thư mục gốc. Giá trị trong `.env.example` như sau.
 
-> ⚠️ Bot ở mức quyền **Full** có thể chạy mọi lệnh trên máy tính của bạn. Dùng **Ask** cho bot trò chuyện với người ngoài đội.
+| Cài đặt | Giá trị | Chức năng |
+|---|---|---|
+| `WEB_PORT` | `5499` | Cổng dashboard. |
+| `SERVER_PORT` | `9999` | Cổng API Python. |
+| `WEBHOOK_PORT` | `9900` | Cổng nhận webhook. |
+| `ZALO_PORT` | `8902` | Cổng dịch vụ Zalo tuỳ chọn. |
+| `WEB_HOST` | `0.0.0.0` | Mở dashboard qua các giao diện mạng của máy. |
+| `SERVER_HOST` | `127.0.0.1` | Giữ API Python trên loopback. |
+| `BOTTEAM_DATA_DIR` | `~/.botsocial` | Dữ liệu lâu dài của ứng dụng. |
 
-#### Dựng ứng dụng và kiểm tra
+Với cấu hình trên, mở `http://<machine-ip>:5499` từ máy khác trong LAN hoặc Tailscale. Web chấp nhận localhost và địa chỉ IP LAN/Tailscale. Thêm tên máy khác vào `WEB_ALLOWED_HOSTS`. Dashboard dùng người dùng cục bộ và không có bước đăng nhập ứng dụng, nên truy cập được cổng web là có quyền vào workspace. Đặt `WEB_HOST=127.0.0.1` để chỉ dùng trên máy hiện tại.
+
+Script khởi động có cổng dự phòng khi thiếu `.env`. Dùng `.env.example` để có các cổng ghi trong tài liệu. Các biến môi trường tuỳ chọn cho trình duyệt và máy chủ máy tính cũng nằm trong tệp đó.
+
+## Dữ liệu và kiến trúc
+
+Next.js hiển thị dashboard và chuyển tiếp yêu cầu tới API Python. API lưu chiến dịch, agent, cuộc trò chuyện, bài đăng, cài đặt và khởi chạy CLI của engine. Bộ thực thi đội theo dõi nhiệm vụ được giao giữa các agent. Composio cung cấp ứng dụng mạng xã hội kết nối. Trình duyệt chạy trên máy API, còn chế độ máy tính dùng máy chủ E2B hoặc OpenSandbox đã cấu hình.
+
+Dữ liệu ứng dụng nằm trong `BOTTEAM_DATA_DIR`, gồm cơ sở dữ liệu SQLite, cài đặt, tệp tải lên và media đã tạo. Server lưu khoá API và trả gợi ý đã che cho các khoá hiển thị trong Cài đặt. Hồ sơ trình duyệt và phiên máy tính có thể chứa thông tin đăng nhập. Engine AI, ứng dụng kết nối và nhà cung cấp máy tính từ xa nhận nội dung cần thiết để thực hiện công việc.
+
+| Đường dẫn | Nội dung |
+|---|---|
+| `web/app/dashboard/` | Các trang dashboard và tab Cài đặt. |
+| `web/components/agents/` | Workspace của đội, chat, nhiệm vụ và cài đặt agent. |
+| `web/components/browser/` | Khung xem trình duyệt/máy tính và cài đặt máy chủ. |
+| `web/lib/` | Truy cập dữ liệu chiến dịch, bài đăng, phân tích và API. |
+| `server/botteam/social.py` | Vai trò trong chiến dịch, cài đặt giao diện, bài đăng và số liệu. |
+| `server/botteam/turns.py`, `runtime.py` | Lượt chạy agent và nhiệm vụ được phân công. |
+| `server/botteam/drivers/` | Tích hợp engine AI. |
+| `server/botteam/computer_*.py` | Vòng đời máy tính, công cụ, nhà cung cấp và luồng hình. |
+| `server/tests/` | Kiểm thử Python. |
+| `docs/` | Hướng dẫn thiết lập, kế hoạch giai đoạn, ảnh chụp và tài liệu tham khảo. |
+| `scripts/` | Script khởi động, dựng và kiểm tra. |
+| `zalo-service/` | Dịch vụ Node.js tuỳ chọn cho tài khoản Zalo cá nhân. |
+
+Gói Python, CLI và một số cài đặt vẫn dùng tên kỹ thuật `botteam`, chẳng hạn `server/botteam` và `BOTTEAM_DATA_DIR`.
+
+## Kiểm tra khi phát triển
+
+Chạy từ thư mục gốc dự án.
 
 ```bash
-pnpm test                # máy chủ (pytest), kiểm tra ngôn ngữ web (scripts/check-i18n.mjs, scripts/i18n.test.mjs) và dịch vụ Zalo (node:test)
-pnpm typecheck           # kiểm tra TypeScript
-pnpm --filter web build  # dựng web cho môi trường production, sau đó chạy pnpm start:web
+pnpm typecheck
+pnpm test:web
+pnpm test:server
+pnpm test:zalo
 ```
 
-Dữ liệu nằm trong thư mục cấu hình bằng `BOTTEAM_DATA_DIR` ở `.env`, mặc định là `~/.botsocial`, tương ứng `%USERPROFILE%\.botsocial` trên Windows. Dữ liệu tách riêng với các bản aiSocialTeam khác trên cùng máy. Máy chủ, web và dịch vụ Zalo đều đọc cài đặt này. Đổi giá trị để chuyển vị trí dữ liệu, rồi khởi động lại. Các ký hiệu `~`, `%VAR%` và `$VAR` được mở rộng. Sao lưu qua Cài đặt → Sao lưu hoặc `botteam backup <file>`. Xem kế hoạch, phạm vi và rủi ro tại [docs/README.md](docs/README.md).
+`pnpm test` chạy kiểm thử server, ngôn ngữ web và Zalo cùng lúc. Thay đổi giao diện web phải hỗ trợ tiếng Anh và tiếng Việt. Xem quy tắc đóng góp trong [AGENTS.md](AGENTS.md).
 
----
+## Giấy phép
 
-## 📄 Giấy phép
+aiSocialTeam hiện chưa có tệp giấy phép dự án. Thông báo về thành phần bên thứ ba nằm trong [NOTICE](NOTICE).
 
-aiSocialTeam hiện chưa có tệp giấy phép riêng. Thông báo về thành phần bên thứ ba nằm trong [NOTICE](NOTICE).
-
-- Repository tại <https://github.com/jokerhung/aiSocialTeam>.
+Repository [jokerhung/aiSocialTeam](https://github.com/jokerhung/aiSocialTeam).

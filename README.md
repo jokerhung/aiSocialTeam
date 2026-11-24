@@ -45,149 +45,187 @@ The script installs Git, Node.js, Python and uv when they are missing, clones th
 
 ---
 
-## ✨ 8 Superpowers
+## What you can do
 
-- 🤖 **Real agents, not a chat wrapper** — each bot is a Claude Code, Codex or Antigravity CLI session (or an OpenAI-compatible endpoint) with its own model, working folder and approval level.
-- 👥 **Teams and channels** — put several bots in one channel, `@mention` them, and let a bot hand work to another one.
-- ✋ **Approval cards** — before a bot runs a command, edits a file or sends something out, you decide in the chat: Ask, Edits, Auto or Full.
-- 🔌 **Connected apps** — connect Gmail, Google Sheets, Slack, GitHub and more through Composio, or add your own MCP servers.
-- 💬 **Telegram and Zalo input** (Telegram bot, Zalo bot, or your own Zalo account through a Node.js service) — a bot answers every message, or collects photos and files and runs by itself after 30 quiet seconds (or when someone presses *Check*). How a bot receives messages is written in an `intake.md` in its working folder, which you can edit in Bot settings: progress messages while photos arrive, saving them into folders such as `<machine>/<date>/Truoc|Sau` read from the caption (identical files are not saved twice), and a short reply with or without running a bot. Each batch of photos gets its own conversation in the app that also shows everything sent to the chat, and `run.command` can run a script of the working folder afterwards (for example to download PDFs), retrying until it succeeds.
-- 🌐 **Browser use** — each campaign agent browses in its own Edge or Chrome profile through Playwright MCP. Watch its Browser tab, take over for sign-in or CAPTCHA, then hand control back.
-- ⏰ **Automations** — schedules (routines) and webhooks start a bot without you, with a calendar page to see them.
-- 🧠 **Memory, skills and sharing** — notes that last between tasks, `SKILL.md` skills, and one-file export and import of a bot or a team.
+- **Work by campaign.** Create a campaign with its own Master, Research, Creator, Scheduler and Analytics agents. Switch campaigns to work with a different team and set of posts.
+- **Brief and follow the team.** Talk to Master, open individual agent chats, and follow delegated work in Tasks and agent history. The office view shows the team alongside the workspace. Its image panel can be hidden, with the preference remembered in your browser.
+- **Configure each agent.** Choose an available engine, model and thinking level in the agent's Settings tab. Edit and save its instructions.
+- **Prepare posts.** Write captions and hashtags, select platforms and connected accounts, attach media, save drafts and preview content in the post editor.
+- **Generate and edit images.** Choose an installed Codex CLI or Gemini CLI in Creator's image settings. Use the image tool from the post editor or ask Creator to prepare an image.
+- **Plan content on a calendar.** Schedule, move and unschedule posts. Review stored post metrics in Analytics.
+- **Connect social accounts.** Set a Composio key in Settings → Integrations, connect accounts and manage them from Accounts.
+- **Watch agents use interfaces.** Choose Browser use, Computer use or Off per agent. View the browser or desktop, take over for sign-in or verification, then hand control back.
+- **Use either language.** Select English or Vietnamese from the sidebar.
 
----
+### Publishing and analytics in this version
 
-## 🛡️ Security Architecture
+The Posts and Calendar workflow saves drafts and schedules in the local server. When a scheduled time passes, the server marks the post as published locally. This path does not submit the post to a social network, and its published status is not a platform confirmation.
 
-```mermaid
-flowchart LR
-    Browser["Web app<br/>(browser)"] -- "HTTP commands" --> API["aiSocialTeam server<br/>127.0.0.1:8899"]
-    API -- "one SSE stream" --> Browser
-    API --> Bus["Event bus"]
-    API --> Broker["Permission broker<br/>(fail closed)"]
-    API --> Drivers["Drivers"]
-    Drivers --> CLI["Claude / Codex / Antigravity CLI<br/>OpenAI-compatible endpoint"]
-    CLI -- "asks permission" --> Broker
-    Broker -- "approval card" --> Browser
-    API --> Proxy["MCP proxy<br/>allowed tools, output limit"]
-    Proxy --> Apps["Composio and<br/>custom MCP servers"]
-    API --> Data[("~/.botsocial<br/>SQLite and files")]
-    Channels["Telegram / Zalo"] -- "only allowed chats" --> API
-```
+Agents have a separate publishing setting for Composio or the selected browser/computer interface. What an agent can publish depends on the connected account, available tools, platform requirements and your instructions. Review the agent's result and the platform itself when verifying a publication.
 
-- **Local first.** The server listens on `127.0.0.1`. Localhost, LAN and Tailscale addresses open directly; a domain or public address needs a one-time pairing code (valid 10 minutes).
-- **Fail closed.** A permission request that nobody answers is denied.
-- **Keys are write-only.** The app only shows that a key is configured. Composio, Telegram and Zalo tokens stay on this machine and never appear in an exported bot file.
-- **Outside text is data.** Text from tools, web pages, chats and photo captions is never treated as an instruction.
-- **Bounded access.** Bots cannot open internal addresses (localhost, private networks) unless you allow it; each connection can be limited to read or write and to a list of allowed tools; sending out always asks unless you say otherwise.
+Analytics displays metrics stored for posts. The server accepts metrics through `PUT /api/social/posts/{id}/metrics`. Automatic collection from social platforms is not implemented in the dashboard's current analytics data path.
 
----
+## Getting started
 
-## 📂 Project Structure (Monorepo)
+After running an installer from Quick Start, start the app from the repository.
 
-| Path | Purpose |
-|---|---|
-| `web/` | Next.js (App Router) social-media dashboard (SocialTeam look: overview, AI Agent office and chat, posts, calendar, analytics, accounts), React, Tailwind v4. Pages read the server in `server/botteam` from the Next.js side (`BOTTEAM_API`, default `http://127.0.0.1:8899`) |
-| `web/lib/` | `botteam.ts` (server client), `campaigns.ts`, `posts/`, `analytics/`, `agent-chats.ts`: the data layer over `/api/social/*` and the bots' chat |
-| `server/botteam/social.py` | Campaigns (each creates a team of five bots: Master, Research, Creator, Scheduler, Analytics), posts and analytics for the dashboard; stored in the same SQLite file |
-| `server/botteam/` | FastAPI server: `main.py` (routes), `turns.py`, `registry.py`, `broker.py`, `store.py`, `routines.py`, `memory.py` |
-| `server/botteam/drivers/` | One driver per engine: `claude.py`, `codex.py`, `antigravity.py`, `openai_compat.py` |
-| `server/botteam/channels/` | Telegram, Zalo bot and Zalo personal-account input, batch and chat modes |
-| `zalo-service/` | Node.js service on [zca-js](https://github.com/RFS-ADRENO/zca-js): QR sign-in, receives and sends Zalo messages for a personal account; reached through the `/zalo-api` proxy in `web/next.config.mjs` |
-| `server/botteam/mcp_*.py`, `composio.py` | MCP servers, proxy and Composio connection |
-| `server/tests/` | pytest suites (a fake driver replays events) |
-| `scripts/` | Helpers: `run.mjs`, `free-ports.ps1`, visual and reference checks |
-| `docs/` | Phase plans, [user guide](docs/user-guide.md), visual report, [examples](docs/examples/) of `intake.md` and `machines.md` |
-| `specs/` | Specs of changes, such as [intake.md](specs/intake-md.md) |
-| `workspaces/` | Working folders aiSocialTeam makes for bots that were given none (created at run time, not in git) |
-| `install.ps1`, `install.sh`, `start.bat`, `zip-project.ps1` | Install, start and pack scripts |
-
-### Development Setup
-
-#### Prerequisites
-
-- Python 3.10 or newer and [uv](https://docs.astral.sh/uv/)
-- Node.js 20 or newer and pnpm
-- Git
-- At least one engine: the Claude Code CLI, the Codex CLI, the Antigravity CLI (`agy`, from antigravity.google), or an OpenAI-compatible endpoint
-- Microsoft Edge or Chrome for Browser use. Without either one, run `uv run --project server playwright install chromium`.
-- Node.js 20+ and `npx` for Playwright MCP. The installers prefetch the pinned package.
-
-Browser use tries Edge, Chrome and then Playwright Chromium. Each bot's sign-ins are kept in its own profile under `<data>/browser/`. aiSocialTeam excludes browser profiles from backup and bot export. See `.env.example` for browser selection, window visibility and idle timeout.
-
-#### Computer use with E2B or OpenSandbox
-
-Computer use is optional and off by default. It requires Python 3.11 or later and a computer host that you set up yourself: **E2B Cloud**, a **self-hosted E2B** server (Linux with KVM), or an **OpenSandbox** server on any Linux machine with Docker (each computer is a container; no KVM needed). Configure it in **Settings → Computer Use**. After the connection passes, choose **Computer use**, **Browser use**, or **Off** for each campaign agent.
-
-E2B Cloud processes the virtual machine's contents and screenshots on its own infrastructure under the limits and prices of your E2B plan. With self-hosted E2B, those stay on your host and aiSocialTeam relays the display. See the E2B setup guide ([English](docs/e2b-setup.en.md), [Vietnamese](docs/e2b-setup.vi.md)) or the OpenSandbox setup guide ([English](docs/opensandbox-setup.en.md), [Vietnamese](docs/opensandbox-setup.vi.md)); the OpenSandbox desktop image is built from [docs/opensandbox-desktop](docs/opensandbox-desktop). OpenSandbox containers are held back only by Docker unless you turn on gVisor or Kata, and an idle computer is frozen or removed instead of snapshotted, so open windows and sign-ins may not survive.
-
-In **AI Agent → Settings → Browser**, choose which browser to run and whether the agent publishes through Composio (the default) or its web browser. Use **Clear browser data** to remove that agent's cookies and sign-ins. Browser access to local addresses and downloads is off by default.
-- Optional, for pictures: the Codex CLI (`install.ps1 -Codex` / `install.sh --codex`, then `codex login`) or the Gemini CLI. In the Creator agent's **Settings → Image generation** choose which one makes the images (post editor's *Generate with AI* and the Creator's `POST /api/social/images`); no image API key is needed. Gemini CLI makes images only with an image extension installed. Pictures are kept in `<data folder>/social-media`.
-
-The install scripts check all of this and install what is missing. Ports (set in `.env`): web `5499`, API `9999`, webhooks `9900`. The Zalo service (`8902`) is not started by `pnpm dev`; run `pnpm dev:zalo` when you need it.
-
-#### Windows — PowerShell
-
-**Quick start:**
+**Windows**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1
 .\start.bat
 ```
 
-**Run one part only:**
-
-```powershell
-.\start.bat server   # the API server, with reload
-.\start.bat web      # the web app
-.\start.bat one      # the API (botteam serve) only: the web app renders on Node.js, so start it with `pnpm start:web` after `pnpm build:static`
-```
-
-`start.bat` frees its ports first, then starts. If `pnpm` or `uv` is not found right after the install, open a new terminal window.
-
-#### macOS
+**macOS / Linux**
 
 ```bash
-bash install.sh
 pnpm dev
 ```
 
-`pnpm dev` starts the server and the web app together. Open a new terminal if `uv` or `pnpm` is not recognized after the install.
+Open `http://127.0.0.1:5499` with the ports from `.env.example`.
 
-#### Linux
+1. Install and sign in to at least one supported CLI on the machine running the Python server. The installers support `-Claude`, `-Codex`, `-Antigravity` on Windows and `--claude`, `--codex`, `--antigravity` on macOS/Linux. Complete sign-in with the CLI itself.
+2. Create a campaign. The app creates its five agents.
+3. Open **AI Agent**, select an agent and open **Settings** to choose its engine, model and thinking level, and save instructions. Available engines reflect what the server detects.
+4. Open **Settings → Integrations** to configure Composio and connect social accounts if the campaign needs them.
+5. Give Master a brief with the audience, platforms, topic, tone and expected deliverables. For example, ask for three post drafts about a product launch with captions and visual ideas.
+6. Review agent output and saved drafts in **Posts**, then use **Calendar** to organize timing.
+
+### Dashboard pages
+
+| Page | Purpose |
+|---|---|
+| Overview | Campaign summary, recent activity, upcoming posts and the team office. |
+| AI Agent | Agent chats, Master tasks, worker history, model and instruction settings, Browser/Computer views and Master's Screens tab. |
+| Posts | Create and edit content, manage drafts and schedules, attach media and use image generation. |
+| Calendar | View post timing and move or remove scheduled entries. |
+| Analytics | Review stored post metrics and compare performance. |
+| Accounts | View and manage social accounts connected through Composio. |
+| Settings → Integrations | Configure the Composio key and social app connections. |
+| Settings → Computer Use | Configure and test an E2B or OpenSandbox host, with links to setup guides. |
+
+### Image generation
+
+Choose the tool in **AI Agent → Creator → Settings → Image generation**. Codex CLI and Gemini CLI use their locally configured accounts. Gemini needs an image extension or MCP integration capable of generating images.
+
+The post editor supports generating an image and requesting changes to an image. Keep the result to attach it to the post. Generated media is stored under `<BOTTEAM_DATA_DIR>/social-media`.
+
+### Browser and computer access
+
+In each agent's **Settings → Interface controls**, choose a mode and save it.
+
+| Mode | Requirements and behavior |
+|---|---|
+| Browser use | Local Edge, Chrome or Playwright Chromium, plus Node.js and npx for Playwright MCP. Uses a separate browser profile for each agent. |
+| Computer use | A configured E2B or OpenSandbox host that passes the connection test, Python 3.11+, and a supported engine with image-capable tools. |
+| Off | Disables the campaign agent's built-in interface tools. |
+
+Browser use tries Edge, Chrome and then Playwright Chromium. If needed, install Chromium with `uv run --project server playwright install chromium`. Browser settings include window visibility, local-address access, downloads and clearing profile data.
+
+Computer use supports E2B Cloud, self-hosted E2B with KVM, and OpenSandbox with Docker. The connection settings and full API key stay on the Python server. The dashboard displays a masked key and relays the live desktop stream through the web app.
+
+- E2B Cloud processes desktop contents on E2B infrastructure under your plan's limits and pricing.
+- Self-hosted E2B runs on your host and can preserve memory through pause/resume snapshots.
+- OpenSandbox uses Docker containers. Pausing can preserve a running session while the container exists. Removing or recreating it loses its files and sign-ins.
+
+Use **Open large → Take over** to operate the selected interface, then **Hand back** to let the agent continue. Computer tools pause while the person holds control. Removing a computer from agent settings clears its saved state. Ending or deleting its campaign removes its computers.
+
+Setup instructions are available for [E2B in English](docs/e2b-setup.en.md), [E2B in Vietnamese](docs/e2b-setup.vi.md), [OpenSandbox in English](docs/opensandbox-setup.en.md) and [OpenSandbox in Vietnamese](docs/opensandbox-setup.vi.md). The desktop image build context for OpenSandbox is [docs/opensandbox-desktop](docs/opensandbox-desktop).
+
+## Install and run from source
+
+### Requirements
+
+- Git, Node.js 20+ and pnpm. The repository specifies its pnpm version in `package.json`.
+- Python 3.10+ and [uv](https://docs.astral.sh/uv/). Use Python 3.11+ for Computer use.
+- A configured AI engine. The server supports Claude Code, Codex, Antigravity and OpenAI-compatible endpoints. Individual features depend on engine capabilities.
+- Edge or Chrome for Browser use, or install Playwright Chromium.
+- Optional tools and services for the features you enable, such as an image CLI, Composio or a computer host.
+
+The installers check prerequisites, install project dependencies, create `.env` if missing, build the web app and prepare Playwright MCP. Engine installation flags are optional. Sign in to your chosen engine separately. E2B and OpenSandbox hosts are configured separately using the setup guides.
+
+For an existing checkout, run these commands from the repository root.
 
 ```bash
-bash install.sh      # uses sudo when you are not root
+pnpm install --frozen-lockfile
+uv sync --project server
+```
+
+Copy `.env.example` to `.env` if the file does not exist, then start development.
+
+```bash
 pnpm dev
 ```
 
-To use aiSocialTeam from another computer on your LAN or Tailscale, keep `WEB_HOST=0.0.0.0` in `.env` (the default), keep `SERVER_HOST=127.0.0.1`, restart, and open `http://<ip>:5499`. The web app (`web/proxy.ts`) only answers on localhost, LAN and Tailscale IPs; a domain name such as a MagicDNS name must be listed in `WEB_ALLOWED_HOSTS`. There is no sign-in, so anyone on those networks can use it: set `WEB_HOST=127.0.0.1` to keep it to this computer.
+### Services and production build
 
-#### Open the application and configure it
+| Command | Purpose |
+|---|---|
+| `pnpm dev` | Start the Python API and Next.js development server together. |
+| `pnpm dev:server` | Start the Python API with reload. |
+| `pnpm dev:web` | Start only the Next.js development server. |
+| `pnpm build:static` | Build Next.js for production into `web/.next`. The script name is retained, and the build requires a Node.js server at runtime. |
+| `pnpm start:one` | Start the Python API without development reload. |
+| `pnpm start:web` | Serve the production web build. Run alongside the API. |
+| `pnpm dev:zalo` | Start the optional Zalo personal-account service. |
 
-1. Open `http://127.0.0.1:5499` in development (the server must be running: `pnpm dev` starts both). The first visit asks you to create a campaign, which makes its five bots; the web app is started by `pnpm dev` (or `pnpm build:static` then `pnpm start:web`).
-   > The dashboard does not publish to any social network yet: a scheduled post is marked published locally when its time passes, the platforms a post can go to are the social apps Composio lists (its "social media accounts" category: twitter, instagram, tiktok, youtube, facebook…, read from Composio, not fixed in the code) and accounts are connected through it (Settings → Integrations; the key is the server's `COMPOSIO_API_KEY` or one pasted there) but nothing posts through them yet, and post metrics are entered through `PUT /api/social/posts/{id}/metrics`.
-2. The welcome screen checks for an engine. Install and sign in (`claude`, `codex login`, `agy`) or add an OpenAI-compatible endpoint in Settings → Engines, then press **Check again**.
-3. Press **+** → **New bot**, name it and pick a color.
-4. Choose the bot's approval level, and connect apps with **Connect apps** (Composio key, custom MCP servers, Telegram and Zalo input). A bot you make without a working folder gets `workspaces/<bot id>/`; when it is given an input, an `intake.md` is made there (Bot settings → *Intake workflow* edits it).
+On Windows, `start.bat` starts development and frees the configured ports first. It also accepts `server`, `web`, `one` and `zalo` to run a single service.
 
-> ⚠️ A bot on **Full** approval can run any command on your computer. Use **Ask** for any bot that talks to people outside your team.
+### Configuration and network access
 
-#### Build packages and run checks
+The launch scripts read the root `.env`. Values in `.env.example` are as follows.
+
+| Setting | Value | Purpose |
+|---|---|---|
+| `WEB_PORT` | `5499` | Dashboard port. |
+| `SERVER_PORT` | `9999` | Python API port. |
+| `WEBHOOK_PORT` | `9900` | Webhook receiver port. |
+| `ZALO_PORT` | `8902` | Optional Zalo service port. |
+| `WEB_HOST` | `0.0.0.0` | Open the dashboard through this machine's network interfaces. |
+| `SERVER_HOST` | `127.0.0.1` | Keep the Python API on loopback. |
+| `BOTTEAM_DATA_DIR` | `~/.botsocial` | Persistent application data. |
+
+With these settings, open `http://<machine-ip>:5499` from another machine on LAN or Tailscale. The web app accepts localhost and literal LAN/Tailscale addresses. Add other hostnames to `WEB_ALLOWED_HOSTS`. The dashboard uses a local user without an application sign-in, so access to the web port grants access to the workspace. Set `WEB_HOST=127.0.0.1` for use on this machine only.
+
+The launch script has fallback ports when `.env` is absent. Use `.env.example` for the documented ports. Optional browser and computer-host environment settings are listed there as well.
+
+## Data and architecture
+
+Next.js renders the dashboard and forwards requests to the Python API. The API stores campaigns, agents, conversations, posts and settings, and launches the engine CLIs. The team runtime tracks assignments delegated between agents. Composio provides connected social apps. Browser use runs on the API machine, while Computer use runs through the configured E2B or OpenSandbox host.
+
+Application data is stored in `BOTTEAM_DATA_DIR`, including SQLite databases, settings, uploads and generated media. The server stores API keys and returns masked hints for the keys shown in Settings. Browser profiles and computer sessions can contain sign-ins. AI engines, connected apps and remote computer providers receive the content needed to perform their work.
+
+| Path | Contents |
+|---|---|
+| `web/app/dashboard/` | Dashboard pages and Settings tabs. |
+| `web/components/agents/` | Team workspace, chat, tasks and agent settings. |
+| `web/components/browser/` | Browser/computer viewer and host settings. |
+| `web/lib/` | Campaign, post, analytics and API data access. |
+| `server/botteam/social.py` | Campaign roles, interface settings, posts and metrics. |
+| `server/botteam/turns.py`, `runtime.py` | Agent turns and delegated assignments. |
+| `server/botteam/drivers/` | AI engine integrations. |
+| `server/botteam/computer_*.py` | Computer lifecycle, tools, providers and streaming. |
+| `server/tests/` | Python tests. |
+| `docs/` | Setup guides, phase plans, screenshots and reference material. |
+| `scripts/` | Launch, build and verification scripts. |
+| `zalo-service/` | Optional Node.js service for personal Zalo accounts. |
+
+The Python package, CLI and some settings still use the technical name `botteam`, such as `server/botteam` and `BOTTEAM_DATA_DIR`.
+
+## Development checks
+
+Run from the repository root.
 
 ```bash
-pnpm test              # server (pytest), the web app's language checks (scripts/check-i18n.mjs, scripts/i18n.test.mjs) and the Zalo service (node:test)
-pnpm typecheck         # TypeScript
-pnpm --filter web build  # production build of the web app, then `pnpm start:web`
+pnpm typecheck
+pnpm test:web
+pnpm test:server
+pnpm test:zalo
 ```
 
-Your data lives in the folder set by `BOTTEAM_DATA_DIR` in `.env` (default `~/.botsocial`, that is `%USERPROFILE%\.botsocial` on Windows), apart from any other aiSocialTeam on the same computer. The server, the web app and the Zalo service all read this one setting; change it to keep the data elsewhere (`~`, `%VAR%` and `$VAR` are expanded) and restart. Back it up with Settings → Backup or `botteam backup <file>`. The plan, scope and risks are in [docs/README.md](docs/README.md).
+`pnpm test` runs the server, web language and Zalo checks together. Web interface changes must support English and Vietnamese. See [AGENTS.md](AGENTS.md) for contribution rules.
 
----
+## License
 
-## 📄 License
+aiSocialTeam currently has no project license file. Third-party notices are in [NOTICE](NOTICE).
 
-aiSocialTeam does not have its own license file yet. Third-party notices are in [NOTICE](NOTICE).
-
-- Repository: <https://github.com/jokerhung/aiSocialTeam>
+Repository [jokerhung/aiSocialTeam](https://github.com/jokerhung/aiSocialTeam).
