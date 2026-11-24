@@ -131,6 +131,20 @@ Dùng **Mở rộng → Tiếp quản** để thao tác trên giao diện đã c
 
 Hướng dẫn thiết lập gồm [E2B tiếng Anh](docs/e2b-setup.en.md), [E2B tiếng Việt](docs/e2b-setup.vi.md), [OpenSandbox tiếng Anh](docs/opensandbox-setup.en.md) và [OpenSandbox tiếng Việt](docs/opensandbox-setup.vi.md). Mã dựng image desktop cho OpenSandbox nằm trong [docs/opensandbox-desktop](docs/opensandbox-desktop).
 
+## Kiến trúc
+
+```mermaid
+flowchart TD
+    Web[Dashboard Next.js] <--> API[Python FastAPI]
+    Channels[Telegram / Zalo] <--> API
+    API <--> Data[(SQLite và tệp cục bộ)]
+    API <--> Team[Master và các agent chuyên trách]
+    Team <--> Engines[Claude Code / Codex / Antigravity / API tương thích OpenAI]
+    Engines <-->|MCP| Tools[Composio / Trình duyệt cục bộ / E2B hoặc OpenSandbox]
+```
+
+Next.js cung cấp dashboard; FastAPI quản lý dữ liệu và thực thi agent. Master giao việc cho Research, Creator, Scheduler và Analytics, mỗi agent dùng engine AI đã cấu hình. Công cụ MCP kết nối agent với ứng dụng mạng xã hội, trình duyệt cục bộ hoặc máy tính từ xa. Dữ liệu được lưu cục bộ tại `BOTTEAM_DATA_DIR` (mặc định: `~/.botsocial`).
+
 ## Cài đặt và chạy từ mã nguồn
 
 ### Yêu cầu
@@ -187,29 +201,6 @@ Script khởi động đọc `.env` ở thư mục gốc. Giá trị trong `.env
 Với cấu hình trên, mở `http://<machine-ip>:5499` từ máy khác trong LAN hoặc Tailscale. Web chấp nhận localhost và địa chỉ IP LAN/Tailscale. Thêm tên máy khác vào `WEB_ALLOWED_HOSTS`. Dashboard dùng người dùng cục bộ và không có bước đăng nhập ứng dụng, nên truy cập được cổng web là có quyền vào workspace. Đặt `WEB_HOST=127.0.0.1` để chỉ dùng trên máy hiện tại.
 
 Script khởi động có cổng dự phòng khi thiếu `.env`. Dùng `.env.example` để có các cổng ghi trong tài liệu. Các biến môi trường tuỳ chọn cho trình duyệt và máy chủ máy tính cũng nằm trong tệp đó.
-
-## Dữ liệu và kiến trúc
-
-Next.js hiển thị dashboard và chuyển tiếp yêu cầu tới API Python. API lưu chiến dịch, agent, cuộc trò chuyện, bài đăng, cài đặt và khởi chạy CLI của engine. Bộ thực thi đội theo dõi nhiệm vụ được giao giữa các agent. Composio cung cấp ứng dụng mạng xã hội kết nối. Trình duyệt chạy trên máy API, còn chế độ máy tính dùng máy chủ E2B hoặc OpenSandbox đã cấu hình.
-
-Dữ liệu ứng dụng nằm trong `BOTTEAM_DATA_DIR`, gồm cơ sở dữ liệu SQLite, cài đặt, tệp tải lên và media đã tạo. Server lưu khoá API và trả gợi ý đã che cho các khoá hiển thị trong Cài đặt. Hồ sơ trình duyệt và phiên máy tính có thể chứa thông tin đăng nhập. Engine AI, ứng dụng kết nối và nhà cung cấp máy tính từ xa nhận nội dung cần thiết để thực hiện công việc.
-
-| Đường dẫn | Nội dung |
-|---|---|
-| `web/app/dashboard/` | Các trang dashboard và tab Cài đặt. |
-| `web/components/agents/` | Workspace của đội, chat, nhiệm vụ và cài đặt agent. |
-| `web/components/browser/` | Khung xem trình duyệt/máy tính và cài đặt máy chủ. |
-| `web/lib/` | Truy cập dữ liệu chiến dịch, bài đăng, phân tích và API. |
-| `server/botteam/social.py` | Vai trò trong chiến dịch, cài đặt giao diện, bài đăng và số liệu. |
-| `server/botteam/turns.py`, `runtime.py` | Lượt chạy agent và nhiệm vụ được phân công. |
-| `server/botteam/drivers/` | Tích hợp engine AI. |
-| `server/botteam/computer_*.py` | Vòng đời máy tính, công cụ, nhà cung cấp và luồng hình. |
-| `server/tests/` | Kiểm thử Python. |
-| `docs/` | Hướng dẫn thiết lập, kế hoạch giai đoạn, ảnh chụp và tài liệu tham khảo. |
-| `scripts/` | Script khởi động, dựng và kiểm tra. |
-| `zalo-service/` | Dịch vụ Node.js tuỳ chọn cho tài khoản Zalo cá nhân. |
-
-Gói Python, CLI và một số cài đặt vẫn dùng tên kỹ thuật `botteam`, chẳng hạn `server/botteam` và `BOTTEAM_DATA_DIR`.
 
 ## Kiểm tra khi phát triển
 

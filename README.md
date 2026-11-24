@@ -131,6 +131,20 @@ Use **Open large → Take over** to operate the selected interface, then **Hand 
 
 Setup instructions are available for [E2B in English](docs/e2b-setup.en.md), [E2B in Vietnamese](docs/e2b-setup.vi.md), [OpenSandbox in English](docs/opensandbox-setup.en.md) and [OpenSandbox in Vietnamese](docs/opensandbox-setup.vi.md). The desktop image build context for OpenSandbox is [docs/opensandbox-desktop](docs/opensandbox-desktop).
 
+## Architecture
+
+```mermaid
+flowchart TD
+    Web[Next.js dashboard] <--> API[Python FastAPI]
+    Channels[Telegram / Zalo] <--> API
+    API <--> Data[(Local SQLite and files)]
+    API <--> Team[Master and specialist agents]
+    Team <--> Engines[Claude Code / Codex / Antigravity / OpenAI-compatible API]
+    Engines <-->|MCP| Tools[Composio / Local browser / E2B or OpenSandbox]
+```
+
+Next.js provides the dashboard; FastAPI manages data and agent execution. Master delegates work to Research, Creator, Scheduler and Analytics, each using its configured AI engine. MCP tools connect agents to social apps, a local browser or a remote desktop. Data is stored locally in `BOTTEAM_DATA_DIR` (default: `~/.botsocial`).
+
 ## Install and run from source
 
 ### Requirements
@@ -187,29 +201,6 @@ The launch scripts read the root `.env`. Values in `.env.example` are as follows
 With these settings, open `http://<machine-ip>:5499` from another machine on LAN or Tailscale. The web app accepts localhost and literal LAN/Tailscale addresses. Add other hostnames to `WEB_ALLOWED_HOSTS`. The dashboard uses a local user without an application sign-in, so access to the web port grants access to the workspace. Set `WEB_HOST=127.0.0.1` for use on this machine only.
 
 The launch script has fallback ports when `.env` is absent. Use `.env.example` for the documented ports. Optional browser and computer-host environment settings are listed there as well.
-
-## Data and architecture
-
-Next.js renders the dashboard and forwards requests to the Python API. The API stores campaigns, agents, conversations, posts and settings, and launches the engine CLIs. The team runtime tracks assignments delegated between agents. Composio provides connected social apps. Browser use runs on the API machine, while Computer use runs through the configured E2B or OpenSandbox host.
-
-Application data is stored in `BOTTEAM_DATA_DIR`, including SQLite databases, settings, uploads and generated media. The server stores API keys and returns masked hints for the keys shown in Settings. Browser profiles and computer sessions can contain sign-ins. AI engines, connected apps and remote computer providers receive the content needed to perform their work.
-
-| Path | Contents |
-|---|---|
-| `web/app/dashboard/` | Dashboard pages and Settings tabs. |
-| `web/components/agents/` | Team workspace, chat, tasks and agent settings. |
-| `web/components/browser/` | Browser/computer viewer and host settings. |
-| `web/lib/` | Campaign, post, analytics and API data access. |
-| `server/botteam/social.py` | Campaign roles, interface settings, posts and metrics. |
-| `server/botteam/turns.py`, `runtime.py` | Agent turns and delegated assignments. |
-| `server/botteam/drivers/` | AI engine integrations. |
-| `server/botteam/computer_*.py` | Computer lifecycle, tools, providers and streaming. |
-| `server/tests/` | Python tests. |
-| `docs/` | Setup guides, phase plans, screenshots and reference material. |
-| `scripts/` | Launch, build and verification scripts. |
-| `zalo-service/` | Optional Node.js service for personal Zalo accounts. |
-
-The Python package, CLI and some settings still use the technical name `botteam`, such as `server/botteam` and `BOTTEAM_DATA_DIR`.
 
 ## Development checks
 
