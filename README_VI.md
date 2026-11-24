@@ -1,6 +1,6 @@
 # **aiSocialTeam**
 
-aiSocialTeam là ứng dụng đa tác tử để tạo nội dung mạng xã hội. Biến yêu cầu ban đầu thành quy trình phối hợp giữa năm AI agent: Master lập kế hoạch và phân công, Research tìm chủ đề và nguồn tham khảo, Creator viết chú thích và chuẩn bị hình ảnh, Scheduler sắp xếp lịch nội dung, còn Analytics hỗ trợ đánh giá hiệu quả. Trò chuyện với cả đội để phát triển ý tưởng, hoàn thiện bản nháp và chuẩn bị nội dung cho các chiến dịch.
+aiSocialTeam là ứng dụng multi-agent để tạo nội dung mạng xã hội. Biến yêu cầu ban đầu thành quy trình phối hợp giữa năm AI agent: Master lập kế hoạch và phân công, Research tìm chủ đề và nguồn tham khảo, Creator viết chú thích và chuẩn bị hình ảnh, Scheduler sắp xếp lịch nội dung, còn Analytics hỗ trợ đánh giá hiệu quả. Trò chuyện với cả đội để phát triển ý tưởng, hoàn thiện bản nháp và chuẩn bị nội dung cho các chiến dịch.
 
 Mỗi agent có thể dùng Claude Code, Codex hoặc Antigravity CLI, hoặc endpoint tương thích OpenAI, với hướng dẫn, mô hình, bộ nhớ, thư mục làm việc và ứng dụng kết nối riêng. Các agent có thể giao việc cho nhau, chạy theo lịch và nhận yêu cầu qua Telegram hoặc Zalo. Dashboard tập hợp cuộc trò chuyện của chiến dịch, bài đăng, lịch, phân tích và tài khoản mạng xã hội kết nối qua Composio. Dữ liệu chiến dịch và cuộc trò chuyện được lưu trên máy tính của bạn. Giao diện hỗ trợ tiếng Anh và tiếng Việt, chọn bằng nút ngôn ngữ phía trên Cài đặt ở cuối thanh bên.
 
