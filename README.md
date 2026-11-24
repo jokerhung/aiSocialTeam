@@ -1,12 +1,12 @@
 # **aiSocialTeam**
 
-aiSocialTeam is a local chat app where every contact in the sidebar is a real AI agent: the Claude Code, Codex or Antigravity CLI (or any OpenAI-compatible endpoint) running on your computer, with its own name, instructions, model, memory and connected apps. Bots work together in channels, hand tasks to each other, run on a schedule, and answer people who write to them on Telegram or Zalo. Everything is kept on your machine.
+aiSocialTeam is a multi-agent application for creating social media content. Turn a brief into a coordinated workflow with five AI agents: Master plans and delegates, Research finds topics and sources, Creator writes captions and prepares visuals, Scheduler organizes the content calendar, and Analytics helps review performance. Chat with the team to develop ideas, refine drafts and prepare content for your campaigns.
 
-The web app is a social-media dashboard: you create a campaign and get an AI team of five bots (Master, Research, Creator, Scheduler, Analytics) that you brief in chat, with posts, a calendar, analytics and social accounts connected through Composio next to them. The interface is in English and Vietnamese: the Language button just above Settings at the bottom of the sidebar picks the language.
+Each agent can use Claude Code, Codex or Antigravity CLI, or an OpenAI-compatible endpoint, with its own instructions, model, memory, working folder and connected apps. Agents can hand tasks to one another, run on a schedule, and receive requests through Telegram or Zalo. The dashboard brings together campaign chats, posts, a calendar, analytics and social accounts connected through Composio. Campaign data and conversations are stored on your computer. The interface supports English and Vietnamese, selectable with the Language button above Settings at the bottom of the sidebar.
 
 It is built with a Next.js web app and a Python (FastAPI) server, and is inspired by [OpenMausBot](https://github.com/milind-soni/OpenMausBot).
 
-**English** | [Tiếng Việt](docs/user-guide.md)
+**English** | [Tiếng Việt](README_VI.md)
 
 ---
 
