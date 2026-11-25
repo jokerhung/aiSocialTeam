@@ -49,6 +49,7 @@ Script cài Git, Node.js, Python và uv nếu còn thiếu, sao chép repository
 
 - **Làm việc theo chiến dịch.** Tạo chiến dịch với các agent Master, Research, Creator, Scheduler và Analytics riêng. Chuyển chiến dịch để làm việc với đội và tập bài đăng khác.
 - **Giao việc và theo dõi cả đội.** Trò chuyện với Master, mở chat của từng agent và theo dõi việc được phân công trong Tasks cùng lịch sử agent. Văn phòng hiển thị cả đội cạnh khung làm việc. Bạn có thể ẩn panel ảnh và trình duyệt sẽ nhớ lựa chọn này.
+- **Nối chuỗi công việc và duyệt kết quả.** Agent có thể giao tác vụ chờ các tác vụ trước hoàn thành rồi nhận kết quả của chúng. Agent cũng có thể giữ kết quả của một tác vụ chờ bạn duyệt: bạn duyệt hoặc từ chối, kèm lý do nếu muốn, trong tab Tác vụ của Master. Các tác vụ phụ thuộc và bước tiếp theo của agent giao việc chờ quyết định của bạn. Agent giao việc quyết định khi nào cần duyệt, vì vậy hãy ghi rõ trong yêu cầu nếu bạn muốn duyệt. Bước duyệt giữ lại kết quả, không chặn các hành động agent thực hiện trong lúc làm tác vụ.
 - **Cấu hình từng agent.** Chọn engine, mô hình và mức suy nghĩ khả dụng trong tab Cài đặt của agent. Chỉnh sửa và lưu hướng dẫn riêng.
 - **Chuẩn bị bài đăng.** Viết chú thích, hashtag, chọn nền tảng và tài khoản đã kết nối, đính kèm media, lưu bản nháp và xem trước nội dung trong trình soạn bài.
 - **Tạo và sửa ảnh.** Chọn Codex CLI hoặc Gemini CLI đã cài trong cài đặt tạo ảnh của Creator. Dùng công cụ ảnh từ trình soạn bài hoặc yêu cầu Creator chuẩn bị ảnh.

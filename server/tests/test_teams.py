@@ -180,3 +180,40 @@ async def test_a_chief_answers_a_childs_question_for_the_person_and_the_card_say
     req = await wait_until(card)
     assert req["source"] == "team" and req["answeredBy"] == "Chiefa" and req["answer"] == "Blue"
     await wait_until(lambda: _idle(c, b))
+
+
+async def test_dependent_and_gated_work_through_the_tools_and_the_api(ctx):
+    c, app = ctx
+    a, b, cc = await make_bot(c, "Lead"), await make_bot(c, "Writer"), await make_bot(c, "Planner")
+    app.state.turns.runs["tx"] = type("R", (), {"bot_id": a["id"], "group_id": None, "assignment_id": None, "origin": "person", "level": "full", "started_at": 0, "label": None})()
+
+    async def call(args):
+        out = await app.state.agents.call("tx", "coordinate_bots", args)
+        assert out["ok"], out
+        return out
+    first = await call({"bot_ids": [b["id"]], "message": "write the post", "review": True})
+    wid = first["results"][0]["id"]
+    assert "depends_on" in first["note"] and "You cannot approve it" in first["note"]
+    second = await call({"bot_ids": [cc["id"]], "message": "schedule the post", "depends_on": wid})
+    pid = second["results"][0]["id"]
+    app.state.turns.runs.pop("tx")
+
+    async def in_review():
+        return (await app.state.runtime.get(wid))["status"] == "review"
+    await wait_until(in_review)  # a bot at Full access is held too: no card that its level could answer is involved
+    listed = {x["id"]: x for x in (await c.get("/api/assignments")).json()["assignments"]}
+    assert listed[wid]["review"] is True and listed[wid]["result"] and listed[pid]["dependsOn"] == [wid] and listed[pid]["status"] == "queued"
+    notes = (await c.get("/api/notifications")).json()["notifications"]
+    assert any("Writer's work is waiting for your review" == n["title"] and n["kind"] == "approval" for n in notes), notes
+    assert (await c.post("/api/assignments/as_nope/review", json={"decision": "approve"})).status_code == 404
+    assert (await c.post(f"/api/assignments/{wid}/review", json={"decision": "yes"})).status_code == 422
+    assert (await c.post(f"/api/assignments/{wid}/review", json={})).status_code == 422
+    assert (await app.state.runtime.get(wid))["status"] == "review"
+    assert (await c.post(f"/api/assignments/{wid}/review", json={"decision": "approve"})).status_code == 200
+    assert (await c.post(f"/api/assignments/{wid}/review", json={"decision": "reject"})).status_code == 409
+
+    async def planned():
+        return (await app.state.runtime.get(pid))["status"] == "completed"
+    await wait_until(planned)
+    await wait_until(lambda: _idle(c, cc))
+    assert app.state.runtime.errors == []

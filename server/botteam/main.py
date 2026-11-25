@@ -51,7 +51,7 @@ from .runtime import Runtime
 from .webhooks import WebhookService, make_hook_app
 from .store import Store, data_dir, now_ms
 from .turns import Turns
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .browser_host import BrowserHost, BrowserUnavailable
 from .browser_mcp import BrowserMcp
@@ -93,6 +93,11 @@ class BrowserApprovalBody(BaseModel):
 
 class ComputerSettings(BaseModel):
     allowLocal: bool
+
+
+class ReviewDecision(BaseModel):
+    decision: Literal["approve", "reject"]
+    note: str = Field(default="", max_length=2000)
 
 
 class ComposioKey(BaseModel):
@@ -1596,6 +1601,15 @@ def create_app(db_path: str | None = None, home: Path | None = None, with_echo: 
         if not a:
             raise HTTPException(404, "assignment not found")
         return {"assignment": runtime.public(a), "events": await runtime.events(aid), "children": [runtime.public(k) for k in await runtime.children(aid)]}
+
+    @app.post("/api/assignments/{aid}/review")
+    async def review_assignment(aid: str, body: ReviewDecision):
+        if not await runtime.get(aid):
+            raise HTTPException(404, "assignment not found")
+        out = await runtime.review(aid, body.decision == "approve", body.note)
+        if not out["ok"]:
+            raise HTTPException(409, out["detail"])
+        return out
 
     @app.post("/api/assignments/{aid}/cancel")
     async def cancel_assignment(aid: str):

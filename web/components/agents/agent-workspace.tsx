@@ -268,6 +268,18 @@ export function AgentWorkspace({
     return response?.ok ? null : (body?.error ?? t("That didn't work. Please try again."));
   }
 
+  async function reviewWork(assignmentId: string, decision: "approve" | "reject", note: string) {
+    const response = await fetch("/api/agents/tasks/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assignmentId, decision, note }),
+    }).catch(() => null);
+    const body = await response?.json().catch(() => null);
+    setPollKey((key) => key + 1);
+    void refreshLive();
+    return response?.ok ? null : (body?.error ?? t("That didn't work. Please try again."));
+  }
+
   // Each agent's live status, by role and by workspace id (office seat)
   const statusByRole = new Map<string, AgentStatusView>(live?.agents.map((agent) => [agent.agentId, agent]) ?? []);
   const statuses: Record<string, AgentLiveStatus> = {};
@@ -449,6 +461,7 @@ export function AgentWorkspace({
       plansLoaded={plansLoaded}
       agents={agents}
       onPlanAction={planAction}
+      onReview={reviewWork}
       onOpenMaster={() => selectAgent(MASTER_ID)}
       onOpenBrowser={openBrowser}
       browserHelp={live?.agents.filter((item) => item.browser?.helpReason) ?? []}

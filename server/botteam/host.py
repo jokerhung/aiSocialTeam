@@ -107,6 +107,12 @@ class RuntimeHost:
                                         target_id=a["assignee_bot"], thread_id=a["thread_id"])
         self.bus.publish({"kind": "assignment", "assignment": self.runtime.public(a) if self.runtime else {"id": a["id"]}})
 
+    async def review_requested(self, a: dict) -> None:
+        if getattr(self.turns, "notify", None):
+            await self.turns.notify.add("approval", f"{self.bot_name(a['assignee_bot'])}'s work is waiting for your review", (a.get("result") or "")[:200],
+                                        target_id=a["assignee_bot"], thread_id=a["thread_id"])
+        self.bus.publish({"kind": "assignment", "assignment": self.runtime.public(a) if self.runtime else {"id": a["id"]}})
+
     async def stop_thread(self, thread_id: str) -> None:
         run = self.turns.runs.get(thread_id)
         fut = self.turns.delegated.pop(thread_id, None)

@@ -104,6 +104,8 @@ export type ArtifactView = {
 
 export type TaskView = {
   id: number;
+  // BotTeam's id of the assignment behind the task
+  assignmentId: string;
   planId: number;
   agentId: WorkerRoleId;
   title: string;

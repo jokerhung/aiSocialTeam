@@ -39,6 +39,8 @@ import { Button } from "@/components/ui/button";
 
 import { T, useT } from "@/lib/i18n/client";
 export type PlanAction = "cancel" | "retry";
+// The person's decision on work held for their review; resolves to an error text, or null when it was taken
+export type ReviewAction = (assignmentId: string, decision: "approve" | "reject", note: string) => Promise<string | null>;
 
 const TASK_TONES: Record<TaskStatus, { Icon: LucideIcon; tone: string; spin?: boolean }> = {
   pending: { Icon: CalendarClock, tone: "bg-muted text-muted-foreground" },
@@ -88,12 +90,14 @@ export function MasterTasks({
   loaded,
   agents,
   onAction,
+  onReview,
   onOpenBrowser,
 }: {
   plans: PlanView[];
   loaded: boolean;
   agents: WorkspaceAgent[];
   onAction: (planId: number, action: PlanAction) => Promise<string | null>;
+  onReview: ReviewAction;
   onOpenBrowser: (role: AgentRoleId) => void;
 }) {
   const t = useT();
@@ -119,7 +123,7 @@ export function MasterTasks({
     <ol className="flex flex-col gap-3">
       {plans.map((plan) => (
         <li key={plan.id}>
-          <PlanCard plan={plan} agents={agents} onAction={onAction} onOpenBrowser={onOpenBrowser} />
+          <PlanCard plan={plan} agents={agents} onAction={onAction} onReview={onReview} onOpenBrowser={onOpenBrowser} />
         </li>
       ))}
     </ol>
@@ -130,11 +134,13 @@ function PlanCard({
   plan,
   agents,
   onAction,
+  onReview,
   onOpenBrowser,
 }: {
   plan: PlanView;
   agents: WorkspaceAgent[];
   onAction: (planId: number, action: PlanAction) => Promise<string | null>;
+  onReview: ReviewAction;
   onOpenBrowser: (role: AgentRoleId) => void;
 }) {
   const t = useT();
@@ -179,7 +185,7 @@ function PlanCard({
         {plan.tasks.map((task) => (
           <li key={task.id}>
             <TaskRow task={task} agent={agentFor(agents, task.agentId)} positions={positions} communications={plan.communications.filter((m) => m.taskId === task.id)}
-              onOpenBrowser={() => onOpenBrowser(task.agentId)} />
+              onReview={onReview} onOpenBrowser={() => onOpenBrowser(task.agentId)} />
           </li>
         ))}
       </ol>
@@ -221,12 +227,14 @@ function TaskRow({
   agent,
   positions,
   communications,
+  onReview,
   onOpenBrowser,
 }: {
   task: TaskView;
   agent: WorkspaceAgent;
   positions: Map<number, number>;
   communications: PlanView["communications"];
+  onReview: ReviewAction;
   onOpenBrowser: () => void;
 }) {
   const t = useT();
@@ -234,15 +242,16 @@ function TaskRow({
   const scheduled = task.status === "pending" || task.status === "queued";
   const runAt = new Date(task.scheduledAt);
   const showTime = scheduled && runAt.getTime() > Date.now() + 60_000;
+  // Work waiting for the person opens by itself, so they can read it and decide
   return (
-    <details className="group/task rounded-xl transition-colors open:bg-muted/40 hover:bg-muted/40">
+    <details open={task.status === "in_review" || undefined} className="group/task rounded-xl transition-colors open:bg-muted/40 hover:bg-muted/40">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 p-1.5">
         <AgentAvatar role={agent.role} sprite={agent.sprite} className="size-7" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium">{task.title}</span>
           <span className="block truncate text-[11px] text-muted-foreground">
             {t(agent.role.name)}
-            {after.length > 0 && ` · after step ${after.join(", ")}`}
+            {after.length > 0 && ` · ${t("after step {steps}", { steps: after.join(", ") })}`}
             {task.revisions > 0 && ` · revised`}
             {showTime && ` · ${format(runAt, t("MMM d, h:mm a"))}`}
             {task.repeat && task.runCount > 0 && ` · ${task.runCount} ${task.runCount === 1 ? "run" : "runs"}`}
@@ -295,6 +304,7 @@ function TaskRow({
           </details>
         )}
         {task.review && <Section label={t("Master Agent's review")}>{task.review}</Section>}
+        {task.status === "in_review" && <ReviewDecision assignmentId={task.assignmentId} onReview={onReview} />}
         {communications.length > 0 && (
           <div>
             <p className="mb-1.5 font-medium text-muted-foreground"><T>Agent conversation</T></p>
@@ -311,6 +321,46 @@ function TaskRow({
         )}
       </div>
     </details>
+  );
+}
+
+function ReviewDecision({ assignmentId, onReview }: { assignmentId: string; onReview: ReviewAction }) {
+  const t = useT();
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function decide(decision: "approve" | "reject") {
+    setBusy(decision);
+    setError(await onReview(assignmentId, decision, note.trim()));
+    setBusy(null);
+  }
+
+  return (
+    <div className="rounded-lg bg-amber-500/10 px-2.5 py-2 text-amber-800 dark:text-amber-200">
+      <p className="font-medium"><T>Waiting for your review</T></p>
+      <p className="mt-0.5"><T>Read the work above. Nothing that builds on it runs until you approve it.</T></p>
+      <textarea
+        className="mt-2 w-full resize-y rounded-lg bg-card px-2 py-1.5 text-xs text-foreground ring-1 ring-border/70"
+        rows={2}
+        maxLength={2000}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        placeholder={t("If you reject it, what should change? (optional)")}
+        aria-label={t("If you reject it, what should change? (optional)")}
+      />
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+        {error && <span className="mr-auto text-destructive">{error}</span>}
+        <Button variant="outline" className="h-7 rounded-lg bg-card px-2.5 text-xs text-foreground" disabled={busy !== null} onClick={() => decide("reject")}>
+          {busy === "reject" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <CircleX data-icon="inline-start" />}
+          <T>Reject</T>
+        </Button>
+        <Button className="h-7 rounded-lg px-2.5 text-xs" disabled={busy !== null} onClick={() => decide("approve")}>
+          {busy === "approve" ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <CircleCheck data-icon="inline-start" />}
+          <T>Approve</T>
+        </Button>
+      </div>
+    </div>
   );
 }
 

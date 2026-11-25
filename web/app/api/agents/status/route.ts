@@ -49,6 +49,12 @@ export async function GET() {
     const latest = jobs.at(-1);
     let status = statusOf(bot?.activity ?? "idle");
     let job: Assignment | undefined = live;
+    // Work that waits for the person's review comes before anything else this agent has queued
+    const reviewing = status === "idle" ? jobs.find((a) => a.status === "review") : undefined;
+    if (reviewing) {
+      status = "needs_input";
+      job = reviewing;
+    }
     if (status === "idle" && live) status = "running";
     if (status === "idle" && !live && latest && taskStatusOf(latest) === "completed" && now - Number(latest.createdAt) < DONE_FOR_MS) {
       status = "done";
@@ -57,7 +63,8 @@ export async function GET() {
     if (browser?.helpReason) status = "waiting_for_user";
     if (status === "idle") return { agentId, status, task: null, browser, surface };
 
-    const taskStatus = status === "done" ? "completed" : status === "running" ? "in_progress" : status === "needs_input" || status === "waiting_for_user" ? "awaiting_input" : "failed";
+    const inReview = status === "needs_input" && job?.status === "review";
+    const taskStatus = inReview ? "in_review" : status === "done" ? "completed" : status === "running" ? "in_progress" : status === "needs_input" || status === "waiting_for_user" ? "awaiting_input" : "failed";
     const title = (job && titleOf(job.brief)) || bot?.statusLine || (status === "needs_input" ? t("Waiting for your answer") : t("Working"));
     return {
       agentId,
@@ -70,7 +77,7 @@ export async function GET() {
         title,
         status: taskStatus,
         currentStep: status === "running" ? (bot?.statusLine ?? null) : null,
-        waitingReason: browser?.helpReason ?? (status === "needs_input" ? t("Open the bot in BotTeam to answer its question.") : null),
+        waitingReason: browser?.helpReason ?? (inReview ? t("Its work is waiting for your review.") : status === "needs_input" ? t("Open the bot in BotTeam to answer its question.") : null),
         interruption: null,
         error: null,
         summary: status === "done" ? (job?.result ?? "").slice(0, 300) || null : null,

@@ -128,7 +128,11 @@ export function AgentPreviewCard({
                   {status.surface === "computer" ? t("Open the computer") : t("Open the browser")}
                 </Button>
               )}
-              {current === "needs_input" && <p className="mt-1 text-[11px] opacity-80"><T>Answer it in the Master Agent's chat.</T></p>}
+              {current === "needs_input" && (
+                <p className="mt-1 text-[11px] opacity-80">
+                  {task.status === "in_review" ? t("Approve or reject it in the Master Agent's Tasks tab.") : t("Answer it in the Master Agent's chat.")}
+                </p>
+              )}
             </div>
           )}
 

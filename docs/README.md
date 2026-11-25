@@ -21,6 +21,7 @@ Kế hoạch chia **5 phase**, mỗi phase kết thúc bằng một bản chạy
 | 9 | [phase-9-browser-use.md](phase-9-browser-use.md) | Tab Browser cho từng agent: Edge/Chrome qua Playwright MCP, xem trực tiếp, tiếp quản và đăng bài theo kênh cấu hình |
 | 10 | [phase-10-computer-use-e2b-embed.md](phase-10-computer-use-e2b-embed.md) | Computer use bằng E2B Cloud hoặc Embed. Hướng dẫn thiết lập [tiếng Việt](e2b-setup.vi.md) và [tiếng Anh](e2b-setup.en.md). |
 | 11 | [phase-11-computer-provider-opensandbox.md](phase-11-computer-provider-opensandbox.md) | Lớp ComputerProvider: giữ E2B, thêm OpenSandbox (Docker) cho Computer use nhẹ hơn trên máy Linux; người dùng tự cài, bài thử khả thi trước (đã triển khai) |
+| 12 | [phase-12-dependencies-and-review.md](phase-12-dependencies-and-review.md) | Việc phụ thuộc giữa các bot và cổng chờ người dùng duyệt kết quả (thêm ngoài bản gốc), sửa lỗi treo runtime khi hết ngân sách lượt chạy (đã triển khai) |
 
 ## 1. Bản gốc là gì
 

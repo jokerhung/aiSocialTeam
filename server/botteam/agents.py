@@ -313,8 +313,13 @@ class AgentTools:
         reply = args.get("reply") or "resume"
         if reply not in ("resume", "none"):
             reply = "resume"
+        depends_on = args.get("depends_on") or None
+        if isinstance(depends_on, str):
+            depends_on = [depends_on]
+        review = args.get("review") not in (None, False, "", "false")  # an unclear value gates the work rather than letting it through
         got = await self.runtime.enqueue(node["id"], ids, message, reply=reply, consult=bool(args.get("consult")), thread=args.get("thread") or "new",
-                                         done_when=args.get("done_when"), rework=bool(args.get("rework")), chief_level=await self._chief_level(node))
+                                         done_when=args.get("done_when"), rework=bool(args.get("rework")), chief_level=await self._chief_level(node),
+                                         depends_on=depends_on, review=review)
         for g in got:
             results.append({"bot": self.host.bot_name(g["bot"]), **{k: v for k, v in g.items() if k != "bot"}})
         accepted = [r for r in results if r.get("ok")]
@@ -329,8 +334,11 @@ class AgentTools:
                                            "assignmentId": r.get("id")})
                 await self.store.add_message(self.turns._owner_for(thread_id, run.bot_id), thread_id, m)
                 self.turns._frame("message", run.bot_id, thread_id, m)
-        note = ("Work was handed out. Finish your turn now and say what you handed to whom; you will be woken once with every result."
+        note = ("Work was handed out. If more work builds on these results, hand it out now with depends_on set to their ids. Then finish your turn "
+                "and say what you handed to whom; you will be woken once with every result."
                 if accepted and reply == "resume" else ("Notice sent; it is not awaited." if accepted else "Nothing was handed out."))
+        if any(r.get("review") for r in accepted):
+            note += " Work marked for review waits until the person approves it in the Tasks list; tell them so. You cannot approve it."
         return {"ok": bool(accepted), "results": results, "note": note}
 
     async def _answer(self, thread_id: str, assignment_id: str, message: str) -> dict:

@@ -19,6 +19,8 @@ export type Assignment = {
   rootId: string;
   createdAt: string;
   brief: string | null;
+  dependsOn?: string[];
+  review?: boolean;
 };
 
 const ROLES: AgentRoleId[] = ["master", "research", "creator", "scheduler", "analytics"];
@@ -44,6 +46,8 @@ export function taskStatusOf(a: Assignment): TaskStatus {
       return "in_progress";
     case "needs_input":
       return "awaiting_input";
+    case "review":
+      return "in_review";
     case "completed":
       return "completed";
     case "cancelled":
@@ -56,7 +60,7 @@ export function taskStatusOf(a: Assignment): TaskStatus {
   }
 }
 
-export const isLive = (a: Assignment) => ["queued", "running", "waiting", "resume", "needs_input"].includes(a.status);
+export const isLive = (a: Assignment) => ["queued", "running", "waiting", "resume", "needs_input", "review"].includes(a.status);
 
 // "Nhiệm vụ: kiểm chứng 7 tin…\n\nVới mỗi tin…" → "kiểm chứng 7 tin…"
 export function titleOf(brief: string | null) {
@@ -81,16 +85,18 @@ export function toPlans(assignments: Assignment[], campaign: Campaign, statusLin
 
     // Plans are numbered in the order they were made (the first request is #1); a task's number is its plan's and its place in it
     const planId = roots.indexOf(rootId) + 1;
+    const taskIds = new Map(children.map((a, index) => [a.id, planId * 100 + index + 1]));
     const tasks: TaskView[] = children.map((a, index): TaskView => {
       const status = taskStatusOf(a);
       const live = isLive(a);
       return {
         id: planId * 100 + index + 1,
+        assignmentId: a.id,
         planId,
         agentId: roleOfBot(campaign, a.botId) as WorkerRoleId,
         title: titleOf(a.brief) || "…",
         instructions: a.brief ?? "",
-        dependsOn: [],
+        dependsOn: (a.dependsOn ?? []).flatMap((id) => taskIds.get(id) ?? []),
         status,
         scheduledAt: iso(a.createdAt),
         repeat: null,
@@ -127,7 +133,8 @@ export function toPlans(assignments: Assignment[], campaign: Campaign, statusLin
 
     const live = tasks.some((task) => task.status === "in_progress" || task.status === "queued" || task.status === "awaiting_input");
     const failed = tasks.some((task) => task.status === "failed");
-    const status: PlanStatus = live || root.status === "running" ? "in_progress" : failed ? "failed" : "completed";
+    const reviewing = tasks.some((task) => task.status === "in_review");
+    const status: PlanStatus = reviewing ? "awaiting_user" : live || root.status === "running" ? "in_progress" : failed ? "failed" : "completed";
     const title = tasks.length === 1 ? tasks[0].title : tasks.map((task) => task.title).join(" · ");
     plans.push({
       id: planId,

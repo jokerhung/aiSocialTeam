@@ -200,7 +200,7 @@ class Turns:
             node = await self.runtime.node_for_thread(bot.threadId)
             if not node or node["status"] not in ("waiting", "running", "needs_input"):
                 return []
-            kids = [k for k in await self.runtime.children(node["id"]) if k["reply"] != "none" and k["status"] in ("queued", "running", "waiting", "needs_input", "resume")]
+            kids = [k for k in await self.runtime.children(node["id"]) if k["reply"] != "none" and k["status"] in ("queued", "running", "waiting", "needs_input", "resume", "review")]
             return [self.host.bot_name(k["assignee_bot"]) for k in kids]
         except Exception:
             return []

@@ -49,6 +49,7 @@ The script installs Git, Node.js, Python and uv when they are missing, clones th
 
 - **Work by campaign.** Create a campaign with its own Master, Research, Creator, Scheduler and Analytics agents. Switch campaigns to work with a different team and set of posts.
 - **Brief and follow the team.** Talk to Master, open individual agent chats, and follow delegated work in Tasks and agent history. The office view shows the team alongside the workspace. Its image panel can be hidden, with the preference remembered in your browser.
+- **Chain work and review it.** An agent can hand out tasks that wait for earlier ones and receive their results. It can also hold a task's result for your review: approve or reject it, with an optional reason, in Master's Tasks tab. Tasks that depend on it and the requesting agent's follow-up wait for your decision. The delegating agent decides when to ask for a review, so say in your brief if you want one. The review holds the result; it does not block actions the agent takes while doing the task.
 - **Configure each agent.** Choose an available engine, model and thinking level in the agent's Settings tab. Edit and save its instructions.
 - **Prepare posts.** Write captions and hashtags, select platforms and connected accounts, attach media, save drafts and preview content in the post editor.
 - **Generate and edit images.** Choose an installed Codex CLI or Gemini CLI in Creator's image settings. Use the image tool from the post editor or ask Creator to prepare an image.

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { AgentAvatar, AgentStatus } from "@/components/agents/agent-avatar";
 import { AgentChat } from "@/components/agents/agent-chat";
 import { AgentHistory } from "@/components/agents/agent-history";
-import { MasterTasks, type PlanAction } from "@/components/agents/master-tasks";
+import { MasterTasks, type PlanAction, type ReviewAction } from "@/components/agents/master-tasks";
 import { AgentSettingsForm, DEFAULT_AGENT_SETTINGS, type AgentSettings } from "@/components/agents/agent-settings";
 import { BrowserPanel } from "@/components/browser/browser-panel";
 import type { ChatState, WorkspaceAgent } from "@/components/agents/agent-workspace";
@@ -57,6 +57,7 @@ export function AgentPanel({
   plansLoaded,
   agents,
   onPlanAction,
+  onReview,
   onOpenMaster,
   onOpenBrowser,
   browserHelp,
@@ -85,6 +86,7 @@ export function AgentPanel({
   plansLoaded: boolean;
   agents: WorkspaceAgent[];
   onPlanAction: (planId: number, action: PlanAction) => Promise<string | null>;
+  onReview: ReviewAction;
   onOpenMaster: () => void;
   onOpenBrowser: (role: AgentRoleId) => void;
   browserHelp: AgentStatusView[];
@@ -223,7 +225,7 @@ export function AgentPanel({
                 <Button size="sm" onClick={() => onOpenBrowser(agentId)}>{surface === "computer" ? t("Open the computer") : t("Open the browser")}</Button>
               </div>
             ))}
-            <MasterTasks plans={plans} loaded={plansLoaded} agents={agents} onAction={onPlanAction} onOpenBrowser={onOpenBrowser} />
+            <MasterTasks plans={plans} loaded={plansLoaded} agents={agents} onAction={onPlanAction} onReview={onReview} onOpenBrowser={onOpenBrowser} />
           </TabsContent>
         ) : (
           <TabsContent value="history" className="min-h-0 overflow-y-auto pt-4">
